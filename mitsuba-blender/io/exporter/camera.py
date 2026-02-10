@@ -6,7 +6,7 @@ def export_camera(camera_instance, b_scene, export_ctx):
     #camera
     b_camera = camera_instance.object#TODO: instances here too?
     params = {}
-    params['type'] = 'perspective'
+    params['type'] = 'microphone'
 
     res_x = b_scene.render.resolution_x
     res_y = b_scene.render.resolution_y
@@ -46,7 +46,7 @@ def export_camera(camera_instance, b_scene, export_ctx):
     params['sampler'] = sampler
 
     film = {}
-    film['type'] = 'hdrfilm'
+    film['type'] = 'tape'
 
     scale = b_scene.render.resolution_percentage / 100
     film['width'] = int(res_x * scale)

@@ -1,6 +1,20 @@
+# VS Code
 .vscode*
+
+# Blender
 *.blend*
+
+# Python
 __pycache__*
-tests/**/out
 .pytest_cache
 .coverage
+.venv/
+venv/
+*.pyc
+
+# Build / Artifacts
+*.zip
+
+# Test output
+tests/**/out
+
