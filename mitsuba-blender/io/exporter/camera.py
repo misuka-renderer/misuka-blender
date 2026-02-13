@@ -2,11 +2,13 @@ from mathutils import Matrix
 import numpy as np
 from math import degrees
 
-def export_camera(camera_instance, b_scene, export_ctx):
-    #camera
+def export_camera(camera_instance, b_scene, export_ctx):    #camera
+
+    acoustic_mode = export_ctx.acoustic_mode #neu
+
     b_camera = camera_instance.object#TODO: instances here too?
     params = {}
-    params['type'] = 'microphone'
+    params['type'] = 'microphone' if acoustic_mode else 'perspective'
 
     res_x = b_scene.render.resolution_x
     res_y = b_scene.render.resolution_y
@@ -46,7 +48,7 @@ def export_camera(camera_instance, b_scene, export_ctx):
     params['sampler'] = sampler
 
     film = {}
-    film['type'] = 'tape'
+    film['type'] = 'tape' if acoustic_mode else 'hdrfilm'
 
     scale = b_scene.render.resolution_percentage / 100
     film['width'] = int(res_x * scale)

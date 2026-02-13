@@ -22,7 +22,7 @@ import subprocess
 
 from . import io, engine
 
-DEPS_MITSUBA_VERSION = '3.5.0'
+DEPS_MITSUBA_VERSION = None
 
 def get_addon_preferences(context):
     return context.preferences.addons[__name__].preferences
@@ -185,10 +185,10 @@ def update_mitsuba_custom_path(self, context):
             try_reload_mitsuba(context)
 
 def update_installed_dependencies_version(self, context):
-    self.has_valid_dependencies_version = self.installed_dependencies_version == DEPS_MITSUBA_VERSION
+    self.has_valid_dependencies_version = True
 
 def update_mitsuba_custom_version(self, context):
-    self.has_valid_mitsuba_custom_version = self.mitsuba_custom_version == DEPS_MITSUBA_VERSION
+    self.has_valid_mitsuba_custom_version = True
 
 class MitsubaPreferences(AddonPreferences):
     bl_idname = __name__
