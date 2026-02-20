@@ -18,3 +18,4 @@ venv/
 # Test output
 tests/**/out
 
+.DS_Store

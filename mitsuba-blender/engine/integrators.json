@@ -1,4 +1,30 @@
 {
+    "acoustic_path": {
+        "label": "MISUKA: Acoustic Path",
+        "description": "Acoustic path replay backpropagation integrator.",
+        "parameters": {
+            "max_depth": {
+                "label": "Max. Depth",
+                "description": "Longest path depth.",
+                "type": "integer",
+                "default": -1,
+                "min": -1
+            },
+            "rr_depth": {
+                "label": "Russian Roulette Depth",
+                "description": "Minimum path depth at which russian roulette is used.",
+                "type": "integer",
+                "default": 5,
+                "min": 0
+            },
+            "hide_emitters": {
+                "label": "Hide Emitters",
+                "description": "Hide directly visible emitters.",
+                "type": "boolean",
+                "default": false
+            }
+        }
+    },
     "path" : {
         "label" : "Path Tracer",
         "description" : "Standard path tracer.",

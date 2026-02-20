@@ -104,7 +104,8 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
             default = True
     )
 
-    acoustic_mode: bpy.props.BoolProperty( #neu
+    #MISUKA check box in export window
+    acoustic_mode: bpy.props.BoolProperty(                  
         name="MISUKA: Acoustic Mode",
         description="Export MISUKA acoustic scene",
         default=True
@@ -128,7 +129,7 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         self.converter.export_ctx.axis_mat = axis_mat
         # Add IDs to all base plugins (shape, emitter, sensor...)
         self.converter.export_ctx.export_ids = self.export_ids
-        self.converter.export_ctx.acoustic_mode = self.acoustic_mode #neu
+        self.converter.export_ctx.acoustic_mode = self.acoustic_mode #add acoustic mode to export context
 
         self.converter.use_selection = self.use_selection
 

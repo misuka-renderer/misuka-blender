@@ -48,20 +48,39 @@ class SceneConverter:
         if bpy.ops.object.mode_set.poll():
             bpy.ops.object.mode_set(mode='OBJECT')
 
-        #depsgraph = context.evaluated_depsgraph_get()
+        # Store dependency graph
         self.export_ctx.deg = depsgraph
+        b_scene = depsgraph.scene  # TODO: what if there are multiple scenes?
 
-        b_scene = depsgraph.scene #TODO: what if there are multiple scenes?
+        acoustic_mode = self.export_ctx.acoustic_mode
+
+        # --- Integrator setup ---
         if b_scene.render.engine == 'MITSUBA':
-            integrator = getattr(b_scene.mitsuba.available_integrators,b_scene.mitsuba.active_integrator).to_dict()
+
+            if acoustic_mode:
+                # Force acoustic integrator
+                integrator = getattr(
+                    b_scene.mitsuba.available_integrators,
+                    "acoustic_path"
+                ).to_dict()
+            else:
+                integrator = getattr(
+                    b_scene.mitsuba.available_integrators,
+                    b_scene.mitsuba.active_integrator
+                ).to_dict()
+
         else:
             integrator = {
-                'type':'path',
+                'type': 'path',
                 'max_depth': b_scene.cycles.max_bounces
             }
+
+        # Use original export mechanism
         self.export_ctx.data_add(integrator)
 
+        # --- Rest of original exporter ---
         materials.export_world(self.export_ctx, b_scene.world, self.ignore_background)
+
 
         # Establish list of particle objects
         particles = []
