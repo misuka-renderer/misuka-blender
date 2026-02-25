@@ -56,21 +56,48 @@ def convert_area_light(b_light, export_ctx):
     return params
 
 def convert_point_light(b_light, export_ctx):
-    #normalize by the solid angle of a sphere
-    energy = b_light.data.energy / (4*np.pi)
-    intensity = export_ctx.spectrum(energy * b_light.data.color)
 
-    #get the world position. b_light.location is only local
+    # Standard Mitsuba Verhalten
+    if not export_ctx.acoustic_mode:
+
+        energy = b_light.data.energy / (4*np.pi)
+        intensity = export_ctx.spectrum(energy * b_light.data.color)
+
+        transform = export_ctx.transform_matrix(b_light.matrix_world)
+        position = list(transform.translation())
+
+        return {
+            'type': 'point',
+            'position': position,
+            'intensity': intensity
+        }
+
+    # ======================================
+    # MISUKA Acoustic Mode
+    # ======================================
+
+    energy = b_light.data.energy / (4*np.pi)
+    radiance = export_ctx.spectrum(energy * b_light.data.color)
+
     transform = export_ctx.transform_matrix(b_light.matrix_world)
     position = list(transform.translation())
 
-    if b_light.data.shadow_soft_size:
-        export_ctx.log("Light '%s' has a non-zero soft shadow radius. It will be ignored." % b_light.name_full, 'WARN')
+    # Radius aus Blender übernehmen
+    radius = b_light.data.shadow_soft_size
+    if radius <= 0:
+        radius = 0.1  # stabiler Fallback
 
     return {
-        'type'      : 'point',
-        'position'  : position,
-        'intensity' : intensity
+        'type': 'sphere',
+        'center': position,
+        'radius': radius,
+        'emitter': {
+            'type': 'area',
+            'radiance': radiance
+        },
+        'bsdf': {
+            'type': 'null'
+        }
     }
 
 def convert_sun_light(b_light, export_ctx):

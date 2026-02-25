@@ -287,7 +287,7 @@ class MitsubaRenderSettings(PropertyGroup):
     active_integrator : EnumProperty(
         name = "Integrator",
         items = enum_integrators,
-        default = "path"
+        default = "acoustic_path"
     )
     # Dynamic class for integrator parameters
     IntegratorProperties = type("IntegratorProperties",

@@ -63,6 +63,8 @@ class SceneConverter:
                     b_scene.mitsuba.available_integrators,
                     "acoustic_path"
                 ).to_dict()
+                # Required for acoustic integrator
+                integrator['max_time'] = 2.0
             else:
                 integrator = getattr(
                     b_scene.mitsuba.available_integrators,
