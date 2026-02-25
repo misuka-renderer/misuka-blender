@@ -60,6 +60,13 @@ def convert_point_light(b_light, export_ctx):
     # Standard Mitsuba Verhalten
     if not export_ctx.acoustic_mode:
 
+        if b_light.data.shadow_soft_size:
+            export_ctx.log(
+                "Light '%s' has a non-zero soft shadow radius. It will be ignored."
+                % b_light.name_full,
+                'WARN'
+            )
+
         energy = b_light.data.energy / (4*np.pi)
         intensity = export_ctx.spectrum(energy * b_light.data.color)
 
