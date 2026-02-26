@@ -79,7 +79,7 @@ class ExportContext:
             'shape': 'meshes',
             'spectrum': 'spectra'
                             }
-        self.acoustic_mode = False #neu
+        self.acoustic_mode = False #default
 
 
     def data_add(self, mts_dict, name=''):

@@ -260,6 +260,15 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
         raise NotImplementedError("Mixing a BSDF and an emitter is not supported. Consider using an Add shader instead.")
 
 def convert_principled_materials_cycles(export_ctx, current_node):
+    
+    if export_ctx.acoustic_mode:
+        params = {
+            'type': 'acousticbsdf',
+            'absorption': 0.5,
+            'scattering': 0.5
+        }
+        return two_sided_bsdf(params)
+    
     params = {}
 
     if bpy.app.version >= (4, 0, 0):
@@ -448,9 +457,13 @@ def convert_world(export_ctx, world, ignore_background):
         if not output_node.inputs["Surface"].is_linked:
             return
         surface_node = output_node.inputs["Surface"].links[0].from_node
-        if surface_node.inputs['Strength'].is_linked:
-            raise NotImplementedError("Only default emitter strength value is supported.")#TODO: value input
-        strength = surface_node.inputs['Strength'].default_value
+
+        if 'Strength' in surface_node.inputs:
+            if surface_node.inputs['Strength'].is_linked:
+                raise NotImplementedError("Only default emitter strength value is supported.")
+            strength = surface_node.inputs['Strength'].default_value
+        else:
+            strength = 1.0  # Fallback
 
         if strength == 0: # Don't add an emitter if it emits nothing
             export_ctx.log('Ignoring envmap with zero strength.', 'INFO')

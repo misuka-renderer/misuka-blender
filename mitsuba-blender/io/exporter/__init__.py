@@ -50,9 +50,9 @@ class SceneConverter:
 
         # Store dependency graph
         self.export_ctx.deg = depsgraph
+        
         b_scene = depsgraph.scene  # TODO: what if there are multiple scenes?
-
-        acoustic_mode = self.export_ctx.acoustic_mode
+        acoustic_mode = self.export_ctx.acoustic_mode 
 
         # --- Integrator setup ---
         if b_scene.render.engine == 'MITSUBA':

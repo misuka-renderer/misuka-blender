@@ -79,20 +79,19 @@ def convert_point_light(b_light, export_ctx):
             'intensity': intensity
         }
 
-    # ======================================
+        # ======================================
     # MISUKA Acoustic Mode
     # ======================================
 
     energy = b_light.data.energy / (4*np.pi)
-    radiance = export_ctx.spectrum(energy * b_light.data.color)
 
     transform = export_ctx.transform_matrix(b_light.matrix_world)
     position = list(transform.translation())
 
-    # Radius aus Blender übernehmen
+    #blender-radius
     radius = b_light.data.shadow_soft_size
     if radius <= 0:
-        radius = 0.1  # stabiler Fallback
+        radius = 0.1  #Fallback
 
     return {
         'type': 'sphere',
@@ -100,11 +99,13 @@ def convert_point_light(b_light, export_ctx):
         'radius': radius,
         'emitter': {
             'type': 'area',
-            'radiance': radiance
+            'radiance': {
+                'type': 'uniform',
+                'value': float(energy)
+            }
         },
-        'bsdf': {
-            'type': 'null'
-        }
+        #emitter as source and not reflecting
+        'bsdf': {'type': 'null'}
     }
 
 def convert_sun_light(b_light, export_ctx):
