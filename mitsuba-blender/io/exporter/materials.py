@@ -260,11 +260,19 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
         raise NotImplementedError("Mixing a BSDF and an emitter is not supported. Consider using an Add shader instead.")
 
 def convert_principled_materials_cycles(export_ctx, current_node):
-    
+
     if export_ctx.acoustic_mode:
+
+        iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000]
+        values = [0.5] * len(iso_octaves)
+        
+        spectrum_pairs = [
+            (int(f), round(float(v), 3))
+            for f, v in zip(iso_octaves, values)
+        ]
         params = {
             'type': 'acousticbsdf',
-            'absorption': 0.5,
+            'absorption': export_ctx.spectrum(spectrum_pairs, mode='spectrum'),
             'scattering': 0.5
         }
         return two_sided_bsdf(params)
