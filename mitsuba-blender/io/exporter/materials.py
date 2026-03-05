@@ -3,6 +3,61 @@ import numpy as np
 from mathutils import Matrix
 from .export_context import Files
 
+import json
+import os
+
+#Load acoustic material database once and cache it in the export context
+def load_material_db(export_ctx):
+
+    # cache: loading DB once
+    if hasattr(export_ctx, "material_db"):
+        return export_ctx.material_db
+
+    db_path = os.path.join(
+        export_ctx.directory,
+        "materials",
+        "material_db_demo_data.json"
+    )
+
+    if not os.path.exists(db_path):
+        export_ctx.log("Material DB not found. Using fallback materials.", 'INFO')
+        export_ctx.material_db = None
+        return None
+
+    try:
+        with open(db_path, "r", encoding="utf-8") as f:
+            db = json.load(f)
+
+        # Mongo export: root["data"]
+        export_ctx.material_db = db.get("data", [])
+
+        export_ctx.log(f"Loaded material DB ({len(export_ctx.material_db)} entries).", "INFO")
+
+    except Exception as e:
+        export_ctx.log(f"Failed to load material DB: {e}", "WARN")
+        export_ctx.material_db = None
+
+    return export_ctx.material_db
+
+#Match Blender material name with database product label
+def find_material(export_ctx, material_name):
+
+    db = load_material_db(export_ctx)
+
+    if db is None:
+        return None
+
+    for entry in db:
+
+        product = entry.get("product", {})
+        label = product.get("label", "")
+        #case-insesitive
+        if label.strip().lower() == material_name.strip().lower():
+            return entry
+
+    return None
+
+
 RoughnessMode = {'GGX': 'ggx', 'BECKMANN': 'beckmann', 'ASHIKHMIN_SHIRLEY':'beckmann', 'MULTI_GGX':'ggx'}
 #TODO: update when other distributions are supported
 
@@ -210,8 +265,11 @@ def convert_add_materials_cycles(export_ctx, current_node):
         return params
     else:
         #one emitter, one bsdf
-        return [cycles_material_to_dict(export_ctx, mat_I),
-                cycles_material_to_dict(export_ctx, mat_II)]
+        material = mat_I.id_data
+        return [
+            cycles_material_to_dict(export_ctx, mat_I, material),
+            cycles_material_to_dict(export_ctx, mat_II, material)
+        ]
 
 def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix this
     if not current_node.inputs[1].is_linked or not current_node.inputs[2].is_linked:
@@ -244,13 +302,13 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
             'weight': weight
         }
         # add first material
-        mat_A = cycles_material_to_dict(export_ctx, mat_I)
+        mat_A = cycles_material_to_dict(export_ctx, mat_I, mat_I.id_data)
         params.update([
             ('bsdf1', mat_A)
         ])
 
         # add second materials
-        mat_B = cycles_material_to_dict(export_ctx, mat_II)
+        mat_B = cycles_material_to_dict(export_ctx, mat_II, mat_II.id_data)
         params.update([
             ('bsdf2', mat_B)
         ])
@@ -258,25 +316,100 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
         return params
     else:#one bsdf, one emitter
         raise NotImplementedError("Mixing a BSDF and an emitter is not supported. Consider using an Add shader instead.")
+    
+#Extract octave-band absorption coefficients from the material database
+def extract_absorption(entry):
 
-def convert_principled_materials_cycles(export_ctx, current_node):
+    # Format 1
+    data = entry.get("absorptionISO354", {}).get("alphaSOct", {})
+
+    # Format 2
+    if not data and "grades" in entry:
+        grades = entry["grades"]
+        if grades:
+            data = grades[0].get("alphaSOct", {})
+
+    result = {}
+
+    for k, v in data.items():
+        if v == "" or v is None:
+            continue
+
+        freq = int(k.replace("Hz", "").replace(" ", "").strip())
+        result[freq] = float(v)
+
+    return result
+
+#missing values filled by linear interpolation, Values outside of the known range are filled with the closest known value.
+def interpolate_octaves(abs_data, target_freqs):
+
+    freqs = sorted(abs_data.keys())
+    values = []
+
+    for f in target_freqs:
+
+        if f in abs_data:
+            values.append(abs_data[f])
+            continue
+
+        if f < freqs[0]:
+            values.append(abs_data[freqs[0]])
+            continue
+
+        if f > freqs[-1]:
+            values.append(abs_data[freqs[-1]])
+            continue
+
+        for i in range(len(freqs)-1):
+            f1, f2 = freqs[i], freqs[i+1]
+
+            if f1 < f < f2:
+                v1, v2 = abs_data[f1], abs_data[f2]
+                v = v1 + (f-f1)/(f2-f1) * (v2-v1)
+                values.append(v)
+                break
+
+    return values
+
+#Extension for acoustic rendering
+def convert_principled_materials_cycles(export_ctx, current_node, material):
 
     if export_ctx.acoustic_mode:
 
-        iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000]
-        values = [0.5] * len(iso_octaves)
-        
+        scatter_override = material.get("scattering", None)
+
+        material_name = material.name
+        print("BLENDER MATERIAL:", material_name)
+
+        entry = find_material(export_ctx, material_name)
+        print("ENTRY:", entry)
+
+        iso_octaves = [63,125,250,500,1000,2000,4000,8000]
+
+        if entry:
+            abs_data = extract_absorption(entry)
+            values = interpolate_octaves(abs_data, iso_octaves)
+        else:
+            values = [0.5] * len(iso_octaves)
+
+        if scatter_override is not None:
+            scattering = float(scatter_override)
+        else:
+            scattering = 0.5
+
         spectrum_pairs = [
-            (int(f), round(float(v), 3))
-            for f, v in zip(iso_octaves, values)
+            (int(f), round(float(v),3))
+            for f,v in zip(iso_octaves, values)
         ]
+
         params = {
-            'type': 'acousticbsdf',
+            'type':'acousticbsdf',
             'absorption': export_ctx.spectrum(spectrum_pairs, mode='spectrum'),
-            'scattering': 0.5
+            'scattering': scattering
         }
+
         return two_sided_bsdf(params)
-    
+
     params = {}
 
     if bpy.app.version >= (4, 0, 0):
@@ -355,13 +488,18 @@ cycles_converters = {
     'ADD_SHADER': convert_add_materials_cycles,
 }
 
-def cycles_material_to_dict(export_ctx, node):
+def cycles_material_to_dict(export_ctx, node, material):
     ''' Converting one material from Blender to Mitsuba dict'''
 
-    if node.type in cycles_converters:
-        params = cycles_converters[node.type](export_ctx, node)
+    if node.type not in cycles_converters:
+        raise NotImplementedError(
+            "Node type: %s is not supported in Mitsuba." % node.type
+        )
+
+    if node.type == 'BSDF_PRINCIPLED':
+        params = cycles_converters[node.type](export_ctx, node, material)
     else:
-        raise NotImplementedError("Node type: %s is not supported in Mitsuba." % node.type)
+        params = cycles_converters[node.type](export_ctx, node)
 
     return params
 
@@ -382,7 +520,7 @@ def b_material_to_dict(export_ctx, b_mat):
             if output_node_id in b_mat.node_tree.nodes:
                 output_node = b_mat.node_tree.nodes[output_node_id]
                 surface_node = output_node.inputs["Surface"].links[0].from_node
-                mat_params = cycles_material_to_dict(export_ctx, surface_node)
+                mat_params = cycles_material_to_dict(export_ctx, surface_node, b_mat)
             else:
                 export_ctx.log(f'Export of material {b_mat.name} failed: Cannot find material output node. Exporting a dummy material instead.', 'WARN')
                 mat_params = get_dummy_material(export_ctx)
