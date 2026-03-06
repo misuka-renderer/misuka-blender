@@ -51,7 +51,7 @@ def find_material(export_ctx, material_name):
 
         product = entry.get("product", {})
         label = product.get("label", "")
-        #case-insesitive
+        #case-insensitive
         if label.strip().lower() == material_name.strip().lower():
             return entry
 
@@ -320,22 +320,55 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
 #Extract octave-band absorption coefficients from the material database
 def extract_absorption(entry):
 
-    # Format 1
+    # try octave data
     data = entry.get("absorptionISO354", {}).get("alphaSOct", {})
 
-    # Format 2
-    if not data and "grades" in entry:
-        grades = entry["grades"]
-        if grades:
-            data = grades[0].get("alphaSOct", {})
+    # fallback: third-octave
+    third = entry.get("absorptionISO354", {}).get("alphaSTerz", {})
+
+    if not data and third:
+
+        # convert third -> octave
+        third_values = {}
+
+        for k, v in third.items():
+
+            if v == "" or v is None:
+                continue
+
+            freq = int(k.replace("Hz","").strip())
+            third_values[freq] = float(v)
+
+        octave_map = {
+            63:  [50,63,80],
+            125: [100,125,160],
+            250: [200,250,315],
+            500: [400,500,630],
+            1000:[800,1000,1250],
+            2000:[1600,2000,2500],
+            4000:[3150,4000,5000],
+            8000:[6300,8000,10000],
+        }
+
+        result = {}
+
+        for oct_f, thirds in octave_map.items():
+
+            vals = [third_values[t] for t in thirds if t in third_values]
+
+            if len(vals) > 0:
+                result[oct_f] = sum(vals)/len(vals)
+
+        return result
 
     result = {}
 
     for k, v in data.items():
+
         if v == "" or v is None:
             continue
 
-        freq = int(k.replace("Hz", "").replace(" ", "").strip())
+        freq = int(k.replace("Hz", "").strip())
         result[freq] = float(v)
 
     return result
@@ -344,6 +377,13 @@ def extract_absorption(entry):
 def interpolate_octaves(abs_data, target_freqs):
 
     freqs = sorted(abs_data.keys())
+    if not freqs:
+        return [0.5] * len(target_freqs)
+
+    # edge case: only one frequency available
+    if len(freqs) == 1:
+        return [abs_data[freqs[0]]] * len(target_freqs)
+
     values = []
 
     for f in target_freqs:
@@ -376,34 +416,33 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
 
     if export_ctx.acoustic_mode:
 
-        scatter_override = material.get("scattering", None)
-
         material_name = material.name
-        print("BLENDER MATERIAL:", material_name)
-
         entry = find_material(export_ctx, material_name)
-        print("ENTRY:", entry)
 
-        iso_octaves = [63,125,250,500,1000,2000,4000,8000]
+        iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000]
+
+        # Default absorption fallback
+        values = [0.5] * len(iso_octaves)
 
         if entry:
             abs_data = extract_absorption(entry)
-            values = interpolate_octaves(abs_data, iso_octaves)
-        else:
-            values = [0.5] * len(iso_octaves)
 
-        if scatter_override is not None:
-            scattering = float(scatter_override)
-        else:
+            if abs_data:
+                values = interpolate_octaves(abs_data, iso_octaves)
+
+        # scattering
+        try:
+            scattering = float(material.get("scattering", 0.5))
+        except (TypeError, ValueError):
             scattering = 0.5
 
         spectrum_pairs = [
-            (int(f), round(float(v),3))
-            for f,v in zip(iso_octaves, values)
+            (f, round(v, 3))
+            for f, v in zip(iso_octaves, values)
         ]
 
         params = {
-            'type':'acousticbsdf',
+            'type': 'acousticbsdf',
             'absorption': export_ctx.spectrum(spectrum_pairs, mode='spectrum'),
             'scattering': scattering
         }
