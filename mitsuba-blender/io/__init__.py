@@ -11,6 +11,7 @@ import bpy
 from bpy.props import (
         StringProperty,
         BoolProperty,
+        FloatProperty,
     )
 from bpy_extras.io_utils import (
         ImportHelper,
@@ -22,6 +23,57 @@ from bpy_extras.io_utils import (
 from . import bl_utils
 from . import importer
 from . import exporter
+
+# ---------- Acoustic Material UI ----------
+
+def register_acoustic_properties():
+
+    bpy.types.Material.acoustic_abs_63 = FloatProperty(name="Absorption 63Hz", default=0.5, min=0, max=1)
+    bpy.types.Material.acoustic_abs_125 = FloatProperty(name="Absorption 125Hz", default=0.5, min=0, max=1)
+    bpy.types.Material.acoustic_abs_250 = FloatProperty(name="Absorption 250Hz", default=0.5, min=0, max=1)
+    bpy.types.Material.acoustic_abs_500 = FloatProperty(name="Absorption 500Hz", default=0.5, min=0, max=1)
+    bpy.types.Material.acoustic_abs_1000 = FloatProperty(name="Absorption 1000Hz", default=0.5, min=0, max=1)
+    bpy.types.Material.acoustic_abs_2000 = FloatProperty(name="Absorption 2000Hz", default=0.5, min=0, max=1)
+    bpy.types.Material.acoustic_abs_4000 = FloatProperty(name="Absorption 4000Hz", default=0.5, min=0, max=1)
+    bpy.types.Material.acoustic_abs_8000 = FloatProperty(name="Absorption 8000Hz", default=0.5, min=0, max=1)
+
+    bpy.types.Material.acoustic_scattering = FloatProperty(name="Scattering", default=0.5, min=0, max=1)
+
+
+class ACOUSTIC_PT_material(bpy.types.Panel):
+
+    bl_label = "Acoustic Material"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "material"
+
+    def draw(self, context):
+
+        layout = self.layout
+        mat = context.material
+
+        if mat is None:
+            return
+
+        col = layout.column()
+
+    
+        layout.operator("acoustic.load_db_material")
+        col.label(text="Absorption")
+
+        col.prop(mat, "acoustic_abs_63")
+        col.prop(mat, "acoustic_abs_125")
+        col.prop(mat, "acoustic_abs_250")
+        col.prop(mat, "acoustic_abs_500")
+        col.prop(mat, "acoustic_abs_1000")
+        col.prop(mat, "acoustic_abs_2000")
+        col.prop(mat, "acoustic_abs_4000")
+        col.prop(mat, "acoustic_abs_8000")
+
+        layout.separator()
+
+        layout.prop(mat, "acoustic_scattering")
+
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
 class ImportMistuba(bpy.types.Operator, ImportHelper):
@@ -166,12 +218,15 @@ def menu_import_func(self, context):
 
 classes = (
     ImportMistuba,
-    ExportMitsuba
+    ExportMitsuba,
+    ACOUSTIC_PT_material
 )
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+
+    register_acoustic_properties()
 
     bpy.types.TOPBAR_MT_file_export.append(menu_export_func)
     bpy.types.TOPBAR_MT_file_import.append(menu_import_func)
@@ -179,6 +234,16 @@ def register():
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
+
+    del bpy.types.Material.acoustic_abs_63
+    del bpy.types.Material.acoustic_abs_125
+    del bpy.types.Material.acoustic_abs_250
+    del bpy.types.Material.acoustic_abs_500
+    del bpy.types.Material.acoustic_abs_1000
+    del bpy.types.Material.acoustic_abs_2000
+    del bpy.types.Material.acoustic_abs_4000
+    del bpy.types.Material.acoustic_abs_8000
+    del bpy.types.Material.acoustic_scattering
 
     bpy.types.TOPBAR_MT_file_export.remove(menu_export_func)
     bpy.types.TOPBAR_MT_file_import.remove(menu_import_func)

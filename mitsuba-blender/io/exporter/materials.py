@@ -417,24 +417,38 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
     if export_ctx.acoustic_mode:
 
         material_name = material.name
-        entry = find_material(export_ctx, material_name)
-
         iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000]
 
-        # Default absorption fallback
-        values = [0.5] * len(iso_octaves)
+        manual_values = [
+            material.acoustic_abs_63,
+            material.acoustic_abs_125,
+            material.acoustic_abs_250,
+            material.acoustic_abs_500,
+            material.acoustic_abs_1000,
+            material.acoustic_abs_2000,
+            material.acoustic_abs_4000,
+            material.acoustic_abs_8000
+        ]
 
-        if entry:
-            abs_data = extract_absorption(entry)
+        manual_scattering = material.acoustic_scattering
 
-            if abs_data:
-                values = interpolate_octaves(abs_data, iso_octaves)
+        if any(v != 0.5 for v in manual_values) or manual_scattering != 0.5:
+            values = manual_values
+
+        else:
+            # 2) DB lookup
+            entry = find_material(export_ctx, material_name)
+
+            values = [0.5] * len(iso_octaves)
+
+            if entry:
+                abs_data = extract_absorption(entry)
+
+                if abs_data:
+                    values = interpolate_octaves(abs_data, iso_octaves)
 
         # scattering
-        try:
-            scattering = float(material.get("scattering", 0.5))
-        except (TypeError, ValueError):
-            scattering = 0.5
+        scattering = manual_scattering
 
         spectrum_pairs = [
             (f, round(v, 3))
