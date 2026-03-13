@@ -57,10 +57,7 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
         col = layout.column()
 
-    
-        layout.operator("acoustic.load_db_material")
         col.label(text="Absorption")
-
         col.prop(mat, "acoustic_abs_63")
         col.prop(mat, "acoustic_abs_125")
         col.prop(mat, "acoustic_abs_250")

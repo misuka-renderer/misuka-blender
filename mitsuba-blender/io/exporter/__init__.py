@@ -54,6 +54,10 @@ class SceneConverter:
         b_scene = depsgraph.scene  # TODO: what if there are multiple scenes?
         acoustic_mode = self.export_ctx.acoustic_mode 
 
+        # Enable useful IDs for acoustic scenes
+        if acoustic_mode:
+            self.export_ctx.export_ids = True
+
         # --- Integrator setup ---
         if b_scene.render.engine == 'MITSUBA':
 
@@ -77,8 +81,11 @@ class SceneConverter:
                 'max_depth': b_scene.cycles.max_bounces
             }
 
-        # Use original export mechanism
-        self.export_ctx.data_add(integrator)
+        #issue request: useful naming
+        if acoustic_mode:
+            self.export_ctx.data_add(integrator, name="integrator")
+        else:
+            self.export_ctx.data_add(integrator)
 
         # --- Rest of original exporter ---
         materials.export_world(self.export_ctx, b_scene.world, self.ignore_background)
