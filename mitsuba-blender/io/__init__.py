@@ -23,6 +23,7 @@ from bpy_extras.io_utils import (
 from . import bl_utils
 from . import importer
 from . import exporter
+from .exporter.materials import interpolate_octaves
 
 # ---------- Acoustic Material UI ----------
 
@@ -57,7 +58,12 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
         col = layout.column()
 
+        col.operator("acoustic.reset", text="Reset All Values")
+
+        col.separator()
+
         col.label(text="Absorption")
+
         col.prop(mat, "acoustic_abs_63")
         col.prop(mat, "acoustic_abs_125")
         col.prop(mat, "acoustic_abs_250")
@@ -67,9 +73,87 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         col.prop(mat, "acoustic_abs_4000")
         col.prop(mat, "acoustic_abs_8000")
 
-        layout.separator()
+        col.operator("acoustic.interpolate", text="Interpolate")
 
-        layout.prop(mat, "acoustic_scattering")
+        col.separator()
+
+        col.prop(mat, "acoustic_scattering")
+        
+
+class ACOUSTIC_OT_interpolate(bpy.types.Operator):
+
+    bl_idname = "acoustic.interpolate"
+    bl_label = "Interpolate Missing Values"
+
+    def execute(self, context):
+
+        mat = context.material
+
+        if mat is None:
+            return {'CANCELLED'}
+
+        iso_octaves = [63,125,250,500,1000,2000,4000,8000]
+
+        props = [
+            "acoustic_abs_63",
+            "acoustic_abs_125",
+            "acoustic_abs_250",
+            "acoustic_abs_500",
+            "acoustic_abs_1000",
+            "acoustic_abs_2000",
+            "acoustic_abs_4000",
+            "acoustic_abs_8000"
+        ]
+
+        values = [getattr(mat, p) for p in props]
+
+        # build dict of manually set values
+        abs_data = {}
+
+        for f, v in zip(iso_octaves, values):
+            if v != 0.5:
+                abs_data[f] = v
+
+        if len(abs_data) > 2:
+            freqs = sorted(abs_data.keys())
+            abs_data = {
+                freqs[0]: abs_data[freqs[0]],
+                freqs[-1]: abs_data[freqs[-1]]
+            }
+
+        if abs_data:
+            new_vals = interpolate_octaves(abs_data, iso_octaves)
+
+            for p, v in zip(props, new_vals):
+                setattr(mat, p, v)
+
+        return {'FINISHED'}
+
+class ACOUSTIC_OT_reset(bpy.types.Operator):
+    bl_idname = "acoustic.reset"
+    bl_label = "Reset Acoustic Values"
+
+    def execute(self, context):
+
+        mat = context.material
+
+        freqs = [
+            "acoustic_abs_63",
+            "acoustic_abs_125",
+            "acoustic_abs_250",
+            "acoustic_abs_500",
+            "acoustic_abs_1000",
+            "acoustic_abs_2000",
+            "acoustic_abs_4000",
+            "acoustic_abs_8000",
+        ]
+
+        for f in freqs:
+            setattr(mat, f, 0.5)
+
+        mat.acoustic_scattering = 0.5
+
+        return {'FINISHED'}
 
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
@@ -216,7 +300,9 @@ def menu_import_func(self, context):
 classes = (
     ImportMistuba,
     ExportMitsuba,
-    ACOUSTIC_PT_material
+    ACOUSTIC_PT_material,
+    ACOUSTIC_OT_reset,
+    ACOUSTIC_OT_interpolate
 )
 
 def register():

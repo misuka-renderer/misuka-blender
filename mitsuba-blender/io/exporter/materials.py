@@ -432,11 +432,21 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
 
         manual_scattering = material.acoustic_scattering
 
-        if any(v != 0.5 for v in manual_values) or manual_scattering != 0.5:
-            values = manual_values
+        manual_dict = {}
+
+        #collect manual values
+        for f, v in zip(iso_octaves, manual_values):
+            if v != 0.5:
+                manual_dict[f] = v
+
+        #check if ALL values are default
+        all_default = all(v == 0.5 for v in manual_values)
+
+        if not all_default:
+            values = interpolate_octaves(manual_dict, iso_octaves)
 
         else:
-            # 2) DB lookup
+            # DB lookup
             entry = find_material(export_ctx, material_name)
 
             values = [0.5] * len(iso_octaves)
@@ -447,7 +457,6 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
                 if abs_data:
                     values = interpolate_octaves(abs_data, iso_octaves)
 
-        # scattering
         scattering = manual_scattering
 
         spectrum_pairs = [
