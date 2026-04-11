@@ -348,6 +348,7 @@ def extract_absorption(entry):
             2000:[1600,2000,2500],
             4000:[3150,4000,5000],
             8000:[6300,8000,10000],
+            16000:[12500,16000,20000]
         }
 
         result = {}
@@ -417,9 +418,9 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
     if export_ctx.acoustic_mode:
 
         material_name = material.name
-        iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000]
+        iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
 
-        manual_values = [
+        manual_absorption_values = [
             material.acoustic_abs_63,
             material.acoustic_abs_125,
             material.acoustic_abs_250,
@@ -427,47 +428,73 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
             material.acoustic_abs_1000,
             material.acoustic_abs_2000,
             material.acoustic_abs_4000,
-            material.acoustic_abs_8000
+            material.acoustic_abs_8000,
+            material.acoustic_abs_16000
         ]
 
-        manual_scattering = material.acoustic_scattering
+        manual_scattering_values = [
+            material.acoustic_scat_63,
+            material.acoustic_scat_125,
+            material.acoustic_scat_250,
+            material.acoustic_scat_500,
+            material.acoustic_scat_1000,
+            material.acoustic_scat_2000,
+            material.acoustic_scat_4000,
+            material.acoustic_scat_8000,
+            material.acoustic_scat_16000
+        ]
 
-        manual_dict = {}
+        absorption_dict = {}
 
         #collect manual values
-        for f, v in zip(iso_octaves, manual_values):
+        for f, v in zip(iso_octaves, manual_absorption_values):
             if v != 0.5:
-                manual_dict[f] = v
+                absorption_dict[f] = v
 
         #check if ALL values are default
-        all_default = all(v == 0.5 for v in manual_values)
+        all_default = all(v == 0.5 for v in manual_absorption_values)
 
         if not all_default:
-            values = interpolate_octaves(manual_dict, iso_octaves)
+            absorption_values = interpolate_octaves(absorption_dict, iso_octaves)
 
         else:
             # DB lookup
             entry = find_material(export_ctx, material_name)
 
-            values = [0.5] * len(iso_octaves)
+            absorption_values = [0.5] * len(iso_octaves)
 
             if entry:
                 abs_data = extract_absorption(entry)
 
                 if abs_data:
-                    values = interpolate_octaves(abs_data, iso_octaves)
+                    absorption_values = interpolate_octaves(abs_data, iso_octaves)
 
-        scattering = manual_scattering
+        scattering_dict = {}
+
+        for f, v in zip(iso_octaves, manual_scattering_values):
+            if v != 0.5:
+                scattering_dict[f] = v
+
+        scattering_all_default = all(v == 0.5 for v in manual_scattering_values)
+
+        if not scattering_all_default:
+            scattering_values = interpolate_octaves(scattering_dict, iso_octaves)
+        else:
+            scattering_values = [0.5] * len(iso_octaves)
 
         spectrum_pairs = [
             (f, round(v, 3))
-            for f, v in zip(iso_octaves, values)
+            for f, v in zip(iso_octaves, absorption_values)
+        ]
+        scattering_pairs = [
+            (f, round(v, 3))
+            for f, v in zip(iso_octaves, scattering_values)
         ]
 
         params = {
             'type': 'acousticbsdf',
             'absorption': export_ctx.spectrum(spectrum_pairs, mode='spectrum'),
-            'scattering': scattering
+            'scattering': export_ctx.spectrum(scattering_pairs, mode='spectrum')
         }
 
         return two_sided_bsdf(params)

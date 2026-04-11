@@ -1,14 +1,14 @@
 bl_info = {
-    'name': 'Mitsuba-Blender',
-    'author': 'Baptiste Nicolet, Dorian Ros, Rami Tabbara',
-    'version': (0, 1),
+    'name': 'MISUKA Blender',
+    'author': 'Julius Schwarz, Tobias Jüterbock',
+    'version': (1, 0),
     'blender': (2, 93, 0),
     'category': 'Render',
     'location': 'File menu, render engine menu',
-    'description': 'Mitsuba integration for Blender',
-    'wiki_url': 'https://github.com/mitsuba-renderer/mitsuba-blender/wiki',
-    'tracker_url': 'https://github.com/mitsuba-renderer/mitsuba-blender/issues/new/choose',
-    'warning': 'alpha',
+    'description': 'MISUKA integration for Blender (Mitsuba Add-on)',
+    'wiki_url': 'https://github.com/misuka-renderer/misuka-blender',
+    'tracker_url': 'https://github.com/misuka-renderer/misuka-blender/issues/new/choose',
+    #'warning': 'alpha',
 }
 
 import bpy
@@ -192,6 +192,11 @@ def update_mitsuba_custom_version(self, context):
 
 class MitsubaPreferences(AddonPreferences):
     bl_idname = __name__
+
+    acousticindex_api_key: StringProperty(
+        name="AcousticIndex API Key",
+        subtype='PASSWORD'
+    )
 
     is_mitsuba_initialized : BoolProperty(
         name = 'Is Mitsuba initialized',
