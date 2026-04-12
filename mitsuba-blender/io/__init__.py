@@ -183,15 +183,15 @@ def register_acoustic_properties():
     bpy.types.Material.acoustic_abs_8000 = FloatProperty(name="Absorption 8000Hz", default=0.5, min=0, max=1)
     bpy.types.Material.acoustic_abs_16000 = FloatProperty(name="Absorption 16000Hz", default=0.5, min=0, max=1)
 
-    bpy.types.Material.acoustic_scat_63 = FloatProperty(name="Scattering 63Hz", default=0.5, min=0, max=1)
-    bpy.types.Material.acoustic_scat_125 = FloatProperty(name="Scattering 125Hz", default=0.5, min=0, max=1)
-    bpy.types.Material.acoustic_scat_250 = FloatProperty(name="Scattering 250Hz", default=0.5, min=0, max=1)
-    bpy.types.Material.acoustic_scat_500 = FloatProperty(name="Scattering 500Hz", default=0.5, min=0, max=1)
-    bpy.types.Material.acoustic_scat_1000 = FloatProperty(name="Scattering 1000Hz", default=0.5, min=0, max=1)
-    bpy.types.Material.acoustic_scat_2000 = FloatProperty(name="Scattering 2000Hz", default=0.5, min=0, max=1)
-    bpy.types.Material.acoustic_scat_4000 = FloatProperty(name="Scattering 4000Hz", default=0.5, min=0, max=1)
-    bpy.types.Material.acoustic_scat_8000 = FloatProperty(name="Scattering 8000Hz", default=0.5, min=0, max=1)
-    bpy.types.Material.acoustic_scat_16000 = FloatProperty(name="Scattering 16000Hz", default=0.5, min=0, max=1)
+    bpy.types.Material.acoustic_scat_63 = FloatProperty(name="Scattering 63Hz", default=0.25, min=0, max=1)
+    bpy.types.Material.acoustic_scat_125 = FloatProperty(name="Scattering 125Hz", default=0.25, min=0, max=1)
+    bpy.types.Material.acoustic_scat_250 = FloatProperty(name="Scattering 250Hz", default=0.25, min=0, max=1)
+    bpy.types.Material.acoustic_scat_500 = FloatProperty(name="Scattering 500Hz", default=0.25, min=0, max=1)
+    bpy.types.Material.acoustic_scat_1000 = FloatProperty(name="Scattering 1000Hz", default=0.25, min=0, max=1)
+    bpy.types.Material.acoustic_scat_2000 = FloatProperty(name="Scattering 2000Hz", default=0.25, min=0, max=1)
+    bpy.types.Material.acoustic_scat_4000 = FloatProperty(name="Scattering 4000Hz", default=0.25, min=0, max=1)
+    bpy.types.Material.acoustic_scat_8000 = FloatProperty(name="Scattering 8000Hz", default=0.25, min=0, max=1)
+    bpy.types.Material.acoustic_scat_16000 = FloatProperty(name="Scattering 16000Hz", default=0.25, min=0, max=1)
 
 
 class ACOUSTIC_PT_material(bpy.types.Panel):
@@ -214,12 +214,31 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
         col = layout.column()
 
+# Header
         col.label(text="AcousticIndex Database")
+
+        # db use instructions
+        box = col.box()
+        box.label(text="How to use:", icon='QUESTION')
+        box.label(text="1. Rename material to match database name")
+        box.label(text="2. Enter your API Key")
+        box.label(text="3. Click 'Load from Database'")
+
+        # API Key (volle Breite)
         col.prop(prefs, "acousticindex_api_key", text="API Key")
-        col.operator("acoustic.load_from_api", text="Load from AcousticIndex")
+
+        # Button (volle Breite + hervorgehoben)
+        row = col.row()
+        row.scale_y = 1.2
+        row.operator(
+            "acoustic.load_from_api",
+            text="Load from Database",
+            icon='IMPORT'
+        )
 
         col.separator()
 
+        #manual input
         col.label(text="Absorption")
 
         col.prop(mat, "acoustic_abs_63")
@@ -233,8 +252,8 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         col.prop(mat, "acoustic_abs_16000")
 
         row = col.row(align=True)
-        row.operator("acoustic.interpolate_abs", text="Interpolate")
-        row.operator("acoustic.reset_abs", text="Reset")
+        row.operator("acoustic.interpolate_abs", text="Interpolate 1 or 2 Values")
+        row.operator("acoustic.reset_abs", text="Reset to 0.5")
 
         col.separator()
 
@@ -251,8 +270,8 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         col.prop(mat, "acoustic_scat_16000")
 
         row = col.row(align=True)
-        row.operator("acoustic.interpolate_scat", text="Interpolate")
-        row.operator("acoustic.reset_scat", text="Reset")
+        row.operator("acoustic.interpolate_scat", text="Interpolate 1 or 2 Values")
+        row.operator("acoustic.reset_scat", text="Reset to 0.25")
         
 
 class ACOUSTIC_OT_interpolate_abs(bpy.types.Operator):
@@ -311,7 +330,7 @@ class ACOUSTIC_OT_interpolate_scat(bpy.types.Operator):
 
         for f, p in zip(iso_octaves, props):
             v = getattr(mat, p)
-            if v != 0.5:
+            if v != 0.25:
                 data[f] = v
 
         if len(data) > 2:
@@ -363,7 +382,7 @@ class ACOUSTIC_OT_reset_scat(bpy.types.Operator):
         ]
 
         for p in props:
-            setattr(mat, p, 0.5)
+            setattr(mat, p, 0.25)
 
         return {'FINISHED'}   
 
