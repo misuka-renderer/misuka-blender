@@ -39,6 +39,8 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
 
     def execute(self, context):
 
+        iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+
         mat = context.material
         prefs = context.preferences.addons["misuka_blender"].preferences
 
@@ -130,14 +132,10 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
             # Third octave path
             third_oct_clean = {int(k): v for k, v in third_oct.items()}
 
-            iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
-
-            from .exporter.materials import interpolate_octaves
             oct_vals = interpolate_octaves(third_oct_clean, iso_octaves)
 
         elif oct_data:
             #Direct octave path
-            iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
 
             freqs = sorted(int(k) for k in oct_data.keys())
             #missing octave values to nearest available frequency
@@ -155,16 +153,66 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
         else:
             self.report({'WARNING'}, "No usable absorption data available.")
             return {'CANCELLED'}
+        
+        # --- Scattering ---
+        # scatterISO17497_1 currently not returned by API detail endpoint
+        scatter = data.get("scatterISO17497_1")
+
+        if scatter:
+            s_terz = scatter.get("sTerz")
+            s_oct = scatter.get("sOct")
+
+            if s_terz:
+                # Third octave scattering → interpolate
+                s_terz_clean = {
+                    int(k.split()[0]): v for k, v in s_terz.items()
+                }
+
+                s_vals = interpolate_octaves(s_terz_clean, iso_octaves)
+
+            elif s_oct:
+                # Direct octave scattering → clamp
+                s_oct_clean = {
+                    int(k.split()[0]): v for k, v in s_oct.items()
+                }
+
+                freqs = sorted(s_oct_clean.keys())
+
+                def get_s(f):
+                    if f in s_oct_clean:
+                        return s_oct_clean[f]
+                    if f < freqs[0]:
+                        return s_oct_clean[freqs[0]]
+                    if f > freqs[-1]:
+                        return s_oct_clean[freqs[-1]]
+                    return 0.25
+
+                s_vals = [get_s(f) for f in iso_octaves]
+
+            else:
+                s_vals = [0.25] * len(iso_octaves)
+
+        else:
+            s_vals = [0.25] * len(iso_octaves)
 
         print("Acoustic data loaded for:", data.get("label"))
 
-        props = [
+        absorp_props = [
             "acoustic_abs_63","acoustic_abs_125","acoustic_abs_250",
             "acoustic_abs_500","acoustic_abs_1000","acoustic_abs_2000",
             "acoustic_abs_4000","acoustic_abs_8000","acoustic_abs_16000"
         ]
 
-        for p, v in zip(props, oct_vals):
+        for p, v in zip(absorp_props, oct_vals):
+            setattr(mat, p, v)
+
+        scatter_props = [
+            "acoustic_scat_63","acoustic_scat_125","acoustic_scat_250",
+            "acoustic_scat_500","acoustic_scat_1000","acoustic_scat_2000",
+            "acoustic_scat_4000","acoustic_scat_8000","acoustic_scat_16000"
+        ]
+
+        for p, v in zip(scatter_props, s_vals):
             setattr(mat, p, v)
 
         self.report({'INFO'}, f"Loaded acoustic data for '{data.get('label')}'")
