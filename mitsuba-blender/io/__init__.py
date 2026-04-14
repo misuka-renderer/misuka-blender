@@ -311,6 +311,17 @@ def register_acoustic_properties():
         #default="NONE"
     )
 
+    bpy.types.Material.show_acoustic_help = BoolProperty(
+        name="Database Instructions",
+        default=True
+    )
+
+    bpy.types.Material.show_acoustic_info = BoolProperty(
+        name="Show Info",
+        default=True
+    )
+
+
 class ACOUSTIC_PT_material(bpy.types.Panel):
 
     bl_label = "Acoustic Material"
@@ -335,13 +346,17 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         col.label(text="AcousticIndex Database")
 
         # db use instructions
-        box = col.box()
-        box.label(text="How to use:", icon='QUESTION')
-        box.label(text="1. Rename material to match database name")
-        box.label(text="2. Enter your API Key")
-        box.label(text="3. Click 'Load from Database'")
-        box.label(text="4. Select variant (optional)")
-        box.label(text="5. Click 'Apply Variant'")
+        row = col.row()
+        row.prop(mat, "show_acoustic_help", icon="TRIA_DOWN" if mat.show_acoustic_help else "TRIA_RIGHT", icon_only=True, emboss=False)
+        row.label(text="Database: How to use")
+
+        if mat.show_acoustic_help:
+            box = col.box()
+            box.label(text="1. Rename material to match database name/id")
+            box.label(text="2. Enter your API Key")
+            box.label(text="3. Click 'Load from Database'")
+            box.label(text="4. Select variant")
+            box.label(text="5. Click 'Apply Variant'")
 
         # API Key 
         col.prop(prefs, "acousticindex_api_key", text="API Key")
@@ -363,13 +378,17 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
         col.separator()
 
-        box = col.box()
-        box.label(text="How it works:", icon='INFO')
-        box.label(text="• Set one or more frequency values")
-        box.label(text="• 1 value → all bands set equal")
-        box.label(text="• 2+ values → interpolated between set points")
-        box.label(text="• Outer bands use nearest value")
-        box.label(text="• Use Reset to redefine interpolation")
+        row = col.row()
+        row.prop(mat, "show_acoustic_info", icon="TRIA_DOWN" if mat.show_acoustic_info else "TRIA_RIGHT", icon_only=True, emboss=False)
+        row.label(text="Manual Input: How it works")
+
+        if mat.show_acoustic_info:
+            box = col.box()
+            box.label(text="• Set one or more frequency values")
+            box.label(text="• 1 value → all bands set equal")
+            box.label(text="• 2+ values → interpolated between set points")
+            box.label(text="• Outer bands use nearest value")
+            box.label(text="• Use Reset to redefine interpolation")
 
         #manual input
         col.label(text="Absorption")
@@ -736,3 +755,6 @@ def unregister():
 
     bpy.types.TOPBAR_MT_file_export.remove(menu_export_func)
     bpy.types.TOPBAR_MT_file_import.remove(menu_import_func)
+
+    del bpy.types.Material.show_acoustic_help
+    del bpy.types.Material.show_acoustic_info
