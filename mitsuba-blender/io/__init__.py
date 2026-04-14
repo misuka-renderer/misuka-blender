@@ -8,6 +8,7 @@ if "bpy" in locals():
         importlib.reload(exporter)
 
 import bpy
+
 from bpy.props import (
         StringProperty,
         BoolProperty,
@@ -37,12 +38,16 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
     bl_idname = "acoustic.load_from_api"
     bl_label = "Load Acoustic Data"
 
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
     def execute(self, context):
 
         iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
 
         mat = context.material
-        prefs = context.preferences.addons["misuka_blender"].preferences
+        addon_name = __name__.split(".")[0]
+        prefs = context.preferences.addons[addon_name].preferences
 
         api_key = prefs.acousticindex_api_key.strip()
 
@@ -56,36 +61,38 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
             self.report({'ERROR'}, "Material name required.")
             return {'CANCELLED'}
 
-        search_url = (
-            "https://acousticindex.com/api/v1/materials/search"
-            f"?q={urllib.parse.quote(search_query)}&limit=1"
-        )
+        # ID or search
+        if "-" in search_query and len(search_query) > 30:
+            product_id = search_query
 
-        search_req = urllib.request.Request(
-            search_url,
-            headers={
-                "Authorization": f"Bearer {api_key}"
-            }
-        )
+        else:
+            search_url = (
+                "https://acousticindex.com/api/v1/materials/search"
+                f"?q={urllib.parse.quote(search_query)}&limit=1"
+            )
 
-        try:
-            with urllib.request.urlopen(search_req) as response:
-                search_data = json.loads(response.read().decode())
+            search_req = urllib.request.Request(
+                search_url,
+                headers={
+                    "Authorization": f"Bearer {api_key}"
+                }
+            )
 
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode()
-            print("SEARCH API ERROR:", error_body)
+            try:
+                with urllib.request.urlopen(search_req) as response:
+                    search_data = json.loads(response.read().decode())
 
-            self.report({'ERROR'}, f"Search failed: {e.code}")
-            return {'CANCELLED'}
+            except urllib.error.HTTPError as e:
+                self.report({'ERROR'}, f"Search failed: {e.code}")
+                return {'CANCELLED'}
 
-        items = search_data.get("items", [])
+            items = search_data.get("items", [])
 
-        if not items:
-            self.report({'ERROR'}, "No AcousticIndex material found.")
-            return {'CANCELLED'}
+            if not items:
+                self.report({'ERROR'}, "No AcousticIndex material found.")
+                return {'CANCELLED'}
 
-        product_id = items[0]["id"]
+            product_id = items[0]["id"]
 
         url = f"https://acousticindex.com/api/v1/materials/{product_id}"
 
@@ -120,25 +127,55 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
             )
             return {'CANCELLED'}
 
-        #Select variant with highest overall absorption
-        variant = max(variants, key=lambda v: v.get("calculated_absorption", 0))
+        #set variants
+        # Varianten speichern
+        mat["_acoustic_variants_cache"] = variants
 
-        #get frequency-dependent absorption data
-        #First: third octave data, if not available, try direct octave data
+        # WICHTIG: komplette API Antwort speichern
+        mat["_acoustic_raw_data"] = data
+
+        self.report({'INFO'}, f"{len(variants)} variants loaded")
+        return {'FINISHED'}
+        
+    
+class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
+    bl_idname = "acoustic.apply_variant"
+    bl_label = "Apply Variant"
+
+    def execute(self, context):
+
+        mat = context.material
+        variants = mat.get("_acoustic_variants_cache", [])
+        data = mat.get("_acoustic_raw_data", {})
+
+        if not variants:
+            self.report({'ERROR'}, "No variants loaded.")
+            return {'CANCELLED'}
+
+        selection = getattr(mat, "acoustic_variant_enum", "NONE")
+
+        if selection == "NONE":
+            variant = max(variants, key=lambda v: v.get("calculated_absorption", 0))
+        else:
+            idx = int(selection)
+            if idx >= len(variants):
+                self.report({'ERROR'}, "Variant index out of range")
+                return {'CANCELLED'}
+            variant = variants[idx]
+
+        iso_octaves = [63,125,250,500,1000,2000,4000,8000,16000]
+
+        # --- ABSORPTION ---
         third_oct = variant.get("alpha_s_third_octave")
         oct_data = variant.get("alpha_s_octave")
 
         if third_oct:
-            # Third octave path
             third_oct_clean = {int(k): v for k, v in third_oct.items()}
-
             oct_vals = interpolate_octaves(third_oct_clean, iso_octaves)
 
         elif oct_data:
-            #Direct octave path
-
             freqs = sorted(int(k) for k in oct_data.keys())
-            #missing octave values to nearest available frequency
+
             def get_oct(f):
                 if str(f) in oct_data:
                     return oct_data[str(f)]
@@ -146,16 +183,24 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
                     return oct_data[str(freqs[0])]
                 if f > freqs[-1]:
                     return oct_data[str(freqs[-1])]
-                return 0.5 
+                return 0.5
 
             oct_vals = [get_oct(f) for f in iso_octaves]
 
         else:
-            self.report({'WARNING'}, "No usable absorption data available.")
+            self.report({'ERROR'}, "No absorption data")
             return {'CANCELLED'}
-        
-        # --- Scattering ---
-        # scatterISO17497_1 currently not returned by API detail endpoint
+
+        absorp_props = [
+            "acoustic_abs_63","acoustic_abs_125","acoustic_abs_250",
+            "acoustic_abs_500","acoustic_abs_1000","acoustic_abs_2000",
+            "acoustic_abs_4000","acoustic_abs_8000","acoustic_abs_16000"
+        ]
+
+        for p, v in zip(absorp_props, oct_vals):
+            setattr(mat, p, v)
+
+        # --- SCATTERING ---
         scatter = data.get("scatterISO17497_1")
 
         if scatter:
@@ -163,15 +208,12 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
             s_oct = scatter.get("sOct")
 
             if s_terz:
-                # Third octave scattering → interpolate
                 s_terz_clean = {
                     int(k.split()[0]): v for k, v in s_terz.items()
                 }
-
                 s_vals = interpolate_octaves(s_terz_clean, iso_octaves)
 
             elif s_oct:
-                # Direct octave scattering → clamp
                 s_oct_clean = {
                     int(k.split()[0]): v for k, v in s_oct.items()
                 }
@@ -195,17 +237,6 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
         else:
             s_vals = [0.25] * len(iso_octaves)
 
-        print("Acoustic data loaded for:", data.get("label"))
-
-        absorp_props = [
-            "acoustic_abs_63","acoustic_abs_125","acoustic_abs_250",
-            "acoustic_abs_500","acoustic_abs_1000","acoustic_abs_2000",
-            "acoustic_abs_4000","acoustic_abs_8000","acoustic_abs_16000"
-        ]
-
-        for p, v in zip(absorp_props, oct_vals):
-            setattr(mat, p, v)
-
         scatter_props = [
             "acoustic_scat_63","acoustic_scat_125","acoustic_scat_250",
             "acoustic_scat_500","acoustic_scat_1000","acoustic_scat_2000",
@@ -215,7 +246,7 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
         for p, v in zip(scatter_props, s_vals):
             setattr(mat, p, v)
 
-        self.report({'INFO'}, f"Loaded acoustic data for '{data.get('label')}'")
+        self.report({'INFO'}, "Variant applied")
         return {'FINISHED'}
     
 
@@ -241,6 +272,44 @@ def register_acoustic_properties():
     bpy.types.Material.acoustic_scat_8000 = FloatProperty(name="Scattering 8000Hz", default=0.25, min=0, max=1)
     bpy.types.Material.acoustic_scat_16000 = FloatProperty(name="Scattering 16000Hz", default=0.25, min=0, max=1)
 
+    def get_variant_items(self, context):
+
+        mat = getattr(context, "material", None)
+
+        if mat is None:
+            return [("NONE", "Auto Selection", "")]
+        
+        variants = mat.get("_acoustic_variants_cache", [])
+
+        items = []
+        items.append(("NONE", "Auto Selection (highest absorption)", ""))
+
+        for i, v in enumerate(variants):
+            label = v.get("label", f"Variant {i+1}")
+
+            thickness = v.get("thickness_mm")
+            norm = v.get("source_norm")
+
+            extra = []
+
+            if thickness:
+                extra.append(f"{thickness}mm")
+
+            if norm:
+                extra.append(norm)
+
+            if extra:
+                label = f"{label} ({', '.join(extra)})"
+            items.append((str(i), label, ""))
+
+        return items
+
+
+    bpy.types.Material.acoustic_variant_enum = bpy.props.EnumProperty(
+        name="Variant",
+        items=get_variant_items,
+        #default="NONE"
+    )
 
 class ACOUSTIC_PT_material(bpy.types.Panel):
 
@@ -262,7 +331,7 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
         col = layout.column()
 
-# Header
+        # Header
         col.label(text="AcousticIndex Database")
 
         # db use instructions
@@ -271,11 +340,13 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         box.label(text="1. Rename material to match database name")
         box.label(text="2. Enter your API Key")
         box.label(text="3. Click 'Load from Database'")
+        box.label(text="4. Select variant (optional)")
+        box.label(text="5. Click 'Apply Variant'")
 
-        # API Key (volle Breite)
+        # API Key 
         col.prop(prefs, "acousticindex_api_key", text="API Key")
 
-        # Button (volle Breite + hervorgehoben)
+        # Button 
         row = col.row()
         row.scale_y = 1.2
         row.operator(
@@ -285,6 +356,20 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         )
 
         col.separator()
+        col.label(text="Variant Selection")
+        col.prop(mat, "acoustic_variant_enum", text="")
+        row = col.row()
+        row.operator("acoustic.apply_variant", text="Apply Variant", icon='CHECKMARK')
+
+        col.separator()
+
+        box = col.box()
+        box.label(text="How it works:", icon='INFO')
+        box.label(text="• Set one or more frequency values")
+        box.label(text="• 1 value → all bands set equal")
+        box.label(text="• 2+ values → interpolated between set points")
+        box.label(text="• Outer bands use nearest value")
+        box.label(text="• Use Reset to redefine interpolation")
 
         #manual input
         col.label(text="Absorption")
@@ -300,7 +385,7 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         col.prop(mat, "acoustic_abs_16000")
 
         row = col.row(align=True)
-        row.operator("acoustic.interpolate_abs", text="Interpolate 1 or 2 Values")
+        row.operator("acoustic.interpolate_abs", text="Fill Missing Values")
         row.operator("acoustic.reset_abs", text="Reset to 0.5")
 
         col.separator()
@@ -318,13 +403,16 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         col.prop(mat, "acoustic_scat_16000")
 
         row = col.row(align=True)
-        row.operator("acoustic.interpolate_scat", text="Interpolate 1 or 2 Values")
+        row.operator("acoustic.interpolate_scat", text="Fill Missing Values")
         row.operator("acoustic.reset_scat", text="Reset to 0.25")
-        
+
 
 class ACOUSTIC_OT_interpolate_abs(bpy.types.Operator):
     bl_idname = "acoustic.interpolate_abs"
     bl_label = "Interpolate Absorption"
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
 
@@ -337,19 +425,23 @@ class ACOUSTIC_OT_interpolate_abs(bpy.types.Operator):
             "acoustic_abs_4000","acoustic_abs_8000","acoustic_abs_16000"
         ]
 
-        data = {}
+        # get or create active set
+        active = set(mat.get("acoustic_abs_set", []))
 
+        # always add currently non-default values as user input
         for f, p in zip(iso_octaves, props):
             v = getattr(mat, p)
-            if v != 0.5:
-                data[f] = v
+            if abs(v - 0.5) > 1e-6:
+                active.add(f)
 
-        if len(data) > 2:
-            freqs = sorted(data.keys())
-            data = {
-                freqs[0]: data[freqs[0]],
-                freqs[-1]: data[freqs[-1]]
-            }
+        mat["acoustic_abs_set"] = list(active)
+
+        # build interpolation input
+        data = {
+            f: getattr(mat, p)
+            for f, p in zip(iso_octaves, props)
+            if f in active
+        }
 
         if data:
             vals = interpolate_octaves(data, iso_octaves)
@@ -363,6 +455,9 @@ class ACOUSTIC_OT_interpolate_scat(bpy.types.Operator):
     bl_idname = "acoustic.interpolate_scat"
     bl_label = "Interpolate Scattering"
 
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
     def execute(self, context):
 
         mat = context.material
@@ -374,19 +469,20 @@ class ACOUSTIC_OT_interpolate_scat(bpy.types.Operator):
             "acoustic_scat_4000","acoustic_scat_8000","acoustic_scat_16000"
         ]
 
-        data = {}
+        active = set(mat.get("acoustic_scat_set", []))
 
         for f, p in zip(iso_octaves, props):
             v = getattr(mat, p)
-            if v != 0.25:
-                data[f] = v
+            if abs(v - 0.25) > 1e-6:
+                active.add(f)
 
-        if len(data) > 2:
-            freqs = sorted(data.keys())
-            data = {
-                freqs[0]: data[freqs[0]],
-                freqs[-1]: data[freqs[-1]]
-            }
+        mat["acoustic_scat_set"] = list(active)
+
+        data = {
+            f: getattr(mat, p)
+            for f, p in zip(iso_octaves, props)
+            if f in active
+        }
 
         if data:
             vals = interpolate_octaves(data, iso_octaves)
@@ -399,6 +495,9 @@ class ACOUSTIC_OT_interpolate_scat(bpy.types.Operator):
 class ACOUSTIC_OT_reset_abs(bpy.types.Operator):
     bl_idname = "acoustic.reset_abs"
     bl_label = "Reset Absorption"
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
 
@@ -413,11 +512,18 @@ class ACOUSTIC_OT_reset_abs(bpy.types.Operator):
         for p in props:
             setattr(mat, p, 0.5)
 
+        # clear interpolation state
+        mat["acoustic_abs_set"] = []
+        mat["_last_abs_values"] = {}
+
         return {'FINISHED'}
     
 class ACOUSTIC_OT_reset_scat(bpy.types.Operator):
     bl_idname = "acoustic.reset_scat"
     bl_label = "Reset Scattering"
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
 
@@ -431,6 +537,10 @@ class ACOUSTIC_OT_reset_scat(bpy.types.Operator):
 
         for p in props:
             setattr(mat, p, 0.25)
+
+        # clear interpolation state
+        mat["acoustic_scat_set"] = []
+        mat["_last_scat_values"] = {}
 
         return {'FINISHED'}   
 
@@ -584,10 +694,12 @@ classes = (
     ACOUSTIC_OT_reset_scat,
     ACOUSTIC_OT_interpolate_abs,
     ACOUSTIC_OT_interpolate_scat,
-    ACOUSTIC_OT_load_from_api
+    ACOUSTIC_OT_load_from_api,
+    ACOUSTIC_OT_apply_variant
 )
 
 def register():
+
     for cls in classes:
         bpy.utils.register_class(cls)
 
@@ -619,6 +731,8 @@ def unregister():
     del bpy.types.Material.acoustic_scat_4000
     del bpy.types.Material.acoustic_scat_8000
     del bpy.types.Material.acoustic_scat_16000
+
+    del bpy.types.Material.acoustic_variant_enum
 
     bpy.types.TOPBAR_MT_file_export.remove(menu_export_func)
     bpy.types.TOPBAR_MT_file_import.remove(menu_import_func)
