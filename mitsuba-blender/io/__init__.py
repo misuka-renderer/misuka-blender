@@ -38,9 +38,6 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
     bl_idname = "acoustic.load_from_api"
     bl_label = "Load Acoustic Data"
 
-    def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
-
     def execute(self, context):
 
         iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
@@ -142,6 +139,9 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
     bl_idname = "acoustic.apply_variant"
     bl_label = "Apply Variant"
 
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
     def execute(self, context):
 
         mat = context.material
@@ -201,7 +201,7 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
             setattr(mat, p, v)
 
         # --- SCATTERING ---
-        scatter = data.get("scatterISO17497_1")
+        scatter = variant.get("scatterISO17497_1")
 
         if scatter:
             s_terz = scatter.get("sTerz")
@@ -428,7 +428,7 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
 class ACOUSTIC_OT_interpolate_abs(bpy.types.Operator):
     bl_idname = "acoustic.interpolate_abs"
-    bl_label = "Interpolate Absorption"
+    bl_label = "Change Absorption Values"
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
@@ -436,6 +436,7 @@ class ACOUSTIC_OT_interpolate_abs(bpy.types.Operator):
     def execute(self, context):
 
         mat = context.material
+
         iso_octaves = [63,125,250,500,1000,2000,4000,8000,16000]
 
         props = [
@@ -444,35 +445,27 @@ class ACOUSTIC_OT_interpolate_abs(bpy.types.Operator):
             "acoustic_abs_4000","acoustic_abs_8000","acoustic_abs_16000"
         ]
 
-        # get or create active set
-        active = set(mat.get("acoustic_abs_set", []))
+        data = {}
 
-        # always add currently non-default values as user input
+        # collect all user-defined values (≠ default)
         for f, p in zip(iso_octaves, props):
             v = getattr(mat, p)
             if abs(v - 0.5) > 1e-6:
-                active.add(f)
+                data[f] = v
 
-        mat["acoustic_abs_set"] = list(active)
+        if not data:
+            return {'FINISHED'}
 
-        # build interpolation input
-        data = {
-            f: getattr(mat, p)
-            for f, p in zip(iso_octaves, props)
-            if f in active
-        }
+        vals = interpolate_octaves(data, iso_octaves)
 
-        if data:
-            vals = interpolate_octaves(data, iso_octaves)
-
-            for p, v in zip(props, vals):
-                setattr(mat, p, v)
+        for p, v in zip(props, vals):
+            setattr(mat, p, v)
 
         return {'FINISHED'}
     
 class ACOUSTIC_OT_interpolate_scat(bpy.types.Operator):
     bl_idname = "acoustic.interpolate_scat"
-    bl_label = "Interpolate Scattering"
+    bl_label = "Change Scattering Values"
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
@@ -480,6 +473,7 @@ class ACOUSTIC_OT_interpolate_scat(bpy.types.Operator):
     def execute(self, context):
 
         mat = context.material
+
         iso_octaves = [63,125,250,500,1000,2000,4000,8000,16000]
 
         props = [
@@ -488,26 +482,21 @@ class ACOUSTIC_OT_interpolate_scat(bpy.types.Operator):
             "acoustic_scat_4000","acoustic_scat_8000","acoustic_scat_16000"
         ]
 
-        active = set(mat.get("acoustic_scat_set", []))
+        data = {}
 
+        # collect user-defined values (≠ default 0.25)
         for f, p in zip(iso_octaves, props):
             v = getattr(mat, p)
             if abs(v - 0.25) > 1e-6:
-                active.add(f)
+                data[f] = v
 
-        mat["acoustic_scat_set"] = list(active)
+        if not data:
+            return {'FINISHED'}
 
-        data = {
-            f: getattr(mat, p)
-            for f, p in zip(iso_octaves, props)
-            if f in active
-        }
+        vals = interpolate_octaves(data, iso_octaves)
 
-        if data:
-            vals = interpolate_octaves(data, iso_octaves)
-
-            for p, v in zip(props, vals):
-                setattr(mat, p, v)
+        for p, v in zip(props, vals):
+            setattr(mat, p, v)
 
         return {'FINISHED'}
 
