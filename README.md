@@ -1,4 +1,4 @@
-![Addon Banner](res/banner.jpg)
+![Addon Banner](res/misuka_banner.png)
 
 # MISUKA Blender Add-on
 
