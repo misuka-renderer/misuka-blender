@@ -1,38 +1,49 @@
 ![Addon Banner](res/banner.jpg)
 
-# Mitsuba Blender Add-on
+# MISUKA Blender Add-on
 
-[![Nightly Release](https://github.com/mitsuba-renderer/mitsuba-blender/actions/workflows/nightly_release.yml/badge.svg)](https://github.com/mitsuba-renderer/mitsuba-blender/actions/workflows/nightly_release.yml)
-
-This add-on integrates the Mitsuba renderer into Blender.
+This add-on extends the Mitsuba Blender add-on with support for MISUKA-based geometric acoustic simulation and acoustic scene export.
 
 ## Main Features
 
-* **Mitsuba scene import**: Import Mitsuba XML scenes in Blender to edit and preview them. Materials are converted to Cycles shader node trees.
+* **Acoustic scene export**: Export Blender scenes as MISUKA-compatible acoustic XML scenes.
 
-* **Mitsuba scene export**: Export a Blender scene to a Mitsuba XML scene for rendering.
+* **Acoustic Mode**: Automatically replaces visual Mitsuba components with acoustic equivalents during export:
+  - `path` → `acoustic_path`
+  - `perspective` → `microphone`
+  - `hdrfilm` → `tape`
+  - point lights → sphere + area emitters
+  - `principled_bsdf` → `acousticbsdf`
 
-More in-depth information about the features of the add-on are available on the [wiki](https://github.com/mitsuba-renderer/mitsuba-blender/wiki).
+* **Acoustic material workflow**:
+  - frequency-dependent absorption and scattering
+  - octave-band editing inside Blender
+  - interpolation and reset utilities
+  - manual material input
+
+* **AcousticIndex integration**:
+  - API-based material lookup
+  - automatic download of absorption/scattering data
+  - third-octave to octave conversion
+  - interpolation of incomplete datasets
+
+* **Coordinate consistency**:
+  Blender and MISUKA coordinates match by default (`Y Forward`, `Z Up`).
 
 ## Installation
 
-- Download the latest release from the [release section](https://github.com/mitsuba-renderer/mitsuba-blender/releases).
+- Install the original Mitsuba Blender add-on.
+- Clone or download this repository.
 - In Blender, go to **Edit** -> **Preferences** -> **Add-ons** -> **Install**.
-- Select the downloaded ZIP archive.
-- Find the add-on using the search bar and enable it.
-- To point the add-on to the Mitsuba dependencies, either click on *Install dependencies using pip* to download the latest package, or check *Use custom Mitsuba path* and browse to your Mitsuba build directory.
+- Select the ZIP archive.
+- Enable the add-on.
+- In the add-on preferences:
+  - enable *Use custom Mitsuba path*
+  - select the MISUKA build directory
+  - optionally enter an AcousticIndex API key
 
-## Common issues
+## Requirements
 
-:warning: For versions of blender prior to 3.5, you may encounter the error message `Failed to load Mitsuba package` after installing the dependencies via pip. In order to fix that, you need to run blender with the `--python-use-system-env` flag in order for it to correctly pick up the dependencies. In order to do so, find the path to the blender executable, and in a command prompt run:
-```
-<path_to_blender> --python-use-sytem-env
-```
-
-You can refer to the [Installation & Update Guide](https://github.com/mitsuba-renderer/mitsuba-blender/wiki/Installation-&-Update-Guide) on the wiki for more detailed instructions.
-
-### Supported versions
-
-Blender version should be at least `2.93`. The addon has been extensively tested
-on LTS versions of blender (`3.6`, `4.2`). We recommend using those whenever
-possible.
+- Blender `3.6+`
+- MISUKA build with acoustic plugins enabled
+- Compatible Mitsuba 3 build
