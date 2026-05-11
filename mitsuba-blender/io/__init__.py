@@ -42,12 +42,16 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
 
         mat = context.material
         addon_name = __name__.split(".")[0]
-        prefs = context.preferences.addons[addon_name].preferences
+        addon = context.preferences.addons.get(addon_name)
 
-        api_key = prefs.acousticindex_api_key.strip()
+        if not addon:
+            self.report({'ERROR'}, "Addon Preferences not found")
+            return {'CANCELLED'}
+
+        api_key = addon.preferences.acousticindex_api_key.strip()
 
         if not api_key:
-            self.report({'ERROR'}, "No API key set.")
+            self.report({'ERROR'}, "No API Key set in Addon Preferences")
             return {'CANCELLED'}
 
         search_query = mat.name.strip()
@@ -128,6 +132,10 @@ class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
         mat["_acoustic_variants_cache"] = variants
         mat["_acoustic_raw_data"] = data
 
+        #show feedback for UI ---
+        mat["_acoustic_loaded_label"] = data.get("label", "")
+        mat["_acoustic_loaded_manufacturer"] = data.get("manufacturer", "")
+
         self.report({'INFO'}, f"{len(variants)} variants loaded")
         return {'FINISHED'}
         
@@ -137,7 +145,46 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
     bl_label = "Apply Variant"
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+
+        layout = self.layout
+        mat = context.material
+        variants = mat.get("_acoustic_variants_cache", [])
+
+        text = "Overwrite values?"
+
+        if variants:
+            selection = getattr(mat, "acoustic_variant_enum", "NONE")
+
+            if selection == "NONE":
+                abs_variants = [v for v in variants if v.get("_type") == "absorption"]
+                scat_variants = [v for v in variants if v.get("_type") == "scattering"]
+
+                if abs_variants:
+                    variant = max(
+                        abs_variants,
+                        key=lambda v: v.get("calculated_absorption", 0)
+                    )
+                elif scat_variants:
+                    variant = scat_variants[0]
+                else:
+                    variant = None
+            else:
+                idx = int(selection)
+                variant = variants[idx] if idx < len(variants) else None
+
+            if variant:
+                vtype = variant.get("_type")
+
+                if vtype == "absorption":
+                    text = "Overwrite absorption values?"
+
+                elif vtype == "scattering":
+                    text = "Overwrite scattering values?"
+
+        layout.label(text=text, icon='ERROR')
 
     def execute(self, context):
 
@@ -371,9 +418,6 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         layout = self.layout
         mat = context.material
 
-        addon_name = __name__.split(".")[0]
-        prefs = context.preferences.addons[addon_name].preferences
-
         if mat is None:
             return
 
@@ -390,14 +434,15 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         if mat.show_acoustic_help:
             box = col.box()
             box.label(text="1. Rename material to match database name/id")
-            box.label(text="2. Enter your API Key")
+            box.label(text="2. Set API Key in Addon Preferences")
             box.label(text="3. Click 'Load from Database'")
             box.label(text="4. Select variant")
             box.label(text="5. Click 'Apply Variant'")
 
-        # API Key 
-        col.prop(prefs, "acousticindex_api_key", text="API Key")
+        col.separator()
 
+        row = col.row()
+        row.label(text="API Key in Addon Preferences", icon='PREFERENCES')
         # Button 
         row = col.row()
         row.scale_y = 1.2
@@ -407,11 +452,34 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
             icon='IMPORT'
         )
 
+        # --- DB feedback ---
+        label = mat.get("_acoustic_loaded_label")
+        manufacturer = mat.get("_acoustic_loaded_manufacturer")
+
+        if label:
+            box = col.box()
+
+            row = box.row()
+            row.label(text="Matched Database Entry", icon='CHECKMARK')
+
+            box.label(text=label)
+
+            if manufacturer:
+                box.label(text=manufacturer)
+
         col.separator()
         col.label(text="Variant Selection")
         col.prop(mat, "acoustic_variant_enum", text="")
+
+        # IMPORTANT: force invoke() instead of execute()
+        col.operator_context = 'INVOKE_DEFAULT'
+
         row = col.row()
-        row.operator("acoustic.apply_variant", text="Apply Variant", icon='CHECKMARK')
+        row.operator(
+            "acoustic.apply_variant",
+            text="Apply Variant",
+            icon='CHECKMARK'
+        )
 
         col.separator()
 
@@ -426,6 +494,13 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
             box.label(text="• 2+ values → interpolated between set points")
             box.label(text="• Outer bands use nearest value")
             box.label(text="• Use Reset to redefine interpolation")
+
+            box.separator()
+
+            # --- key rule (highlighted) ---
+            row = box.row()
+            row.alert = True
+            row.label(text="Only values different from 0.500 are used for interpolation", icon='INFO')
 
         #manual input
         col.label(text="Absorption")
@@ -638,7 +713,7 @@ class ImportMistuba(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
 
 
-@orientation_helper(axis_forward='-Z', axis_up='Y')
+@orientation_helper(axis_forward='Y', axis_up='Z')
 class ExportMitsuba(bpy.types.Operator, ExportHelper):
     """Export as a Mitsuba scene"""
     bl_idname = "export_scene.mitsuba"

@@ -286,6 +286,11 @@ class MitsubaPreferences(AddonPreferences):
         if self.using_mitsuba_custom_path:
             box.prop(self, 'mitsuba_custom_path')
 
+        # --- AcousticIndex API ---
+        box = layout.box()
+        box.label(text="AcousticIndex Database")
+        box.prop(self, "acousticindex_api_key")
+
 classes = (
     MITSUBA_OT_install_pip_dependencies,
     MitsubaPreferences,
