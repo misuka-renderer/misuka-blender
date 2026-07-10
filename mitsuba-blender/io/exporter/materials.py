@@ -6,58 +6,6 @@ from .export_context import Files
 import json
 import os
 
-#Load acoustic material database once and cache it in the export context
-def load_material_db(export_ctx):
-
-    # cache: loading DB once
-    if hasattr(export_ctx, "material_db"):
-        return export_ctx.material_db
-
-    db_path = os.path.join(
-        export_ctx.directory,
-        "materials",
-        "material_db_demo_data.json"
-    )
-
-    if not os.path.exists(db_path):
-        export_ctx.log("Material DB not found. Using fallback materials.", 'INFO')
-        export_ctx.material_db = None
-        return None
-
-    try:
-        with open(db_path, "r", encoding="utf-8") as f:
-            db = json.load(f)
-
-        # Mongo export: root["data"]
-        export_ctx.material_db = db.get("data", [])
-
-        export_ctx.log(f"Loaded material DB ({len(export_ctx.material_db)} entries).", "INFO")
-
-    except Exception as e:
-        export_ctx.log(f"Failed to load material DB: {e}", "WARN")
-        export_ctx.material_db = None
-
-    return export_ctx.material_db
-
-#Match Blender material name with database product label
-def find_material(export_ctx, material_name):
-
-    db = load_material_db(export_ctx)
-
-    if db is None:
-        return None
-
-    for entry in db:
-
-        product = entry.get("product", {})
-        label = product.get("label", "")
-        #case-insensitive
-        if label.strip().lower() == material_name.strip().lower():
-            return entry
-
-    return None
-
-
 RoughnessMode = {'GGX': 'ggx', 'BECKMANN': 'beckmann', 'ASHIKHMIN_SHIRLEY':'beckmann', 'MULTI_GGX':'ggx'}
 #TODO: update when other distributions are supported
 
@@ -316,65 +264,9 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
         return params
     else:#one bsdf, one emitter
         raise NotImplementedError("Mixing a BSDF and an emitter is not supported. Consider using an Add shader instead.")
-    
-#Extract octave-band absorption coefficients from the material database
-def extract_absorption(entry):
 
-    # try octave data
-    data = entry.get("absorptionISO354", {}).get("alphaSOct", {})
 
-    # fallback: third-octave
-    third = entry.get("absorptionISO354", {}).get("alphaSTerz", {})
-
-    if not data and third:
-
-        # convert third -> octave
-        third_values = {}
-
-        for k, v in third.items():
-
-            if v == "" or v is None:
-                continue
-
-            freq = int(k.replace("Hz","").strip())
-            third_values[freq] = float(v)
-
-        octave_map = {
-            63:  [50,63,80],
-            125: [100,125,160],
-            250: [200,250,315],
-            500: [400,500,630],
-            1000:[800,1000,1250],
-            2000:[1600,2000,2500],
-            4000:[3150,4000,5000],
-            8000:[6300,8000,10000],
-            16000:[12500,16000,20000]
-        }
-
-        result = {}
-
-        for oct_f, thirds in octave_map.items():
-
-            vals = [third_values[t] for t in thirds if t in third_values]
-
-            if len(vals) > 0:
-                result[oct_f] = sum(vals)/len(vals)
-
-        return result
-
-    result = {}
-
-    for k, v in data.items():
-
-        if v == "" or v is None:
-            continue
-
-        freq = int(k.replace("Hz", "").strip())
-        result[freq] = float(v)
-
-    return result
-
-#missing values filled by linear interpolation, Values outside of the known range are filled with the closest known value.
+#missing values filled by linear interpolation, Values out of range are filled with closest known value.
 def interpolate_octaves(abs_data, target_freqs):
 
     freqs = sorted(abs_data.keys())
@@ -458,31 +350,22 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
             absorption_values = interpolate_octaves(absorption_dict, iso_octaves)
 
         else:
-            # DB lookup
-            entry = find_material(export_ctx, material_name)
-
-            absorption_values = [0.5] * len(iso_octaves)
-
-            if entry:
-                abs_data = extract_absorption(entry)
-
-                if abs_data:
-                    absorption_values = interpolate_octaves(abs_data, iso_octaves)
+           absorption_values = [0.5] * len(iso_octaves)
 
         scattering_dict = {}
 
         for f, v in zip(iso_octaves, manual_scattering_values):
-            if v != 0.5:
+            if v != 0.25:
                 scattering_dict[f] = v
 
-        scattering_all_default = all(v == 0.5 for v in manual_scattering_values)
+        scattering_all_default = all(v == 0.25 for v in manual_scattering_values)
 
         if not scattering_all_default:
             scattering_values = interpolate_octaves(scattering_dict, iso_octaves)
         else:
-            scattering_values = [0.5] * len(iso_octaves)
+            scattering_values = [0.25] * len(iso_octaves)
 
-        spectrum_pairs = [
+        absorption_pairs = [
             (f, round(v, 3))
             for f, v in zip(iso_octaves, absorption_values)
         ]
@@ -493,7 +376,7 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
 
         params = {
             'type': 'acousticbsdf',
-            'absorption': export_ctx.spectrum(spectrum_pairs, mode='spectrum'),
+            'absorption': export_ctx.spectrum(absorption_pairs, mode='spectrum'),
             'scattering': export_ctx.spectrum(scattering_pairs, mode='spectrum')
         }
 

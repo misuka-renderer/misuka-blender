@@ -57,7 +57,7 @@ def convert_area_light(b_light, export_ctx):
 
 def convert_point_light(b_light, export_ctx):
 
-    # Standard Mitsuba Verhalten
+    # normal mitsuba mode
     if not export_ctx.acoustic_mode:
 
         if b_light.data.shadow_soft_size:
