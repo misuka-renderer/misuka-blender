@@ -1,11 +1,11 @@
 bl_info = {
-    'name': 'MISUKA Blender',
+    'name': 'misuka Blender',
     'author': 'Julius Schwarz, Tobias Jüterbock',
     'version': (1, 0),
     'blender': (2, 93, 0),
     'category': 'Render',
     'location': 'File menu, render engine menu',
-    'description': 'MISUKA integration for Blender (Mitsuba Add-on)',
+    'description': 'misuka integration for Blender (Mitsuba Add-on)',
     'wiki_url': 'https://github.com/misuka-renderer/misuka-blender',
     'tracker_url': 'https://github.com/misuka-renderer/misuka-blender/issues/new/choose',
     #'warning': 'alpha',
@@ -57,21 +57,21 @@ def try_register_mitsuba(context):
             import mitsuba
             prefs.mitsuba_custom_version = mitsuba.__version__
             if prefs.has_valid_mitsuba_custom_version:
-                prefs.mitsuba_dependencies_status_message = f'Found custom Mitsuba v{prefs.mitsuba_custom_version}.'
+                prefs.mitsuba_dependencies_status_message = f'Found custom misuka v{prefs.mitsuba_custom_version}.'
             else:
-                prefs.mitsuba_dependencies_status_message = f'Found custom Mitsuba v{prefs.mitsuba_custom_version}. Supported version is v{DEPS_MITSUBA_VERSION}.'
+                prefs.mitsuba_dependencies_status_message = f'Found custom misuka v{prefs.mitsuba_custom_version}. Supported version is v{DEPS_MITSUBA_VERSION}.'
         else:
-            prefs.mitsuba_dependencies_status_message = 'Failed to load custom Mitsuba. Please verify the path to the build directory.'
+            prefs.mitsuba_dependencies_status_message = 'Failed to load custom misuka. Please verify the path to the build directory.'
     elif prefs.has_pip_dependencies:
         if prefs.has_valid_dependencies_version:
             could_init_mitsuba = init_mitsuba(context)
             if could_init_mitsuba:
                 import mitsuba
-                prefs.mitsuba_dependencies_status_message = f'Found pip Mitsuba v{mitsuba.__version__}.'
+                prefs.mitsuba_dependencies_status_message = f'Found pip misuka v{mitsuba.__version__}.'
             else:
-                prefs.mitsuba_dependencies_status_message = 'Failed to load Mitsuba package.'
+                prefs.mitsuba_dependencies_status_message = 'Failed to load misuka package.'
         else:
-            prefs.mitsuba_dependencies_status_message = f'Found pip Mitsuba v{prefs.installed_dependencies_version}. Supported version is v{DEPS_MITSUBA_VERSION}.'
+            prefs.mitsuba_dependencies_status_message = f'Found pip misuka v{prefs.installed_dependencies_version}. Supported version is v{DEPS_MITSUBA_VERSION}.'
     else:
         prefs.mitsuba_dependencies_status_message = 'Mitsuba dependencies not installed.'
 
@@ -228,26 +228,26 @@ class MitsubaPreferences(AddonPreferences):
     # Advanced settings
 
     using_mitsuba_custom_path : BoolProperty(
-        name = 'Using custom Mitsuba path',
+        name = 'Using custom misuka path',
         update = update_using_mitsuba_custom_path,
     )
 
     mitsuba_custom_path : StringProperty(
-        name = 'Custom Mitsuba path',
-        description = 'Path to the custom Mitsuba build directory',
+        name = 'Custom misuka path',
+        description = 'Path to the custom misuka build directory',
         default = '',
         subtype = 'DIR_PATH',
         update = update_mitsuba_custom_path,
     )
 
     mitsuba_custom_version : StringProperty(
-        name = 'Custom Mitsuba build version',
+        name = 'Custom misuka build version',
         default = '',
         update = update_mitsuba_custom_version,
     )
 
     has_valid_mitsuba_custom_version : BoolProperty(
-        name = 'Has the correct version of custom Mitsuba build'
+        name = 'Has the correct version of custom misuka build'
     )
 
     additional_path : StringProperty(
@@ -282,7 +282,7 @@ class MitsubaPreferences(AddonPreferences):
 
         box = layout.box()
         box.label(text='Advanced Settings')
-        box.prop(self, 'using_mitsuba_custom_path', text=f'Use custom Mitsuba path (Supported version is v{DEPS_MITSUBA_VERSION})')
+        box.prop(self, 'using_mitsuba_custom_path', text=f'Use custom misuka path') #(Supported version is v{DEPS_MITSUBA_VERSION})
         if self.using_mitsuba_custom_path:
             box.prop(self, 'mitsuba_custom_path')
 

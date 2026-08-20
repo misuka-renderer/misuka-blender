@@ -333,6 +333,14 @@ def register_acoustic_properties():
     bpy.types.Material.acoustic_scat_8000 = FloatProperty(name="Scattering 8000Hz", default=0.25, min=0, max=1)
     bpy.types.Material.acoustic_scat_16000 = FloatProperty(name="Scattering 16000Hz", default=0.25, min=0, max=1)
 
+    bpy.types.Material.acoustic_specular_lobe_width = FloatProperty(
+    name="Specular Lobe Width",
+    default=0.001,
+    min=0.001,
+    max=1.0,
+    precision=3
+)
+
     def get_variant_items(self, context):
 
         mat = getattr(context, "material", None)
@@ -485,7 +493,7 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
         row = col.row()
         row.prop(mat, "show_acoustic_info", icon="TRIA_DOWN" if mat.show_acoustic_info else "TRIA_RIGHT", icon_only=True, emboss=False)
-        row.label(text="Manual Input: How it works")
+        row.label(text="Manual Input: How to use")
 
         if mat.show_acoustic_info:
             box = col.box()
@@ -500,7 +508,7 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
             # --- key rule (highlighted) ---
             row = box.row()
             row.alert = True
-            row.label(text="Only values different from 0.500 are used for interpolation", icon='INFO')
+            row.label(text="Only values different from default are used for interpolation", icon='INFO')
 
         #manual input
         col.label(text="Absorption")
@@ -536,6 +544,17 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         row = col.row(align=True)
         row.operator("acoustic.interpolate_scat", text="Interpolate Values")
         row.operator("acoustic.reset_scat", text="Reset to 0.25")
+
+        col.separator()
+
+        col.label(text="Specular Lobe Width")
+        col.prop(mat, "acoustic_specular_lobe_width")
+
+        row = col.row(align=True)
+        row.operator(
+            "acoustic.reset_specular_lobe_width",
+            text="Reset to 0.001"
+        )
 
 
 class ACOUSTIC_OT_interpolate_abs(bpy.types.Operator):
@@ -664,6 +683,20 @@ class ACOUSTIC_OT_reset_scat(bpy.types.Operator):
 
         return {'FINISHED'}   
 
+class ACOUSTIC_OT_reset_specular_lobe_width(bpy.types.Operator):
+    bl_idname = "acoustic.reset_specular_lobe_width"
+    bl_label = "Reset Specular Lobe Width"
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+    def execute(self, context):
+
+        mat = context.material
+        mat.acoustic_specular_lobe_width = 0.001
+
+        return {'FINISHED'}
+
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
 class ImportMistuba(bpy.types.Operator, ImportHelper):
@@ -746,10 +779,10 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
             default = True
     )
 
-    #MISUKA check box in export window
+    #misuka check box in export window
     acoustic_mode: bpy.props.BoolProperty(                  
-        name="MISUKA: Acoustic Mode",
-        description="Export MISUKA acoustic scene",
+        name="misuka: Acoustic Mode",
+        description="Export misuka acoustic scene",
         default=True
     )
 
@@ -812,6 +845,7 @@ classes = (
     ACOUSTIC_PT_material,
     ACOUSTIC_OT_reset_abs,
     ACOUSTIC_OT_reset_scat,
+    ACOUSTIC_OT_reset_specular_lobe_width,
     ACOUSTIC_OT_interpolate_abs,
     ACOUSTIC_OT_interpolate_scat,
     ACOUSTIC_OT_load_from_api,
@@ -851,6 +885,8 @@ def unregister():
     del bpy.types.Material.acoustic_scat_4000
     del bpy.types.Material.acoustic_scat_8000
     del bpy.types.Material.acoustic_scat_16000
+
+    del bpy.types.Material.acoustic_specular_lobe_width
 
     del bpy.types.Material.acoustic_variant_enum
 

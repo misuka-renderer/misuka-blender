@@ -1,6 +1,6 @@
 {
     "acoustic_path": {
-        "label": "MISUKA: Acoustic Path",
+        "label": "misuka: Acoustic Path",
         "description": "Acoustic path replay backpropagation integrator.",
         "parameters": {
             "max_depth": {

@@ -377,7 +377,8 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
         params = {
             'type': 'acousticbsdf',
             'absorption': export_ctx.spectrum(absorption_pairs, mode='spectrum'),
-            'scattering': export_ctx.spectrum(scattering_pairs, mode='spectrum')
+            'scattering': export_ctx.spectrum(scattering_pairs, mode='spectrum'),
+            'specular_lobe_width': material.acoustic_specular_lobe_width
         }
 
         return two_sided_bsdf(params)

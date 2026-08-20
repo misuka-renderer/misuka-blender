@@ -79,8 +79,8 @@ def convert_point_light(b_light, export_ctx):
             'intensity': intensity
         }
 
-        # ======================================
-    # MISUKA Acoustic Mode
+    # ======================================
+    # misuka Acoustic Mode
     # ======================================
 
     energy = b_light.data.energy / (4*np.pi)
