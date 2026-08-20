@@ -1,4 +1,4 @@
-# misuka Blender Add-on
+# misuka Blender Add-on ![misuka Blender](res/banner_misuka.png)
 
 This add-on extends the Mitsuba Blender add-on with support for misuka-based geometric acoustic simulation and acoustic scene export.
 
