@@ -748,9 +748,9 @@ class ImportMistuba(bpy.types.Operator, ImportHelper):
 
 @orientation_helper(axis_forward='Y', axis_up='Z')
 class ExportMitsuba(bpy.types.Operator, ExportHelper):
-    """Export as a Mitsuba scene"""
+    """Export as a misuka scene"""
     bl_idname = "export_scene.mitsuba"
-    bl_label = "Mitsuba Export"
+    bl_label = "misuka Export"
 
     filename_ext = ".xml"
     filter_glob: StringProperty(default="*.xml", options={'HIDDEN'})
@@ -833,10 +833,10 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
 
 
 def menu_export_func(self, context):
-    self.layout.operator(ExportMitsuba.bl_idname, text="Mitsuba (.xml)")
+    self.layout.operator(ExportMitsuba.bl_idname, text="misuka (.xml)")
 
 def menu_import_func(self, context):
-    self.layout.operator(ImportMistuba.bl_idname, text="Mitsuba (.xml)")
+    self.layout.operator(ImportMistuba.bl_idname, text="misuka (.xml)")
 
 
 classes = (
