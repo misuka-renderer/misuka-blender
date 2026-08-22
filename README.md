@@ -48,3 +48,4 @@ This add-on extends the Mitsuba Blender add-on with support for misuka-based geo
 
 - Blender `3.6+`
 - misuka build with acoustic plugins enabled
+- The misuka build must use the same Python version as Blender
