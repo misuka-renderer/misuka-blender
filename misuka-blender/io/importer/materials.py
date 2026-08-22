@@ -24,7 +24,7 @@ from . import textures
 
 def _eval_mi_bsdf_retro_reflection(mi_context, mi_mat, default):
     ''' Evaluate the reflectance color of a BSDF for a perfect perpendicular reflection '''
-    from mitsuba import load_dict, BSDFContext, SurfaceInteraction3f, Vector3f
+    from misuka import load_dict, BSDFContext, SurfaceInteraction3f, Vector3f
     # Generate the BSDF properties dictionary
     bsdf_dict = {
         'type': mi_mat.plugin_name(),
@@ -168,7 +168,7 @@ def write_mi_float_value(mi_context, float_value, bl_mat_wrap, out_socket_id, tr
     bl_mat_wrap.out_node.inputs[out_socket_id].default_value = float_value
 
 def write_mi_float_property(mi_context, mi_mat, mi_prop_name, bl_mat_wrap, out_socket_id, default=None, transformation=None):
-    from mitsuba import Properties
+    from misuka import Properties
     if mi_mat.has_property(mi_prop_name):
         mi_prop_type = mi_mat.type(mi_prop_name)
         if mi_prop_type == Properties.Type.Float:
@@ -242,7 +242,7 @@ def write_mi_rgb_value(mi_context, rgb_value, bl_mat_wrap, out_socket_id):
     bl_mat_wrap.out_node.inputs[out_socket_id].default_value = bl_shader_utils.rgb_to_rgba(rgb_value)
 
 def write_mi_rgb_property(mi_context, mi_mat, mi_prop_name, bl_mat_wrap, out_socket_id, default=None):
-    from mitsuba import Properties
+    from misuka import Properties
     if mi_mat.has_property(mi_prop_name):
         mi_prop_type = mi_mat.type(mi_prop_name)
         if mi_prop_type == Properties.Type.Color:
@@ -274,7 +274,7 @@ def write_mi_rgb_property(mi_context, mi_mat, mi_prop_name, bl_mat_wrap, out_soc
 ############################
 
 def write_mi_ior_property(mi_context, mi_mat, mi_prop_name, bl_mat_wrap, out_socket_id, default=None):
-    from mitsuba import Properties
+    from misuka import Properties
     if mi_mat.has_property(mi_prop_name):
         mi_prop_type = mi_mat.type(mi_prop_name)
         if mi_prop_type == Properties.Type.Float:

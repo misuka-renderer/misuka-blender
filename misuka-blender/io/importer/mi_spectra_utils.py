@@ -1,6 +1,6 @@
 
 def _get_mi_obj_properties(mi_obj):
-    from mitsuba import traverse
+    from misuka import traverse
     props = {}
     for prop_name, prop_value in traverse(mi_obj):
         props[prop_name] = prop_value

@@ -21,7 +21,7 @@ def convert_mesh(export_ctx, b_mesh, matrix_world, name, mat_nr):
                   for logging/debug purposes.
     mat_nr:       The material ID to export.
     '''
-    from mitsuba import load_dict, Point3i
+    from misuka import load_dict, Point3i
     props = {
         'type': 'blender',
         'version': ".".join(map(str,bpy.app.version))

@@ -36,7 +36,7 @@ def write_mi_emitter_spectrum_object(mi_context, mi_obj, bl_world_wrap, radiance
     _emitter_spectrum_object_writers[mi_obj_class_name](mi_context, mi_obj, bl_world_wrap, radiance_socket_id, strength_socket_id, default)
 
 def write_mi_world_radiance_property(mi_context, mi_emitter, mi_prop_name, bl_world_wrap, radiance_socket_id, strength_socket_id, default=None):
-    from mitsuba import Properties
+    from misuka import Properties
     if mi_emitter.has_property(mi_prop_name):
         mi_prop_type = mi_emitter.type(mi_prop_name)
         if mi_prop_type == Properties.Type.Color:

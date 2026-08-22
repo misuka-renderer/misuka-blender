@@ -376,7 +376,7 @@ def load_mitsuba_scene(bl_context, bl_scene, bl_collection, filepath, global_mat
     '''
     start_time = time.time()
     # Load the Mitsuba XML and extract the objects' properties
-    from mitsuba import xml_to_props
+    from misuka import xml_to_props
     raw_props = xml_to_props(filepath)
     mi_scene_props = common.MitsubaSceneProperties(raw_props)
     mi_context = common.MitsubaSceneImportContext(bl_context, bl_scene, bl_collection, filepath, mi_scene_props, global_mat)

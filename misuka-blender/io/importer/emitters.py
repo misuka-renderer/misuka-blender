@@ -47,7 +47,7 @@ def _get_matrix_from_direction(direction, up):
     return rot
 
 def _get_radiance_value(mi_context, mi_emitter, mi_prop_name, default):
-    from mitsuba import Properties
+    from misuka import Properties
     if mi_emitter.has_property(mi_prop_name):
         mi_prop_type = mi_emitter.type(mi_prop_name)
         if mi_prop_type == Properties.Type.Color:

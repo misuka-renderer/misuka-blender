@@ -5,7 +5,7 @@ bl_info = {
     'blender': (2, 93, 0),
     'category': 'Render',
     'location': 'File menu, render engine menu',
-    'description': 'misuka integration for Blender (Mitsuba Add-on)',
+    'description': 'misuka integration for Blender',
     'wiki_url': 'https://github.com/misuka-renderer/misuka-blender',
     'tracker_url': 'https://github.com/misuka-renderer/misuka-blender/issues/new/choose',
     #'warning': 'alpha',
@@ -22,7 +22,7 @@ import subprocess
 
 from . import io, engine
 
-DEPS_MITSUBA_VERSION = None
+DEPS_MITSUBA_VERSION = '0.1.0'
 
 def get_addon_preferences(context):
     return context.preferences.addons[__name__].preferences
@@ -31,16 +31,13 @@ def init_mitsuba(context):
     # Make sure we can load mitsuba from blender
     try:
         os.environ['DRJIT_NO_RTLD_DEEPBIND'] = 'True'
-        should_reload_mitsuba = 'mitsuba' in sys.modules
-        import mitsuba
+        should_reload_mitsuba = 'misuka' in sys.modules
+        import misuka as mitsuba
         # If mitsuba was already loaded and we change the path, we need to reload it, since the import above will be ignored
         if should_reload_mitsuba:
             import importlib
             importlib.reload(mitsuba)
         mitsuba.set_variant('scalar_rgb')
-        # Set the global threading environment
-        from mitsuba import ThreadEnvironment
-        bpy.types.Scene.thread_env = ThreadEnvironment()
         return True
     except ModuleNotFoundError:
         return False
@@ -54,7 +51,7 @@ def try_register_mitsuba(context):
         update_additional_custom_paths(prefs, context)
         could_init_mitsuba = init_mitsuba(context)
         if could_init_mitsuba:
-            import mitsuba
+            import misuka as mitsuba
             prefs.mitsuba_custom_version = mitsuba.__version__
             if prefs.has_valid_mitsuba_custom_version:
                 prefs.mitsuba_dependencies_status_message = f'Found custom misuka v{prefs.mitsuba_custom_version}.'
@@ -66,7 +63,7 @@ def try_register_mitsuba(context):
         if prefs.has_valid_dependencies_version:
             could_init_mitsuba = init_mitsuba(context)
             if could_init_mitsuba:
-                import mitsuba
+                import misuka as mitsuba
                 prefs.mitsuba_dependencies_status_message = f'Found pip misuka v{mitsuba.__version__}.'
             else:
                 prefs.mitsuba_dependencies_status_message = 'Failed to load misuka package.'
@@ -117,7 +114,7 @@ def check_pip_dependencies(context):
         lines = output_str.splitlines(keepends=False)
         for line in lines:
             parts = line.split()
-            if len(parts) >= 2 and parts[0] == 'mitsuba':
+            if len(parts) >= 2 and parts[0] == 'misuka':
                 prefs.has_pip_dependencies = True
                 prefs.installed_dependencies_version = parts[1]
 
@@ -158,9 +155,9 @@ class MITSUBA_OT_install_pip_dependencies(Operator):
         return not prefs.has_pip_dependencies or not prefs.has_valid_dependencies_version
 
     def execute(self, context):
-        result = subprocess.run([sys.executable, '-m', 'pip', 'install', f'mitsuba=={DEPS_MITSUBA_VERSION}', '--force-reinstall'], capture_output=False)
+        result = subprocess.run([sys.executable, '-m', 'pip', 'install', f'misuka=={DEPS_MITSUBA_VERSION}', '--force-reinstall'], capture_output=False)
         if result.returncode != 0:
-            self.report({'ERROR'}, f'Failed to install Mitsuba with return code {result.returncode}.')
+            self.report({'ERROR'}, f'Failed to install misuka with return code {result.returncode}.')
             return {'CANCELLED'}
 
         check_pip_dependencies(context)
@@ -309,7 +306,7 @@ def register():
 
     check_pip_dependencies(context)
     if try_register_mitsuba(context):
-        import mitsuba
+        import misuka as mitsuba
         print(f'mitsuba-blender v{".".join(str(e) for e in bl_info["version"])}{bl_info["warning"] if "warning" in bl_info else ""} registered (with mitsuba v{mitsuba.__version__})')
 
 def unregister():

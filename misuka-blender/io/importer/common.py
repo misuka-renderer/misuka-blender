@@ -223,7 +223,7 @@ class MitsubaSceneImportContext:
         message: What to write
         level: Level of logging
         '''
-        from mitsuba import Log, LogLevel
+        from misuka import Log, LogLevel
         log_level = {
             'DEBUG': LogLevel.Debug,
             'INFO': LogLevel.Info,

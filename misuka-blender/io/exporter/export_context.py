@@ -119,7 +119,7 @@ class ExportContext:
         message: What to write
         level: Level of logging
         '''
-        from mitsuba import Log, LogLevel
+        from misuka import Log, LogLevel
         log_level = {
             'DEBUG': LogLevel.Debug,
             'INFO': LogLevel.Info,
@@ -209,7 +209,7 @@ class ExportContext:
         '''
         Apply coordinate shift and convert to a mitsuba Transform 4f
         '''
-        from mitsuba import ScalarTransform4f
+        from misuka import ScalarTransform4f
         if len(matrix) == 4:
             mat = self.axis_mat @ matrix
         else: #3x3

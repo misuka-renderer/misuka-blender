@@ -136,5 +136,5 @@ class SceneConverter:
         self.xml_writer.process(self.export_ctx.scene_data)
 
     def dict_to_scene(self):
-        from mitsuba import load_dict
+        from misuka import load_dict
         return load_dict(self.export_ctx.scene_data)
