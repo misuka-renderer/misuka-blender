@@ -52,4 +52,4 @@ This add-on extends the Mitsuba Blender add-on with support for misuka-based geo
 
 ## Development status
 
-This project was developed as part of a Bachelor's thesis based on the misuka development state from March 2026. Subsequent changes to the misuka API could not be fully incorporated and may require further maintenance.
+This project was developed as part of a Bachelor's thesis. Subsequent changes to the misuka API could not be fully incorporated and may require further maintenance.
