@@ -44,6 +44,11 @@ This add-on extends the Mitsuba Blender add-on with support for misuka-based geo
   - select the misuka build directory
   - optionally enter an AcousticIndex API key
 
+**Note:** if you use a custom misuka path, that build must have been compiled
+against the same Python version as Blender's bundled Python interpreter (e.g.
+Python 3.11 for Blender 4.2) — the native extension modules are ABI-locked to
+a specific Python minor version and will fail to import otherwise.
+
 ## Requirements
 
 - Blender `3.6+`
