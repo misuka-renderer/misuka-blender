@@ -267,7 +267,7 @@ class MitsubaRenderSettings(PropertyGroup):
     It creates classes for each plugin described in the JSON files dynamically.
     '''
 
-    from misuka import variant, variants, config
+    from misuka import variant, variants
     enum_variants = []
     for var in variants():
         enum_variants.append((var, var, ""))
