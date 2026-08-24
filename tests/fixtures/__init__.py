@@ -32,8 +32,12 @@ class MitsubaSceneParser:
         self.props = None
 
     def load_xml(self, scene_file):
-        import mitsuba
-        self.props = mitsuba.xml_to_props(scene_file)
+        import misuka as mitsuba
+        from misuka import parser
+        config = parser.ParserConfig(mitsuba.variant())
+        state = parser.parse_file(config, scene_file)
+        parser.transform_upgrade(config, state)
+        self.props = [(node.type.name, node.props) for node in state.nodes]
 
     def get_props_by_name(self, plugin_name):
         for _, props in self.props:
@@ -52,7 +56,7 @@ def mitsuba_scene_parser():
 class MitsubaSceneRenderer:
 
     def _bitmap_extract(self, bmp, require_variance=True):
-        from mitsuba import Bitmap, Struct
+        from misuka import Bitmap, Struct
         """Extract different channels from moment integrator AOVs"""
         # AVOs from the moment integrator are in XYZ (float32)
         split = bmp.split()
@@ -73,7 +77,7 @@ class MitsubaSceneRenderer:
             return img, img_m2 - img * img
 
     def render_scene(self, scene_file, **kwargs):
-        from mitsuba import load_file
+        from misuka import load_file
 
         scene = load_file(scene_file, **kwargs)
         scene.integrator().render(scene, seed=0, develop=False)
@@ -118,12 +122,12 @@ class MitsubaRenderTester:
 
     def xyz_to_rgb_bmp(self, arr):
         """Convert an XYZ image to RGB"""
-        from mitsuba import Bitmap, Struct
+        from misuka import Bitmap, Struct
         xyz_bmp = Bitmap(arr, Bitmap.PixelFormat.XYZ)
         return xyz_bmp.convert(Bitmap.PixelFormat.RGB, Struct.Type.Float32, False)
 
     def compare_scenes(self, xml_ref, xml_out, spp, resolution, output_dir, significance_level=0.01):
-        from mitsuba import Bitmap
+        from misuka import Bitmap
 
         pixel_count = resolution[0] * resolution[1]
         ref_img, ref_img_var = self.scene_renderer.render_scene(xml_ref, spp=spp, resx=resolution[0], resy=resolution[1])

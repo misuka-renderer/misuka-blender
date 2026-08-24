@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 def _bitmap_extract(bmp, require_variance=True):
-    from mitsuba import Bitmap, Struct
+    from misuka import Bitmap, Struct
     """Extract different channels from moment integrator AOVs"""
     # AVOs from the moment integrator are in XYZ (float32)
     split = bmp.split()
@@ -22,12 +22,12 @@ def _bitmap_extract(bmp, require_variance=True):
 
 def xyz_to_rgb_bmp(arr):
     """Convert an XYZ image to RGB"""
-    from mitsuba import Bitmap, Struct
+    from misuka import Bitmap, Struct
     xyz_bmp = Bitmap(arr, Bitmap.PixelFormat.XYZ)
     return xyz_bmp.convert(Bitmap.PixelFormat.RGB, Struct.Type.Float32, False)
 
 def render_scene(scene_file, spp, res):
-    from mitsuba import load_file
+    from misuka import load_file
 
     scene = load_file(scene_file, spp=spp, resx=res[0], resy=res[1])
     scene.integrator().render(scene, seed=0, develop=False)

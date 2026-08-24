@@ -7,10 +7,10 @@ import pytest
 class SetupPlugin:
     def __init__(self):
         mi_addon_root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        self.mi_addon_dir = os.path.join(mi_addon_root_dir, 'mitsuba-blender')
+        self.mi_addon_dir = os.path.join(mi_addon_root_dir, 'misuka-blender')
         self.bl_addon_dir  = bpy.utils.user_resource('SCRIPTS', path='addons', create=True)
         bpy.utils.refresh_script_paths()
-        self.bl_mi_addon_dir = os.path.join(self.bl_addon_dir, 'mitsuba-blender')
+        self.bl_mi_addon_dir = os.path.join(self.bl_addon_dir, 'misuka-blender')
 
     def pytest_configure(self, config):
         if os.path.exists(self.bl_mi_addon_dir):
@@ -23,20 +23,20 @@ class SetupPlugin:
         else:
             os.symlink(self.mi_addon_dir, self.bl_mi_addon_dir, target_is_directory=True)
         
-        if bpy.ops.preferences.addon_enable(module='mitsuba-blender') != {'FINISHED'}:
+        if bpy.ops.preferences.addon_enable(module='misuka-blender') != {'FINISHED'}:
             raise RuntimeError('Cannot enable mitsuba2-blender addon')
 
-        if not bpy.context.preferences.addons['mitsuba-blender'].preferences.is_mitsuba_initialized:
+        if not bpy.context.preferences.addons['misuka-blender'].preferences.is_mitsuba_initialized:
             raise RuntimeError('Failed to initialize Mitsuba library')
 
     def pytest_unconfigure(self):
-        bpy.ops.preferences.addon_disable(module='mitsuba-blender')
+        bpy.ops.preferences.addon_disable(module='misuka-blender')
         # Remove the symlink
         os.remove(self.bl_mi_addon_dir)
 
     def pytest_runtest_setup(self, item):
         bpy.ops.wm.read_homefile(use_empty=True)
-        if 'mitsuba-blender' not in bpy.context.preferences.addons:
+        if 'misuka-blender' not in bpy.context.preferences.addons:
             raise RuntimeError("Plugin was disabled by test reset")
 
 if __name__ == '__main__':
