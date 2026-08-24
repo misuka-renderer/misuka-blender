@@ -36,8 +36,8 @@ jobs:
     - name: Create GitHub draft release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "mitsuba-blender.zip"
+        artifacts: "misuka-blender.zip"
         artifactErrorsFailBuild: true
         bodyFile: "release/release_body_template.md"
         draft: true
-        name: "Mitsuba-Blender ${{ steps.git-tag.outputs.tag }}"
+        name: "misuka Blender ${{ steps.git-tag.outputs.tag }}"

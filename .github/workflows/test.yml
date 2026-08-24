@@ -25,11 +25,11 @@ jobs:
         environment:
         - {
           os: "ubuntu-latest",
-          mitsuba-version: "3.5.0"
+          misuka-version: "0.1.0"
         }
         - {
           os: "windows-latest",
-          mitsuba-version: "3.5.0"
+          misuka-version: "0.1.0"
         }
         blender:
         - {
@@ -76,11 +76,11 @@ jobs:
         ./$BLENDER_PYTHON -m ensurepip
         ./$BLENDER_PYTHON -m pip install -U pip
         ./$BLENDER_PYTHON -m pip install --upgrade pytest pytest-cov
-        ./$BLENDER_PYTHON -m pip install mitsuba==${{ matrix.environment.mitsuba-version }} --force-reinstall
+        ./$BLENDER_PYTHON -m pip install misuka==${{ matrix.environment.misuka-version }} --force-reinstall
 
     - name: Run Addon test suite
       shell: bash
       run: |
         BLENDER_EXECUTABLE=$(find blender/ -maxdepth 1 -regextype posix-extended -regex '.*blender(.exe)?' -print -quit)
         echo "Blender Executable is $BLENDER_EXECUTABLE"
-        ./$BLENDER_EXECUTABLE -b -noaudio --factory-startup --python scripts/run_tests.py -- -v --cov=mitsuba-blender
+        ./$BLENDER_EXECUTABLE -b -noaudio --factory-startup --python scripts/run_tests.py -- -v --cov=misuka-blender
