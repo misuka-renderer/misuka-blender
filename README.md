@@ -53,8 +53,8 @@ a specific Python minor version and will fail to import otherwise.
 
 - Blender `3.6+`
 - misuka build with acoustic plugins enabled
-- The misuka build must use the same Python version as Blender
 
 ## Development status
 
-This project was developed as part of a Bachelor's thesis. Subsequent changes to the misuka API could not be fully incorporated and may require further maintenance.
+This project was originally developed by Julius Schwarz, and has since been
+updated for compatibility with misuka v0.1.0.
