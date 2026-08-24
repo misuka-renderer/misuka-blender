@@ -51,8 +51,22 @@ a specific Python minor version and will fail to import otherwise.
 
 ## Requirements
 
-- Blender `3.6+`
+- Blender `3.6+` (tested up to `4.4`; see Python version table below)
 - misuka build with acoustic plugins enabled
+
+### Blender / Python version matrix
+
+The misuka build used with the *custom misuka path* option must be compiled
+against the same Python version Blender bundles:
+
+| Blender version | Python version |
+|---|---|
+| 3.6 LTS | 3.10 |
+| 4.0 | 3.11 |
+| 4.1 | 3.11 |
+| 4.2 LTS | 3.11 |
+| 4.3 | 3.11 |
+| 4.4 | 3.11 |
 
 ## Development status
 
