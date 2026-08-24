@@ -167,6 +167,7 @@ class MitsubaScenePropertiesIterator:
 class MitsubaSceneProperties:
     """ Container for loaded Mitsuba scene properties """
     def __init__(self, props):
+        self._objects_by_index = list(props)
         self.objects = OrderedDict()
         for (class_, prop) in props:
             self.objects[prop.id()] = (class_, prop)
@@ -188,6 +189,19 @@ class MitsubaSceneProperties:
         if id not in self.objects:
             return None
         cls_, props = self.objects[id]
+        if cls_ != cls:
+            return None
+        return props
+
+    def get_with_index(self, index):
+        ''' Get the (class, props) of the node at a given ParserState.nodes index '''
+        if index < 0 or index >= len(self._objects_by_index):
+            return (None, None)
+        return self._objects_by_index[index]
+
+    def get_with_index_and_class(self, index, cls):
+        ''' Get the props of the node at a given index, filtered by class '''
+        cls_, props = self.get_with_index(index)
         if cls_ != cls:
             return None
         return props

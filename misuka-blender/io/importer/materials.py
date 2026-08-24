@@ -174,9 +174,9 @@ def write_mi_float_property(mi_context, mi_mat, mi_prop_name, bl_mat_wrap, out_s
         if mi_prop_type == Properties.Type.Float:
             mi_prop_value = mi_mat.get(mi_prop_name, default)
             write_mi_float_value(mi_context, mi_prop_value, bl_mat_wrap, out_socket_id, transformation)
-        elif mi_prop_type == Properties.Type.NamedReference:
-            mi_texture_ref_id = mi_mat.get(mi_prop_name)
-            mi_texture = mi_context.mi_scene_props.get_with_id_and_class(mi_texture_ref_id, 'Texture')
+        elif mi_prop_type == Properties.Type.ResolvedReference:
+            mi_texture_ref_index = mi_mat.get(mi_prop_name).index()
+            mi_texture = mi_context.mi_scene_props.get_with_index_and_class(mi_texture_ref_index, 'Texture')
             assert mi_texture is not None
             write_mi_float_texture(mi_context, mi_texture, bl_mat_wrap, out_socket_id, default)
         elif mi_prop_type == Properties.Type.Object:
@@ -254,9 +254,9 @@ def write_mi_rgb_property(mi_context, mi_mat, mi_prop_name, bl_mat_wrap, out_soc
             else:
                 col = default
             write_mi_rgb_value(mi_context, list(col), bl_mat_wrap, out_socket_id)
-        elif mi_prop_type == Properties.Type.NamedReference:
-            mi_texture_ref_id = mi_mat.get(mi_prop_name)
-            mi_texture = mi_context.mi_scene_props.get_with_id_and_class(mi_texture_ref_id, 'Texture')
+        elif mi_prop_type == Properties.Type.ResolvedReference:
+            mi_texture_ref_index = mi_mat.get(mi_prop_name).index()
+            mi_texture = mi_context.mi_scene_props.get_with_index_and_class(mi_texture_ref_index, 'Texture')
             assert mi_texture is not None
             write_mi_rgb_texture(mi_context, mi_texture, bl_mat_wrap, out_socket_id, default)
         elif mi_prop_type == Properties.Type.Object:

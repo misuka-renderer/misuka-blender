@@ -42,8 +42,12 @@ def _check_unqueried_props(mi_context, mi_cls, mi_props):
         mi_context.log(f'Mitsuba {mi_cls} property "{prop_name}" was not handled.', 'WARN')
 
 def _convert_named_references(mi_context, mi_props, parent_node, type_filter=[]):
-    for _, ref_id in mi_props.named_references():
-        mi_child_cls, mi_child_props = mi_context.mi_scene_props.get_with_id(ref_id)
+    from misuka import Properties
+    for key in mi_props.keys():
+        if mi_props.type(key) != Properties.Type.ResolvedReference:
+            continue
+        ref_index = mi_props.get(key).index()
+        mi_child_cls, mi_child_props = mi_context.mi_scene_props.get_with_index(ref_index)
         assert mi_child_cls is not None and mi_child_props is not None
         if len(type_filter) == 0 or mi_child_cls in type_filter:
             child_node = mi_props_to_bl_data_node(mi_context, mi_child_cls, mi_child_props)
@@ -376,8 +380,18 @@ def load_mitsuba_scene(bl_context, bl_scene, bl_collection, filepath, global_mat
     '''
     start_time = time.time()
     # Load the Mitsuba XML and extract the objects' properties
-    from misuka import xml_to_props
-    raw_props = xml_to_props(filepath)
+    from misuka import parser
+    config = parser.ParserConfig('scalar_rgb')
+    state = parser.parse_file(config, filepath)
+    parser.transform_upgrade(config, state)
+    parser.transform_resolve_references(config, state)
+    # Anonymous/inline nodes get props.id() == '' from the parser; assign a
+    # synthetic unique id so the id-keyed material/image caches below don't
+    # collide between distinct anonymous nodes.
+    for idx, node in enumerate(state.nodes):
+        if not node.props.id():
+            node.props.set_id(f'_unnamed_{idx}')
+    raw_props = [(node.type.name, node.props) for node in state.nodes]
     mi_scene_props = common.MitsubaSceneProperties(raw_props)
     mi_context = common.MitsubaSceneImportContext(bl_context, bl_scene, bl_collection, filepath, mi_scene_props, global_mat)
 
