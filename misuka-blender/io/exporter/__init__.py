@@ -32,14 +32,8 @@ class SceneConverter:
         self.ignore_background = True
         self.render = render
 
-    def set_path(self, name, split_files=False):
-        from mitsuba.python.xml import WriteXML
-        # Ideally, this should only be created if we want to write a scene.
-        # For now we need it to save meshes and packed textures.
-        # TODO: get rid of all writing to disk when creating the dict
-        if not self.render:
-            self.xml_writer = WriteXML(name, self.export_ctx.subfolders,
-                                       split_files=split_files)
+    def set_path(self, name):
+        self.export_path = name
         # Give the path to the export context, for saving meshes and files
         self.export_ctx.directory, _ = os.path.split(name)
 
@@ -133,7 +127,10 @@ class SceneConverter:
                 self.export_ctx.log("Object: %s of type '%s' is not supported!" % (evaluated_obj.name_full, object_type), 'WARN')
 
     def dict_to_xml(self):
-        self.xml_writer.process(self.export_ctx.scene_data)
+        from misuka import parser, variant
+        config = parser.ParserConfig(variant())
+        state = parser.parse_dict(config, self.export_ctx.scene_data)
+        parser.write_file(state, self.export_path)
 
     def dict_to_scene(self):
         from misuka import load_dict

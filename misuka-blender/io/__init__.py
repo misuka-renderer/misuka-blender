@@ -761,12 +761,6 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
 	        default = False,
 	    )
 
-    split_files: BoolProperty(
-            name = "Split File",
-            description = "Split scene XML file in smaller fragments",
-            default = False
-    )
-
     export_ids: BoolProperty(
             name = "Export IDs",
             description = "Add an 'id' field for each object (shape, emitter, camera...)",
@@ -809,7 +803,7 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         self.converter.use_selection = self.use_selection
 
         # Set path to scene .xml file
-        self.converter.set_path(self.filepath, split_files=self.split_files)
+        self.converter.set_path(self.filepath)
 
         window_manager = context.window_manager
 
