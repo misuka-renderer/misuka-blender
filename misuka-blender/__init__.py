@@ -1,7 +1,7 @@
 bl_info = {
     'name': 'misuka Blender',
     'author': 'Julius Schwarz, Tobias Jüterbock',
-    'version': (1, 0),
+    'version': (0, 1, 1),
     'blender': (2, 93, 0),
     'category': 'Render',
     'location': 'File menu, render engine menu',
