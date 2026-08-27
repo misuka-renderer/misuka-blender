@@ -247,7 +247,7 @@ def write_mi_rgb_property(mi_context, mi_mat, mi_prop_name, bl_mat_wrap, out_soc
         mi_prop_type = mi_mat.type(mi_prop_name)
         if mi_prop_type == Properties.Type.Color:
             write_mi_rgb_value(mi_context, list(mi_mat.get(mi_prop_name, default)), bl_mat_wrap, out_socket_id)
-        if mi_prop_type == Properties.Type.Float:
+        elif mi_prop_type == Properties.Type.Float:
             if mi_prop_name in mi_mat:
                 col_val = mi_mat.get(mi_prop_name)
                 col = [col_val, col_val, col_val]
