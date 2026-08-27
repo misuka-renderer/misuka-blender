@@ -72,18 +72,19 @@ class MitsubaSceneRenderer:
         else:
             # Check which split contains moments - it may not be the first one after root
             m2_index = 1 if split[1][0].startswith('m2_') else 2
-            img = np.array(split[m2_index][1], copy=False)
+            mean_index = 2 if m2_index == 1 else 1
+            img = np.array(split[mean_index][1], copy=False)
             img_m2 = np.array(split[m2_index][1], copy=False)
             return img, img_m2 - img * img
 
-    def render_scene(self, scene_file, **kwargs):
+    def render_scene(self, scene_file, require_variance=True, **kwargs):
         from misuka import load_file
 
         scene = load_file(scene_file, **kwargs)
         scene.integrator().render(scene, seed=0, develop=False)
 
         bmp = scene.sensors()[0].film().bitmap(raw=False)
-        img, var_img = self._bitmap_extract(bmp)
+        img, var_img = self._bitmap_extract(bmp, require_variance)
 
         return img, var_img
 
@@ -134,8 +135,10 @@ class MitsubaRenderTester:
         # concrete film dimensions rather than $resx/$resy defaults, and misuka
         # v0.1.0's parser errors on parameters nothing consumed. Both scenes
         # already carry the same resolution, asserted below.
+        # The reference wraps its integrator in `moment` to supply the variance the
+        # z-test needs; an exported scene carries a plain integrator and cannot.
         ref_img, ref_img_var = self.scene_renderer.render_scene(xml_ref, spp=spp)
-        img, _ = self.scene_renderer.render_scene(xml_out, spp=spp)
+        img, _ = self.scene_renderer.render_scene(xml_out, spp=spp, require_variance=False)
 
         assert ref_img.shape == img.shape, (
             f'Round trip changed the film resolution: {ref_img.shape} -> {img.shape}')
