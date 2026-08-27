@@ -63,6 +63,9 @@ class SceneConverter:
                 ).to_dict()
                 # Required for acoustic integrator
                 integrator['max_time'] = 2.0
+                # NOTE: misuka's acoustic_path has no Russian Roulette; it rejects
+                #       rr_depth outright, so it stays a visual-mode parameter.
+                integrator.pop('rr_depth', None)
             else:
                 integrator = getattr(
                     b_scene.mitsuba.available_integrators,
