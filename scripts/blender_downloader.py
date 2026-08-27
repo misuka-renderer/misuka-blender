@@ -20,6 +20,11 @@ def get_platform_suffix_pattern():
     else:
         raise RuntimeError(f'Unsupported platform: {sys.platform}')
 
+def _version_sort_key(link):
+    '''Numeric sort key for a 'blender-X.Y.Z-platform...' archive link.'''
+    version = link.split('-')[1]
+    return tuple(int(part) if part.isdigit() else -1 for part in version.split('.'))
+
 class BlenderHTMLParser(HTMLParser):
     def __init__(self, blender_version_parts, convert_charrefs = ...):
         super().__init__(convert_charrefs=convert_charrefs)
@@ -38,7 +43,11 @@ class BlenderHTMLParser(HTMLParser):
                 platform_blender_links.append(link)
         
         if len(self.blender_version_parts) == 2:
-            return platform_blender_links[-1]
+            if not platform_blender_links:
+                return None
+            # NOTE: The mirror lists archives alphabetically, which puts 4.5.9
+            #       after 4.5.13. Pick the highest patch release numerically.
+            return max(platform_blender_links, key=_version_sort_key)
         else:
             for link in platform_blender_links:
                 link_blender_version = link.split('-')[1]
