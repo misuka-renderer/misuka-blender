@@ -11,9 +11,20 @@ on:
 
 # Workflow steps
 jobs:
+  # Gate the release on the full matrix. The per-cell badge workflows exist for
+  # README status; here a single pass/fail across every combination is what matters.
   tests:
-    uses: ./.github/workflows/test.yml
-  
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        blender-version: ["3.6", "4.2", "4.5", "5.2"]
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      os: ${{ matrix.os }}
+      blender-version: ${{ matrix.blender-version }}
+
+
   package:
     name: "Package Release"
     needs: [tests]

@@ -1,0 +1,18 @@
+# Badge-producing wrapper: one workflow run per OS/Blender cell, so README.md can
+# show a status badge for this combination. All the work lives in test-suite.yml.
+#
+# Generated - if you change one of these, change them all.
+name: linux | Blender 5.2
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      os: ubuntu-latest
+      blender-version: "5.2"

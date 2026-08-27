@@ -1,51 +1,33 @@
-# This workflow runs on every pull request and push on any other branch other than master.
-# It executes the test suite on different environments to validate the add-on.
+# Reusable test suite: runs the add-on tests for ONE OS / Blender combination.
+#
+# It is deliberately single-job rather than a matrix: a status badge reports a
+# whole workflow run, so one badge per OS/Blender cell requires one run per cell.
+# The `test-<os>-<version>.yml` callers each pin one combination and supply the
+# badge shown in README.md. `release.yml` calls this with a matrix instead, where
+# a single pass/fail gate is what's wanted.
 name: Test suite
 
-# Triggers the workflow on pull requests created for the master branch as well as
-# push events on other branches than master.
 on:
-  push:
-    branches:
-      - "*"
-      - "!master"
-  pull_request:
-    branches: [ master ]
   workflow_call:
+    inputs:
+      os:
+        description: "Runner label, e.g. ubuntu-latest or windows-latest"
+        required: true
+        type: string
+      blender-version:
+        description: "Blender major.minor, e.g. 4.2 - the newest patch release is resolved at run time"
+        required: true
+        type: string
 
 # Keep in sync with DEPS_MITSUBA_VERSION in misuka-blender/__init__.py
 env:
   DEPS_MITSUBA_VERSION: "0.1.0"
 
-# Workflow steps
 jobs:
-  build:
-    name: "${{ matrix.environment.os }} | Blender ${{ matrix.blender.version }}"
-    runs-on: ${{ matrix.environment.os }}
-    strategy:
-      # Do not stop other jobs if one fails
-      fail-fast: false
-      matrix:
-        environment:
-        - {
-          os: "ubuntu-latest"
-        }
-        - {
-          os: "windows-latest"
-        }
-        blender:
-        - {
-          version: "3.6"
-        }
-        - {
-          version: "4.2"
-        }
-        - {
-          version: "4.5"
-        }
-        - {
-          version: "5.2"
-        }
+  test:
+    name: "${{ inputs.os }} | Blender ${{ inputs.blender-version }}"
+    runs-on: ${{ inputs.os }}
+
     steps:
     - name: Git checkout
       uses: actions/checkout@v2
@@ -63,18 +45,18 @@ jobs:
       id: blender-version
       shell: bash
       run: |
-        echo "::set-output name=BLENDER_VERSION::$(python scripts/blender_downloader.py ${{ matrix.blender.version }} --print-version)"
+        echo "::set-output name=BLENDER_VERSION::$(python scripts/blender_downloader.py ${{ inputs.blender-version }} --print-version)"
 
     - name: Cache Blender archive
       id: cache-blender
       uses: actions/cache@v3
       with:
         path: blender
-        key: ${{ matrix.environment.os }}-${{ steps.blender-version.outputs.BLENDER_VERSION }}-v1
+        key: ${{ inputs.os }}-${{ steps.blender-version.outputs.BLENDER_VERSION }}-v1
 
     - name: Download Blender
       if: steps.cache-blender.outputs.cache-hit != 'true'
-      run: python scripts/blender_downloader.py ${{ matrix.blender.version }} -o blender
+      run: python scripts/blender_downloader.py ${{ inputs.blender-version }} -o blender
 
     - name: Install Blender dependencies
       shell: bash
