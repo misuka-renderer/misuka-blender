@@ -85,4 +85,16 @@ jobs:
       run: |
         BLENDER_EXECUTABLE=$(find blender/ -maxdepth 1 -regextype posix-extended -regex '.*blender(.exe)?' -print -quit)
         echo "Blender Executable is $BLENDER_EXECUTABLE"
-        ./$BLENDER_EXECUTABLE -b -noaudio --factory-startup --python scripts/run_tests.py -- -v --cov=misuka-blender
+        set +e
+        ./$BLENDER_EXECUTABLE -b -noaudio --factory-startup --python scripts/run_tests.py -- \
+          -v --cov=misuka-blender --junitxml=pytest-report.xml
+        STATUS=$?
+        set -e
+        echo "Blender exited with status $STATUS"
+        # Blender's status is unusable on Windows - it faults unloading misuka once
+        # the tests are done (issue #4). Judge the run on pytest's own report; a
+        # crash mid-run leaves no usable report and still fails.
+        python scripts/check_pytest_report.py pytest-report.xml
+        if [ "$STATUS" -ne 0 ]; then
+          echo "::warning::Tests passed but Blender exited with status $STATUS - see issue #4"
+        fi

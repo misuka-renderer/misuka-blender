@@ -30,9 +30,12 @@ class SetupPlugin:
             raise RuntimeError('Failed to initialize misuka library')
 
     def pytest_unconfigure(self):
+        print('[teardown] disabling addon', flush=True)
         bpy.ops.preferences.addon_disable(module='misuka-blender')
+        print('[teardown] addon disabled', flush=True)
         # Remove the symlink
         os.remove(self.bl_mi_addon_dir)
+        print('[teardown] symlink removed', flush=True)
 
     def pytest_runtest_setup(self, item):
         bpy.ops.wm.read_homefile(use_empty=True)
@@ -53,4 +56,14 @@ if __name__ == '__main__':
         print(e)
         exit_code = 1
 
-    sys.exit(exit_code)
+    print(f'[teardown] pytest returned {exit_code}', flush=True)
+
+    # NOTE: Blender faults on Windows while tearing misuka down, after every test
+    #       has already run (issue #4). The test result is fully determined by
+    #       now, so leave immediately rather than unwind through native
+    #       finalization. A crash *during* the tests never reaches this line and
+    #       still fails the job.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    # int(): pytest.main returns an ExitCode enum rather than a plain int.
+    os._exit(int(exit_code))
