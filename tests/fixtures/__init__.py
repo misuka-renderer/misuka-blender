@@ -130,8 +130,15 @@ class MitsubaRenderTester:
         from misuka import Bitmap
 
         pixel_count = resolution[0] * resolution[1]
-        ref_img, ref_img_var = self.scene_renderer.render_scene(xml_ref, spp=spp, resx=resolution[0], resy=resolution[1])
-        img, _ = self.scene_renderer.render_scene(xml_out, spp=spp, resx=resolution[0], resy=resolution[1])
+        # NOTE: resx/resy are deliberately not passed. An exported scene writes
+        # concrete film dimensions rather than $resx/$resy defaults, and misuka
+        # v0.1.0's parser errors on parameters nothing consumed. Both scenes
+        # already carry the same resolution, asserted below.
+        ref_img, ref_img_var = self.scene_renderer.render_scene(xml_ref, spp=spp)
+        img, _ = self.scene_renderer.render_scene(xml_out, spp=spp)
+
+        assert ref_img.shape == img.shape, (
+            f'Round trip changed the film resolution: {ref_img.shape} -> {img.shape}')
 
         p_value = self.z_test(img, spp, ref_img, ref_img_var)
 
