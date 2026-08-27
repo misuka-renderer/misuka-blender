@@ -117,6 +117,13 @@ def check_pip_dependencies(context):
             if len(parts) >= 2 and parts[0] == 'misuka':
                 prefs.has_pip_dependencies = True
                 prefs.installed_dependencies_version = parts[1]
+                break
+
+    if not prefs.has_pip_dependencies:
+        # Clear any version left over from a previous check, so a stale string
+        # can't leak into the status message.
+        prefs.installed_dependencies_version = ''
+        prefs.has_valid_dependencies_version = False
 
 def clean_additional_custom_paths(self, context):
     # Remove old values from system PATH and sys.path
@@ -181,11 +188,26 @@ def update_mitsuba_custom_path(self, context):
         if not self.is_mitsuba_initialized:
             try_reload_mitsuba(context)
 
+def release_version(version_string):
+    '''Leading numeric components of a version, e.g. '0.1.0.dev1+gabc' -> (0, 1, 0).
+
+    Custom builds carry a dev/commit suffix that never compares equal to a plain
+    release string, so both checks compare on the release components only.
+    '''
+    components = []
+    for part in version_string.split('+')[0].split('.'):
+        if not part.isdigit():
+            break
+        components.append(int(part))
+    return tuple(components)
+
 def update_installed_dependencies_version(self, context):
-    self.has_valid_dependencies_version = True
+    self.has_valid_dependencies_version = \
+        release_version(self.installed_dependencies_version) == release_version(DEPS_MITSUBA_VERSION)
 
 def update_mitsuba_custom_version(self, context):
-    self.has_valid_mitsuba_custom_version = True
+    self.has_valid_mitsuba_custom_version = \
+        release_version(self.mitsuba_custom_version) == release_version(DEPS_MITSUBA_VERSION)
 
 class MitsubaPreferences(AddonPreferences):
     bl_idname = __name__
