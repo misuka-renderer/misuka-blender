@@ -65,7 +65,10 @@ def apply_mi_path_properties(mi_context, mi_props, bl_props=None):
     # Cycles properties
     if bl_props is None:
         bl_renderer = mi_context.bl_scene.cycles
-        bl_renderer.progressive = 'PATH'
+        # NOTE: Blender 5.x removed cycles.progressive; path tracing is the only
+        #       sampling mode there, so there is nothing to set.
+        if hasattr(bl_renderer, 'progressive'):
+            bl_renderer.progressive = 'PATH'
         bl_max_bounces = mi_props.get('max_depth', 1024)
         bl_renderer.max_bounces = bl_max_bounces
         bl_renderer.diffuse_bounces = bl_max_bounces
