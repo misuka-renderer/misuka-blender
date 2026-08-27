@@ -19,7 +19,7 @@ _fileformat_values = {
 
 def mi_fileformat_to_bl_fileformat(mi_context, mi_file_format):
     if mi_file_format not in _fileformat_values:
-        mi_context.log(f'Mitsuba Film image file format "{mi_file_format}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Film image file format "{mi_file_format}" is not supported.', 'ERROR')
         return None
     return _fileformat_values[mi_file_format]
 
@@ -31,7 +31,7 @@ _pixelformat_values = {
 
 def mi_pixelformat_to_bl_pixelformat(mi_context, mi_pixel_format):
     if mi_pixel_format not in _pixelformat_values:
-        mi_context.log(f'Mitsuba Film image pixel format "{mi_pixel_format}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Film image pixel format "{mi_pixel_format}" is not supported.', 'ERROR')
         return None
     return _pixelformat_values[mi_pixel_format]
 
@@ -43,7 +43,7 @@ _componentformat_values = {
 
 def mi_componentformat_to_bl_componentformat(mi_context, mi_component_format):
     if mi_component_format not in _componentformat_values:
-        mi_context.log(f'Mitsuba Film image component format "{mi_component_format}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Film image component format "{mi_component_format}" is not supported.', 'ERROR')
         return None
     return _componentformat_values[mi_component_format]
 
@@ -55,7 +55,7 @@ def apply_mi_path_properties(mi_context, mi_props, bl_props=None):
     bl_integrator = mi_context.bl_scene.mitsuba if bl_props is None else bl_props
     bl_path_props = getattr(bl_integrator.available_integrators, 'path', None)
     if bl_path_props is None:
-        mi_context.log(f'Mitsuba Integrator "path" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Integrator "path" is not supported.', 'ERROR')
         return False
     bl_integrator.active_integrator = 'path'
     bl_path_props.max_depth = mi_props.get('max_depth', -1)
@@ -80,13 +80,13 @@ def apply_mi_path_properties(mi_context, mi_props, bl_props=None):
 def apply_mi_moment_properties(mi_context, mi_props, bl_props=None):
     if bl_props is not None:
         # FIXME: support moment integrator nesting
-        mi_context.log('Mitsuba Integrator "moment" does not support being nested yet.', 'ERROR')
+        mi_context.log('misuka Integrator "moment" does not support being nested yet.', 'ERROR')
         return False
 
     mi_renderer = mi_context.bl_scene.mitsuba
     bl_moment_props = getattr(mi_renderer.available_integrators, 'moment', None)
     if bl_moment_props is None:
-        mi_context.log(f'Mitsuba Integrator "moment" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Integrator "moment" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
     mi_renderer.active_integrator = 'moment'
@@ -97,7 +97,7 @@ def apply_mi_moment_properties(mi_context, mi_props, bl_props=None):
         if not apply_mi_integrator_properties(mi_context, mi_integrator_props, bl_child_integrator):
             return False
     # Cycles properties
-    mi_context.log('Mitsuba Integrator "moment" is not supported in Blender Cycles', 'WARN')
+    mi_context.log('misuka Integrator "moment" is not supported in Blender Cycles', 'WARN')
 
     return True
 
@@ -109,7 +109,7 @@ _mi_integrator_properties_converters = {
 def apply_mi_integrator_properties(mi_context, mi_props, bl_integrator_props=None):
     mi_integrator_type = mi_props.plugin_name()
     if mi_integrator_type not in _mi_integrator_properties_converters:
-        mi_context.log(f'Mitsuba Integrator "{mi_integrator_type}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Integrator "{mi_integrator_type}" is not supported.', 'ERROR')
         return False
     
     return _mi_integrator_properties_converters[mi_integrator_type](mi_context, mi_props, bl_integrator_props)
@@ -122,7 +122,7 @@ def apply_mi_tent_properties(mi_context, mi_props):
     mi_camera = mi_context.bl_scene.camera.data.mitsuba
     bl_box_props = getattr(mi_camera.rfilters, 'tent', None)
     if bl_box_props is None:
-        mi_context.log(f'Mitsuba Reconstruction Filter "tent" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Reconstruction Filter "tent" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
     mi_camera.active_rfilter = 'tent'
@@ -136,7 +136,7 @@ def apply_mi_box_properties(mi_context, mi_props):
     bl_renderer = mi_context.bl_scene.cycles
     bl_box_props = getattr(mi_camera.rfilters, 'box', None)
     if bl_box_props is None:
-        mi_context.log(f'Mitsuba Reconstruction Filter "box" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Reconstruction Filter "box" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
     mi_camera.active_rfilter = 'box'
@@ -150,7 +150,7 @@ def apply_mi_gaussian_properties(mi_context, mi_props):
     bl_renderer = mi_context.bl_scene.cycles
     bl_box_props = getattr(mi_camera.rfilters, 'gaussian', None)
     if bl_box_props is None:
-        mi_context.log(f'Mitsuba Reconstruction Filter "gaussian" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Reconstruction Filter "gaussian" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
     mi_camera.active_rfilter = 'gaussian'
@@ -169,7 +169,7 @@ _mi_rfilter_properties_converters = {
 def apply_mi_rfilter_properties(mi_context, mi_props):
     mi_rfilter_type = mi_props.plugin_name()
     if mi_rfilter_type not in _mi_rfilter_properties_converters:
-        mi_context.log(f'Mitsuba Reconstruction Filter "{mi_rfilter_type}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Reconstruction Filter "{mi_rfilter_type}" is not supported.', 'ERROR')
         return False
     
     return _mi_rfilter_properties_converters[mi_rfilter_type](mi_context, mi_props)
@@ -183,7 +183,7 @@ def apply_mi_independent_properties(mi_context, mi_props):
     bl_renderer = mi_context.bl_scene.cycles
     bl_independent_props = getattr(mi_camera.samplers, 'independent', None)
     if bl_independent_props is None:
-        mi_context.log(f'Mitsuba Sampler "independent" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Sampler "independent" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
     mi_camera.active_sampler = 'independent'
@@ -206,7 +206,7 @@ def apply_mi_stratified_properties(mi_context, mi_props):
     bl_renderer = mi_context.bl_scene.cycles
     bl_stratified_props = getattr(mi_camera.samplers, 'stratified', None)
     if bl_stratified_props is None:
-        mi_context.log(f'Mitsuba Sampler "stratified" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Sampler "stratified" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
     mi_camera.active_sampler = 'stratified'
@@ -229,7 +229,7 @@ def apply_mi_multijitter_properties(mi_context, mi_props):
     bl_renderer = mi_context.bl_scene.cycles
     bl_multijitter_props = getattr(mi_camera.samplers, 'multijitter', None)
     if bl_multijitter_props is None:
-        mi_context.log(f'Mitsuba Sampler "multijitter" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Sampler "multijitter" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
     mi_camera.active_sampler = 'multijitter'
@@ -256,7 +256,7 @@ _mi_sampler_properties_converters = {
 def apply_mi_sampler_properties(mi_context, mi_props):
     mi_sampler_type = mi_props.plugin_name()
     if mi_sampler_type not in _mi_sampler_properties_converters:
-        mi_context.log(f'Mitsuba Sampler "{mi_sampler_type}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Sampler "{mi_sampler_type}" is not supported.', 'ERROR')
         return False
     
     return _mi_sampler_properties_converters[mi_sampler_type](mi_context, mi_props)
@@ -294,7 +294,7 @@ _mi_film_properties_converters = {
 def apply_mi_film_properties(mi_context, mi_props):
     mi_film_type = mi_props.plugin_name()
     if mi_film_type not in _mi_film_properties_converters:
-        mi_context.log(f'Mitsuba Film "{mi_film_type}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Film "{mi_film_type}" is not supported.', 'ERROR')
         return False
     
     return _mi_film_properties_converters[mi_film_type](mi_context, mi_props)
@@ -308,7 +308,7 @@ def init_mitsuba_renderer(mi_context):
     from misuka import variants
     mi_renderer = mi_context.bl_scene.mitsuba
     if 'scalar_rgb' not in variants():
-        mi_context.log('Mitsuba variant "scalar_rgb" not available.', 'ERROR')
+        mi_context.log('misuka variant "scalar_rgb" not available.', 'ERROR')
         return False
     mi_renderer.variant = 'scalar_rgb'
     return True

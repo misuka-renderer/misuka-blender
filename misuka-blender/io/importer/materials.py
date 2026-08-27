@@ -54,7 +54,7 @@ def mi_wrap_mode_to_bl_extension(mi_context, mi_wrap_mode):
     elif mi_wrap_mode == 'clamp':
         return 'CLIP'
     else:
-        mi_context.log(f'Mitsuba wrap mode "{mi_wrap_mode}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka wrap mode "{mi_wrap_mode}" is not supported.', 'ERROR')
         return None
 
 def mi_filter_type_to_bl_interpolation(mi_context, mi_filter_type):
@@ -63,7 +63,7 @@ def mi_filter_type_to_bl_interpolation(mi_context, mi_filter_type):
     elif mi_filter_type == 'nearest':
         return 'Closest'
     else:
-        mi_context.log(f'Mitsuba filter type "{mi_filter_type}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka filter type "{mi_filter_type}" is not supported.', 'ERROR')
         return None
 
 _ior_string_values = {
@@ -94,7 +94,7 @@ _ior_string_values = {
 
 def mi_ior_string_to_float(mi_context, mi_ior):
     if mi_ior not in _ior_string_values:
-        mi_context.log(f'Mitsuba IOR name "{mi_ior}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka IOR name "{mi_ior}" is not supported.', 'ERROR')
         return 1.0
     return _ior_string_values[mi_ior]
 
@@ -105,7 +105,7 @@ _microfacet_distribution_values = {
 
 def mi_microfacet_to_bl_microfacet(mi_context, mi_microfacet_distribution):
     if mi_microfacet_distribution not in _microfacet_distribution_values:
-        mi_context.log(f'Mitsuba microfacet distribution "{mi_microfacet_distribution}" not supported.', 'ERROR')
+        mi_context.log(f'misuka microfacet distribution "{mi_microfacet_distribution}" not supported.', 'ERROR')
         return 'BECKMANN'
     return _microfacet_distribution_values[mi_microfacet_distribution]
 
@@ -143,7 +143,7 @@ _float_texture_writers = {
 def write_mi_float_texture(mi_context, mi_texture, bl_mat_wrap, out_socket_id, default=None):
     mi_texture_type = mi_texture.plugin_name()
     if mi_texture_type not in _float_texture_writers:
-        mi_context.log(f'Mitsuba Texture type "{mi_texture_type}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Texture type "{mi_texture_type}" is not supported.', 'ERROR')
         return
     _float_texture_writers[mi_texture_type](mi_context, mi_texture, bl_mat_wrap, out_socket_id, default)
 
@@ -158,7 +158,7 @@ _float_spectrum_writers = {
 def write_mi_float_spectrum(mi_context, mi_obj, bl_mat_wrap, out_socket_id, default=None):
     mi_obj_class_name = mi_obj.class_().name()
     if mi_obj_class_name not in _float_spectrum_writers:
-        mi_context.log(f'Mitsuba object type "{mi_obj_class_name}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka object type "{mi_obj_class_name}" is not supported.', 'ERROR')
         return
     _float_spectrum_writers[mi_obj_class_name](mi_context, mi_obj, bl_mat_wrap, out_socket_id, default)
 
@@ -219,7 +219,7 @@ _rgb_texture_writers = {
 def write_mi_rgb_texture(mi_context, mi_texture, bl_mat_wrap, out_socket_id, default=None):
     mi_texture_type = mi_texture.plugin_name()
     if mi_texture_type not in _rgb_texture_writers:
-        mi_context.log(f'Mitsuba Texture type "{mi_texture_type}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka Texture type "{mi_texture_type}" is not supported.', 'ERROR')
         return
     _rgb_texture_writers[mi_texture_type](mi_context, mi_texture, bl_mat_wrap, out_socket_id, default)
 
@@ -234,7 +234,7 @@ _rgb_spectrum_writers = {
 def write_mi_rgb_spectrum(mi_context, mi_obj, bl_mat_wrap, out_socket_id, default=None):
     mi_obj_class_name = mi_obj.class_().name()
     if mi_obj_class_name not in _rgb_spectrum_writers:
-        mi_context.log(f'Mitsuba object type "{mi_obj_class_name}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka object type "{mi_obj_class_name}" is not supported.', 'ERROR')
         return
     _rgb_spectrum_writers[mi_obj_class_name](mi_context, mi_obj, bl_mat_wrap, out_socket_id, default)
 
@@ -401,7 +401,7 @@ def write_mi_twosided_bsdf(mi_context, mi_mat, bl_mat_wrap, out_socket_id, mi_bu
         write_twosided_material(mi_context, bl_mat_wrap, out_socket_id, mi_child_materials[0], mi_child_materials[1], mi_bump=mi_bump, mi_normal=mi_normal)
         return True
     else:
-        mi_context.log(f'Mitsuba twosided material "{mi_mat.id()}" has {mi_child_material_count} child material(s). Expected 1 or 2.', 'ERROR')
+        mi_context.log(f'misuka twosided material "{mi_mat.id()}" has {mi_child_material_count} child material(s). Expected 1 or 2.', 'ERROR')
         return False
 
 def write_mi_dielectric_bsdf(mi_context, mi_mat, bl_mat_wrap, out_socket_id, mi_bump=None, mi_normal=None):
@@ -613,7 +613,7 @@ def write_mi_material_to_node_graph(mi_context, mi_mat, bl_mat_wrap, out_socket_
     '''
     mat_type = mi_mat.plugin_name()
     if mat_type not in _material_writers:
-        mi_context.log(f'Mitsuba BSDF type "{mat_type}" not supported. Skipping.', 'WARN')
+        mi_context.log(f'misuka BSDF type "{mat_type}" not supported. Skipping.', 'WARN')
         write_bl_error_material(bl_mat_wrap, out_socket_id)
         return
 
@@ -625,7 +625,7 @@ def write_mi_material_to_node_graph(mi_context, mi_mat, bl_mat_wrap, out_socket_
         # Write one-sided material
         write_twosided_material(mi_context, bl_mat_wrap, out_socket_id, mi_front_mat=mi_mat, mi_back_mat=None, mi_bump=mi_bump, mi_normal=mi_normal)
     elif not _material_writers[mat_type](mi_context, mi_mat, bl_mat_wrap, out_socket_id, mi_bump=mi_bump, mi_normal=mi_normal):
-        mi_context.log(f'Failed to convert Mitsuba material "{mi_mat.id()}". Skipping.', 'WARN')
+        mi_context.log(f'Failed to convert misuka material "{mi_mat.id()}". Skipping.', 'WARN')
         write_bl_error_material(bl_mat_wrap, out_socket_id)
 
 def mi_material_to_bl_material(mi_context, mi_mat, mi_emitter=None):

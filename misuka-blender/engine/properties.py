@@ -315,8 +315,8 @@ class MitsubaRenderSettings(PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Scene.mitsuba = PointerProperty(
-            name="Mitsuba Render Settings",
-            description="Mitsuba render settings",
+            name="misuka Render Settings",
+            description="misuka render settings",
             type=cls,
         )
 
@@ -375,8 +375,8 @@ class MitsubaCameraSettings(PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Camera.mitsuba = PointerProperty(
-            name="Mitsuba Camera Settings",
-            description="Mitsuba camera settings",
+            name="misuka Camera Settings",
+            description="misuka camera settings",
             type=cls,
         )
 

@@ -70,7 +70,7 @@ def try_register_mitsuba(context):
         else:
             prefs.mitsuba_dependencies_status_message = f'Found pip misuka v{prefs.installed_dependencies_version}. Supported version is v{DEPS_MITSUBA_VERSION}.'
     else:
-        prefs.mitsuba_dependencies_status_message = 'Mitsuba dependencies not installed.'
+        prefs.mitsuba_dependencies_status_message = 'misuka dependencies not installed.'
 
     prefs.is_mitsuba_initialized = could_init_mitsuba
 
@@ -146,7 +146,7 @@ def update_additional_custom_paths(self, context):
 
 class MITSUBA_OT_install_pip_dependencies(Operator):
     bl_idname = 'mitsuba.install_pip_dependencies'
-    bl_label = 'Install Mitsuba pip dependencies'
+    bl_label = 'Install misuka pip dependencies'
     bl_description = 'Use pip to install the add-on\'s required dependencies'
 
     @classmethod
@@ -196,7 +196,7 @@ class MitsubaPreferences(AddonPreferences):
     )
 
     is_mitsuba_initialized : BoolProperty(
-        name = 'Is Mitsuba initialized',
+        name = 'Is misuka initialized',
     )
 
     has_pip_dependencies : BoolProperty(
@@ -204,7 +204,7 @@ class MitsubaPreferences(AddonPreferences):
     )
 
     installed_dependencies_version : StringProperty(
-        name = 'Installed Mitsuba dependencies version string',
+        name = 'Installed misuka dependencies version string',
         default = '',
         update = update_installed_dependencies_version,
     )
@@ -214,7 +214,7 @@ class MitsubaPreferences(AddonPreferences):
     )
 
     mitsuba_dependencies_status_message : StringProperty(
-        name = 'Mitsuba dependencies status message',
+        name = 'misuka dependencies status message',
         default = '',
     )
 
@@ -302,12 +302,12 @@ def register():
     prefs.require_restart = False
 
     if not ensure_pip():
-        raise RuntimeError('Cannot activate mitsuba-blender add-on. Python pip module cannot be initialized.')
+        raise RuntimeError('Cannot activate misuka-blender add-on. Python pip module cannot be initialized.')
 
     check_pip_dependencies(context)
     if try_register_mitsuba(context):
         import misuka as mitsuba
-        print(f'mitsuba-blender v{".".join(str(e) for e in bl_info["version"])}{bl_info["warning"] if "warning" in bl_info else ""} registered (with mitsuba v{mitsuba.__version__})')
+        print(f'misuka-blender v{".".join(str(e) for e in bl_info["version"])}{bl_info["warning"] if "warning" in bl_info else ""} registered (with misuka v{mitsuba.__version__})')
 
 def unregister():
     for cls in classes:

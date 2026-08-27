@@ -7,7 +7,7 @@ This add-on extends the Mitsuba Blender add-on with support for misuka-based geo
 
 - **Acoustic scene export**: Export Blender scenes as misuka-compatible acoustic XML scenes.
 
-- **Acoustic Mode**: Automatically replaces visual Mitsuba components with acoustic equivalents during export:
+- **Acoustic Mode**: Automatically replaces visual misuka components with acoustic equivalents during export:
 
   - `path` → `acoustic_path`
   - `perspective` → `microphone`

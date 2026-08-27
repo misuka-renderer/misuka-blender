@@ -39,7 +39,7 @@ from . import mi_props_utils
 
 def _check_unqueried_props(mi_context, mi_cls, mi_props):
     for prop_name in mi_props.unqueried():
-        mi_context.log(f'Mitsuba {mi_cls} property "{prop_name}" was not handled.', 'WARN')
+        mi_context.log(f'misuka {mi_cls} property "{prop_name}" was not handled.', 'WARN')
 
 def _convert_named_references(mi_context, mi_props, parent_node, type_filter=[]):
     from misuka import Properties
@@ -211,11 +211,11 @@ _bl_data_converters = {
 
 def mi_props_to_bl_data_node(mi_context, mi_cls, mi_props):
     if mi_cls not in _bl_data_converters:
-        mi_context.log(f'Mitsuba class "{mi_cls}" not supported.', 'ERROR')
+        mi_context.log(f'misuka class "{mi_cls}" not supported.', 'ERROR')
         return None
     node = _bl_data_converters[mi_cls](mi_context, mi_props)
     if node is None:
-        mi_context.log(f'Failed to convert Mitsuba class "{mi_cls}".', 'ERROR')
+        mi_context.log(f'Failed to convert misuka class "{mi_cls}".', 'ERROR')
         return None
     return node
 
@@ -398,7 +398,7 @@ def load_mitsuba_scene(bl_context, bl_scene, bl_collection, filepath, global_mat
     _, mi_props = mi_scene_props.get_first_of_class('Scene')
     bl_scene_data_node = mi_props_to_bl_data_node(mi_context, 'Scene', mi_props)
     if bl_scene_data_node is None:
-        mi_context.log('Failed to load Mitsuba scene', 'ERROR')
+        mi_context.log('Failed to load misuka scene', 'ERROR')
         return
     
     # Initialize the Mitsuba renderer inside of Blender
@@ -417,6 +417,6 @@ def load_mitsuba_scene(bl_context, bl_scene, bl_collection, filepath, global_mat
         _check_unqueried_props(mi_context, cls, prop)
 
     end_time = time.time()
-    mi_context.log(f'Finished loading Mitsuba scene. Took {end_time-start_time:.2f}s.', 'INFO')
+    mi_context.log(f'Finished loading misuka scene. Took {end_time-start_time:.2f}s.', 'INFO')
 
     return

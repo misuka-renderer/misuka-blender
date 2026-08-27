@@ -24,7 +24,7 @@ Steps to reproduce the behavior:
 A clear and concise description of what you expected to happen.
 
 **Resources**
-If applicable, add screenshots or other files (Blender projects, Mitsuba scenes) to help explain or demonstrate your problem.
+If applicable, add screenshots or other files (Blender projects, misuka scenes) to help explain or demonstrate your problem.
 
 **Environment (please complete the following information):**
  - OS: [e.g. Windows]

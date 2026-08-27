@@ -54,7 +54,7 @@ _sensor_converters = {
 def mi_sensor_to_bl_camera(mi_context, mi_sensor):
     sensor_type = mi_sensor.plugin_name()
     if sensor_type not in _sensor_converters:
-        mi_context.log(f'Mitsuba Sensor type "{sensor_type}" not supported.', 'ERROR')
+        mi_context.log(f'misuka Sensor type "{sensor_type}" not supported.', 'ERROR')
         return None
     
     # Create the Blender object

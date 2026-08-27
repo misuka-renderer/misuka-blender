@@ -33,7 +33,7 @@ _texture_converters = {
 def mi_texture_to_bl_image(mi_context, mi_texture):
     texture_type = mi_texture.plugin_name()
     if texture_type not in _texture_converters:
-        mi_context.log(f'Mitsuba Texture type "{texture_type}" not supported.', 'ERROR')
+        mi_context.log(f'misuka Texture type "{texture_type}" not supported.', 'ERROR')
         return None
     
     # Create the Blender object

@@ -700,17 +700,17 @@ class ACOUSTIC_OT_reset_specular_lobe_width(bpy.types.Operator):
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
 class ImportMistuba(bpy.types.Operator, ImportHelper):
-    """Import a Mitsuba scene"""
+    """Import a misuka scene"""
     bl_idname = "import_scene.mitsuba"
-    bl_label = "Mitsuba Import"
+    bl_label = "misuka Import"
 
     filename_ext = ".xml"
     filter_glob: StringProperty(default="*.xml", options={'HIDDEN'})
 
     override_scene: BoolProperty(
         name = 'Override Current Scene',
-        description = 'Override the current scene with the imported Mitsuba scene. '
-                      'Otherwise, creates a new scene for Mitsuba objects.',
+        description = 'Override the current scene with the imported misuka scene. '
+                      'Otherwise, creates a new scene for misuka objects.',
         default = True,
     )
 
@@ -728,15 +728,15 @@ class ImportMistuba(bpy.types.Operator, ImportHelper):
             # Clear the current scene
             scene = bl_utils.init_empty_scene(context, name=bpy.context.scene.name)
         else:
-            # Create a new scene for Mitsuba objects
-            scene = bl_utils.init_empty_scene(context, name='Mitsuba')
+            # Create a new scene for misuka objects
+            scene = bl_utils.init_empty_scene(context, name='misuka')
         collection = scene.collection
 
         try:
             importer.load_mitsuba_scene(context, scene, collection, self.filepath, axis_mat)
         except (RuntimeError, NotImplementedError) as e:
             print(e)
-            self.report({'ERROR'}, "Failed to load Mitsuba scene. See error log.")
+            self.report({'ERROR'}, "Failed to load misuka scene. See error log.")
             return {'CANCELLED'}
 
         bpy.context.window.scene = scene
@@ -769,7 +769,7 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
 
     ignore_background: BoolProperty(
             name = "Ignore Default Background",
-            description = "Ignore blender's default constant gray background when exporting to Mitsuba.",
+            description = "Ignore blender's default constant gray background when exporting to misuka.",
             default = True
     )
 
