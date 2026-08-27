@@ -51,7 +51,7 @@ a specific Python minor version and will fail to import otherwise.
 
 ## Requirements
 
-- Blender `3.6+` (tested up to `4.4`; see Python version table below)
+- Blender `3.6+` (tested up to `5.2`; see Python version table below)
 - misuka build with acoustic plugins enabled
 
 ### Blender / Python version matrix
@@ -67,6 +67,10 @@ against the same Python version Blender bundles:
 | 4.2 LTS | 3.11 |
 | 4.3 | 3.11 |
 | 4.4 | 3.11 |
+| 4.5 LTS | 3.11 |
+| 5.0 | 3.11 |
+| 5.1 | 3.13 |
+| 5.2 | 3.13 |
 
 ## Development status
 

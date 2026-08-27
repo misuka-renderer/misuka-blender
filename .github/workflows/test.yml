@@ -41,7 +41,10 @@ jobs:
           version: "4.2"
         }
         - {
-          version: "4.4"
+          version: "4.5"
+        }
+        - {
+          version: "5.2"
         }
     steps:
     - name: Git checkout
