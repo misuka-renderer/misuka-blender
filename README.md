@@ -77,3 +77,11 @@ against the same Python version Blender bundles:
 | 5.0 | 3.11 |
 | 5.1 | 3.13 |
 | 5.2 | 3.13 |
+
+## License
+
+This add-on as a whole is distributed under the
+[GNU General Public License v3.0 or later](LICENSE). Code inherited from the
+`mitsuba-blender` add-on remains under its original BSD 3-Clause notice, and the
+vendored Blender mesh importers under their original GPL-2.0-or-later notices.
+See [NOTICE](NOTICE) for the details.

@@ -9,7 +9,7 @@ def main(args):
 
     with ZipFile('misuka-blender.zip', 'w') as archive:
         # Package miscellaneous files
-        miscellaneous_files = ['README.md', 'LICENSE']
+        miscellaneous_files = ['README.md', 'LICENSE', 'NOTICE']
         for filename in miscellaneous_files:
             filepath = os.path.join(base_dir, filename)
             archivepath = os.path.join(addon_name, filename)
