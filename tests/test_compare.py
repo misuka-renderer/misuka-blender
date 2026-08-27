@@ -1,4 +1,5 @@
 import os
+import sys
 
 import bpy
 
@@ -6,6 +7,15 @@ import pytest
 
 from fixtures import *
 
+# misuka faults with an access violation as soon as a scene is instantiated on
+# Windows - loading one is enough, rendering is not required.
+# See https://github.com/misuka-renderer/misuka-blender/issues/4
+skip_on_windows = pytest.mark.skipif(
+    sys.platform == 'win32',
+    reason='misuka faults when instantiating a scene on Windows. '
+           'See https://github.com/misuka-renderer/misuka-blender/issues/4')
+
+@skip_on_windows
 @pytest.mark.parametrize("xml_scene", ["scenes/test1.xml"])
 def test_round_trip_visual(xml_scene, resource_resolver, mitsuba_scene_ztest):
     '''Import a visual scene, export it in visual mode, and compare renders.'''
@@ -32,6 +42,7 @@ def test_round_trip_visual(xml_scene, resource_resolver, mitsuba_scene_ztest):
 
     assert mitsuba_scene_ztest.compare_scenes(ref_scene_file, output_scene_file, spp, resolution, test_output_dir)
 
+@skip_on_windows
 @pytest.mark.parametrize("xml_scene", ["scenes/test1.xml"])
 def test_round_trip_acoustic(xml_scene, resource_resolver):
     '''Export in acoustic mode and check misuka can load the result.
