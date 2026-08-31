@@ -2,6 +2,8 @@ if "bpy" in locals():
     import importlib
     if "bl_utils" in locals():
         importlib.reload(bl_utils)
+    if "acoustic_bands" in locals():
+        importlib.reload(acoustic_bands)
     if "importer" in locals():
         importlib.reload(importer)
     if "exporter" in locals():
@@ -22,9 +24,19 @@ from bpy_extras.io_utils import (
     )
 
 from . import bl_utils
+from . import acoustic_bands
 from . import importer
 from . import exporter
-from .exporter.materials import interpolate_octaves, octave_lookup
+from .acoustic_bands import (
+        ABS_PROPS,
+        ABSORPTION_DEFAULT,
+        OCTAVES,
+        SCAT_PROPS,
+        SCATTERING_DEFAULT,
+        interpolate_bands,
+        octave_lookup,
+        write_bands,
+    )
 
 # ---------- Acoustic Material UI ----------
 
@@ -231,8 +243,6 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
 
             variant = variants[idx]
 
-        iso_octaves = [63,125,250,500,1000,2000,4000,8000,16000]
-
         variant_type = variant.get("_type")
 
         # =========================================================
@@ -245,23 +255,16 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
 
             if third_oct:
                 third_oct_clean = {int(k): v for k, v in third_oct.items()}
-                oct_vals = interpolate_octaves(third_oct_clean, iso_octaves)
+                oct_vals = interpolate_bands(third_oct_clean, OCTAVES)
 
             elif oct_data:
-                oct_vals = octave_lookup(oct_data, iso_octaves, 0.5)
+                oct_vals = octave_lookup(oct_data, OCTAVES, ABSORPTION_DEFAULT)
 
             else:
                 self.report({'ERROR'}, "No absorption data")
                 return {'CANCELLED'}
 
-            absorp_props = [
-                "acoustic_abs_63","acoustic_abs_125","acoustic_abs_250",
-                "acoustic_abs_500","acoustic_abs_1000","acoustic_abs_2000",
-                "acoustic_abs_4000","acoustic_abs_8000","acoustic_abs_16000"
-            ]
-
-            for p, v in zip(absorp_props, oct_vals):
-                setattr(mat, p, v)
+            write_bands(mat, ABS_PROPS, oct_vals)
 
         # =========================================================
         # --- SCATTERING ---
@@ -273,22 +276,15 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
 
             if s_terz:
                 s_terz_clean = {int(k): v for k, v in s_terz.items()}
-                s_vals = interpolate_octaves(s_terz_clean, iso_octaves)
+                s_vals = interpolate_bands(s_terz_clean, OCTAVES, SCATTERING_DEFAULT)
 
             elif s_oct:
-                s_vals = octave_lookup(s_oct, iso_octaves, 0.25)
+                s_vals = octave_lookup(s_oct, OCTAVES, SCATTERING_DEFAULT)
 
             else:
-                s_vals = [0.25] * len(iso_octaves)
+                s_vals = [SCATTERING_DEFAULT] * len(OCTAVES)
 
-            scatter_props = [
-                "acoustic_scat_63","acoustic_scat_125","acoustic_scat_250",
-                "acoustic_scat_500","acoustic_scat_1000","acoustic_scat_2000",
-                "acoustic_scat_4000","acoustic_scat_8000","acoustic_scat_16000"
-            ]
-
-            for p, v in zip(scatter_props, s_vals):
-                setattr(mat, p, v)
+            write_bands(mat, SCAT_PROPS, s_vals)
 
         else:
             self.report({'ERROR'}, "Unknown variant type")
@@ -299,25 +295,11 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
     
 def register_acoustic_properties():
 
-    bpy.types.Material.acoustic_abs_63 = FloatProperty(name="Absorption 63Hz", default=0.5, min=0, max=2)
-    bpy.types.Material.acoustic_abs_125 = FloatProperty(name="Absorption 125Hz", default=0.5, min=0, max=2)
-    bpy.types.Material.acoustic_abs_250 = FloatProperty(name="Absorption 250Hz", default=0.5, min=0, max=2)
-    bpy.types.Material.acoustic_abs_500 = FloatProperty(name="Absorption 500Hz", default=0.5, min=0, max=2)
-    bpy.types.Material.acoustic_abs_1000 = FloatProperty(name="Absorption 1000Hz", default=0.5, min=0, max=2)
-    bpy.types.Material.acoustic_abs_2000 = FloatProperty(name="Absorption 2000Hz", default=0.5, min=0, max=2)
-    bpy.types.Material.acoustic_abs_4000 = FloatProperty(name="Absorption 4000Hz", default=0.5, min=0, max=2)
-    bpy.types.Material.acoustic_abs_8000 = FloatProperty(name="Absorption 8000Hz", default=0.5, min=0, max=2)
-    bpy.types.Material.acoustic_abs_16000 = FloatProperty(name="Absorption 16000Hz", default=0.5, min=0, max=2)
-
-    bpy.types.Material.acoustic_scat_63 = FloatProperty(name="Scattering 63Hz", default=0.25, min=0, max=1)
-    bpy.types.Material.acoustic_scat_125 = FloatProperty(name="Scattering 125Hz", default=0.25, min=0, max=1)
-    bpy.types.Material.acoustic_scat_250 = FloatProperty(name="Scattering 250Hz", default=0.25, min=0, max=1)
-    bpy.types.Material.acoustic_scat_500 = FloatProperty(name="Scattering 500Hz", default=0.25, min=0, max=1)
-    bpy.types.Material.acoustic_scat_1000 = FloatProperty(name="Scattering 1000Hz", default=0.25, min=0, max=1)
-    bpy.types.Material.acoustic_scat_2000 = FloatProperty(name="Scattering 2000Hz", default=0.25, min=0, max=1)
-    bpy.types.Material.acoustic_scat_4000 = FloatProperty(name="Scattering 4000Hz", default=0.25, min=0, max=1)
-    bpy.types.Material.acoustic_scat_8000 = FloatProperty(name="Scattering 8000Hz", default=0.25, min=0, max=1)
-    bpy.types.Material.acoustic_scat_16000 = FloatProperty(name="Scattering 16000Hz", default=0.25, min=0, max=1)
+    for freq, abs_prop, scat_prop in zip(OCTAVES, ABS_PROPS, SCAT_PROPS):
+        setattr(bpy.types.Material, abs_prop, FloatProperty(
+            name=f"Absorption {freq}Hz", default=ABSORPTION_DEFAULT, min=0, max=2))
+        setattr(bpy.types.Material, scat_prop, FloatProperty(
+            name=f"Scattering {freq}Hz", default=SCATTERING_DEFAULT, min=0, max=1))
 
     bpy.types.Material.acoustic_specular_lobe_width = FloatProperty(
     name="Specular Lobe Width",
@@ -499,37 +481,23 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         #manual input
         col.label(text="Absorption")
 
-        col.prop(mat, "acoustic_abs_63")
-        col.prop(mat, "acoustic_abs_125")
-        col.prop(mat, "acoustic_abs_250")
-        col.prop(mat, "acoustic_abs_500")
-        col.prop(mat, "acoustic_abs_1000")
-        col.prop(mat, "acoustic_abs_2000")
-        col.prop(mat, "acoustic_abs_4000")
-        col.prop(mat, "acoustic_abs_8000")
-        col.prop(mat, "acoustic_abs_16000")
+        for prop in ABS_PROPS:
+            col.prop(mat, prop)
 
         row = col.row(align=True)
         row.operator("acoustic.interpolate_abs", text="Interpolate Values")
-        row.operator("acoustic.reset_abs", text="Reset to 0.5")
+        row.operator("acoustic.reset_abs", text=f"Reset to {ABSORPTION_DEFAULT}")
 
         col.separator()
 
         col.label(text="Scattering")
 
-        col.prop(mat, "acoustic_scat_63")
-        col.prop(mat, "acoustic_scat_125")
-        col.prop(mat, "acoustic_scat_250")
-        col.prop(mat, "acoustic_scat_500")
-        col.prop(mat, "acoustic_scat_1000")
-        col.prop(mat, "acoustic_scat_2000")
-        col.prop(mat, "acoustic_scat_4000")
-        col.prop(mat, "acoustic_scat_8000")
-        col.prop(mat, "acoustic_scat_16000")
+        for prop in SCAT_PROPS:
+            col.prop(mat, prop)
 
         row = col.row(align=True)
         row.operator("acoustic.interpolate_scat", text="Interpolate Values")
-        row.operator("acoustic.reset_scat", text="Reset to 0.25")
+        row.operator("acoustic.reset_scat", text=f"Reset to {SCATTERING_DEFAULT}")
 
         col.separator()
 
@@ -558,29 +526,18 @@ class ACOUSTIC_OT_interpolate_abs(bpy.types.Operator):
 
         mat = context.material
 
-        iso_octaves = [63,125,250,500,1000,2000,4000,8000,16000]
-
-        props = [
-            "acoustic_abs_63","acoustic_abs_125","acoustic_abs_250",
-            "acoustic_abs_500","acoustic_abs_1000","acoustic_abs_2000",
-            "acoustic_abs_4000","acoustic_abs_8000","acoustic_abs_16000"
-        ]
-
         data = {}
 
         # collect all user-defined values (≠ default)
-        for f, p in zip(iso_octaves, props):
+        for f, p in zip(OCTAVES, ABS_PROPS):
             v = getattr(mat, p)
-            if abs(v - 0.5) > 1e-6:
+            if abs(v - ABSORPTION_DEFAULT) > 1e-6:
                 data[f] = v
 
         if not data:
             return {'FINISHED'}
 
-        vals = interpolate_octaves(data, iso_octaves)
-
-        for p, v in zip(props, vals):
-            setattr(mat, p, v)
+        write_bands(mat, ABS_PROPS, interpolate_bands(data, OCTAVES))
 
         return {'FINISHED'}
     
@@ -599,29 +556,19 @@ class ACOUSTIC_OT_interpolate_scat(bpy.types.Operator):
 
         mat = context.material
 
-        iso_octaves = [63,125,250,500,1000,2000,4000,8000,16000]
-
-        props = [
-            "acoustic_scat_63","acoustic_scat_125","acoustic_scat_250",
-            "acoustic_scat_500","acoustic_scat_1000","acoustic_scat_2000",
-            "acoustic_scat_4000","acoustic_scat_8000","acoustic_scat_16000"
-        ]
-
         data = {}
 
-        # collect user-defined values (≠ default 0.25)
-        for f, p in zip(iso_octaves, props):
+        # collect user-defined values (≠ default)
+        for f, p in zip(OCTAVES, SCAT_PROPS):
             v = getattr(mat, p)
-            if abs(v - 0.25) > 1e-6:
+            if abs(v - SCATTERING_DEFAULT) > 1e-6:
                 data[f] = v
 
         if not data:
             return {'FINISHED'}
 
-        vals = interpolate_octaves(data, iso_octaves)
-
-        for p, v in zip(props, vals):
-            setattr(mat, p, v)
+        write_bands(mat, SCAT_PROPS,
+                    interpolate_bands(data, OCTAVES, SCATTERING_DEFAULT))
 
         return {'FINISHED'}
 
@@ -640,14 +587,7 @@ class ACOUSTIC_OT_reset_abs(bpy.types.Operator):
 
         mat = context.material
 
-        props = [
-            "acoustic_abs_63","acoustic_abs_125","acoustic_abs_250",
-            "acoustic_abs_500","acoustic_abs_1000","acoustic_abs_2000",
-            "acoustic_abs_4000","acoustic_abs_8000","acoustic_abs_16000"
-        ]
-
-        for p in props:
-            setattr(mat, p, 0.5)
+        write_bands(mat, ABS_PROPS, [ABSORPTION_DEFAULT] * len(ABS_PROPS))
 
         # clear interpolation state
         mat["acoustic_abs_set"] = []
@@ -670,14 +610,7 @@ class ACOUSTIC_OT_reset_scat(bpy.types.Operator):
 
         mat = context.material
 
-        props = [
-            "acoustic_scat_63","acoustic_scat_125","acoustic_scat_250",
-            "acoustic_scat_500","acoustic_scat_1000","acoustic_scat_2000",
-            "acoustic_scat_4000","acoustic_scat_8000","acoustic_scat_16000"
-        ]
-
-        for p in props:
-            setattr(mat, p, 0.25)
+        write_bands(mat, SCAT_PROPS, [SCATTERING_DEFAULT] * len(SCAT_PROPS))
 
         # clear interpolation state
         mat["acoustic_scat_set"] = []
@@ -866,25 +799,8 @@ def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
 
-    del bpy.types.Material.acoustic_abs_63
-    del bpy.types.Material.acoustic_abs_125
-    del bpy.types.Material.acoustic_abs_250
-    del bpy.types.Material.acoustic_abs_500
-    del bpy.types.Material.acoustic_abs_1000
-    del bpy.types.Material.acoustic_abs_2000
-    del bpy.types.Material.acoustic_abs_4000
-    del bpy.types.Material.acoustic_abs_8000
-    del bpy.types.Material.acoustic_abs_16000
-
-    del bpy.types.Material.acoustic_scat_63
-    del bpy.types.Material.acoustic_scat_125
-    del bpy.types.Material.acoustic_scat_250
-    del bpy.types.Material.acoustic_scat_500
-    del bpy.types.Material.acoustic_scat_1000
-    del bpy.types.Material.acoustic_scat_2000
-    del bpy.types.Material.acoustic_scat_4000
-    del bpy.types.Material.acoustic_scat_8000
-    del bpy.types.Material.acoustic_scat_16000
+    for prop in ABS_PROPS + SCAT_PROPS:
+        delattr(bpy.types.Material, prop)
 
     del bpy.types.Material.acoustic_specular_lobe_width
 
