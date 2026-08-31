@@ -80,6 +80,12 @@ class ExportContext:
             'spectrum': 'spectra'
                             }
         self.acoustic_mode = False #default
+        # Acoustic film settings, mirrored from scene.mitsuba at export time so
+        # the exporter does not need the Blender scene on hand. See
+        # acoustic_bands and MitsubaRenderSettings.
+        self.acoustic_band_resolution = 'OCTAVE'
+        self.acoustic_time_bins = 2000
+        self.acoustic_max_time = 2.0
 
 
     def data_add(self, mts_dict, name=''):

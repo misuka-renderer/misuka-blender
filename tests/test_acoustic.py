@@ -5,6 +5,8 @@ These run inside Blender with the addon enabled (see scripts/run_tests.py), so
 they can register properties and drive the operators for real.
 '''
 import importlib
+import os
+import xml.etree.ElementTree as ET
 
 import bpy
 import pytest
@@ -109,3 +111,92 @@ def test_operators_are_available_with_a_material(mat):
     with bpy.context.temp_override(material=mat):
         assert bpy.ops.acoustic.reset_abs.poll()
         assert bpy.ops.acoustic.interpolate_abs.poll()
+
+
+def export_scene(mat, tmp_path):
+    '''Export a single cube carrying `mat` and return the parsed scene root.'''
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, acoustic_mode=True) == {'FINISHED'}
+
+    return ET.parse(path).getroot()
+
+
+def film_setting(root, kind, name):
+    film = root.find(".//film[@type='tape']")
+    assert film is not None, 'no tape film in the exported scene'
+    return film.find(f"{kind}[@name='{name}']").get('value')
+
+
+@pytest.mark.parametrize('resolution, expected', [
+    ('OCTAVE', bands.OCTAVES),
+    ('THIRD_OCTAVE', bands.THIRD_OCTAVES),
+])
+def test_film_frequencies_follow_the_band_resolution(mat, tmp_path, resolution, expected):
+    '''
+    The tape film was pinned to a single 500 Hz band, so eight of the nine
+    per-material coefficients never reached the simulation.
+    '''
+    bpy.context.scene.mitsuba.acoustic_band_resolution = resolution
+
+    written = film_setting(export_scene(mat, tmp_path), 'string', 'frequencies')
+
+    assert [int(f) for f in written.split(',')] == list(expected)
+
+
+def test_time_bins_come_from_the_length_and_sampling_rate(mat, tmp_path):
+    '''
+    The film takes a bin count, but a response is described by how long it is
+    and how finely it is sampled. time_bins was hardcoded to 2000 with no UI.
+    '''
+    scene = bpy.context.scene
+    scene.mitsuba.acoustic_max_time = 3.0
+    scene.mitsuba.acoustic_sampling_rate = 4000.0
+
+    root = export_scene(mat, tmp_path)
+
+    assert film_setting(root, 'integer', 'time_bins') == '12000'
+
+
+def test_max_time_reaches_the_integrator(mat, tmp_path):
+    '''max_time was hardcoded to 2.0 in the exporter.'''
+    bpy.context.scene.mitsuba.acoustic_max_time = 5.0
+
+    root = export_scene(mat, tmp_path)
+    integrator = root.find(".//integrator[@type='acoustic_path']")
+
+    assert integrator is not None
+    assert float(integrator.find("float[@name='max_time']").get('value')) == 5.0
+
+
+def test_film_settings_default_to_the_previous_export(mat, tmp_path):
+    '''
+    2 s at 1 kHz is the 2000 bins the film used to hardcode, so a scene that
+    touches none of this exports exactly as it did before.
+    '''
+    scene = bpy.context.scene
+
+    assert scene.mitsuba.acoustic_band_resolution == 'OCTAVE'
+    assert scene.mitsuba.acoustic_max_time == 2.0
+    assert scene.mitsuba.acoustic_sampling_rate == 1000.0
+
+    root = export_scene(mat, tmp_path)
+    assert film_setting(root, 'integer', 'time_bins') == '2000'
+
+
+def test_film_settings_are_stored_on_the_scene(mat):
+    '''
+    They belong to the film, so they are saved in the .blend and shared by every
+    material rather than set per export.
+    '''
+    operator_props = bpy.ops.export_scene.mitsuba.get_rna_type().properties
+
+    for name in ('acoustic_band_resolution', 'acoustic_max_time',
+                 'acoustic_sampling_rate'):
+        assert hasattr(bpy.context.scene.mitsuba, name), name
+        assert name not in operator_props, name

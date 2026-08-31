@@ -12,6 +12,8 @@ from bpy.types import Panel, PropertyGroup, Operator
 import os
 from os.path import basename, dirname
 
+from ..io import acoustic_bands
+
 import json
 # Read plugin data from JSON files
 with open(os.path.join(dirname(__file__), "integrators.json")) as file:
@@ -312,6 +314,34 @@ class MitsubaRenderSettings(PropertyGroup):
     bpy.utils.register_class(IntegratorProperties)
     available_integrators : PointerProperty(type = IntegratorProperties)
 
+    # Acoustic `tape` film settings. These sit beside the image resolution in
+    # the Output properties because they are the acoustic equivalent: they say
+    # how finely the result is resolved, in frequency and in time. Material
+    # coefficient spectra are sampled at these band centres, so this is what
+    # decides which bands actually get simulated.
+    acoustic_band_resolution : EnumProperty(
+        name = "Band Resolution",
+        description = "Frequency bands the acoustic simulation runs at",
+        items = acoustic_bands.BAND_RESOLUTION_ITEMS,
+        default = 'OCTAVE'
+    )
+
+    acoustic_max_time : FloatProperty(
+        name = "Max Time",
+        description = "Length of the simulated impulse response, in seconds",
+        default = 2.0,
+        min = 0.001,
+        soft_max = 10.0
+    )
+
+    acoustic_sampling_rate : FloatProperty(
+        name = "Sampling Rate",
+        description = "Time resolution of the impulse response, in Hz",
+        default = 1000.0,
+        min = 1.0,
+        soft_max = 48000.0
+    )
+
     @classmethod
     def register(cls):
         bpy.types.Scene.mitsuba = PointerProperty(
@@ -402,6 +432,48 @@ class MITSUBA_RENDER_PT_integrator(bpy.types.Panel):
         layout.prop(mts_settings, "active_integrator", text="Integrator")
         getattr(mts_settings.available_integrators, mts_settings.active_integrator).draw(layout)
 
+class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
+    '''
+    Acoustic counterpart to Blender's Format panel.
+
+    Image resolution and the acoustic band and time resolution are the same kind
+    of setting, so they belong next to each other. This panel is not gated on the
+    render engine: acoustic export works from Cycles as well as misuka.
+    '''
+
+    bl_idname = "MITSUBA_OUTPUT_PT_acoustic_film"
+    bl_label = "misuka Acoustic Format"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'output'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        mts_settings = context.scene.mitsuba
+
+        col = layout.column()
+        col.prop(mts_settings, "acoustic_band_resolution")
+
+        frequencies = acoustic_bands.resolution_frequencies(
+            mts_settings.acoustic_band_resolution
+        )
+        col.label(
+            text=f"{len(frequencies)} bands, "
+                 f"{frequencies[0]} Hz to {frequencies[-1] / 1000:g} kHz"
+        )
+
+        col = layout.column()
+        col.prop(mts_settings, "acoustic_max_time")
+        col.prop(mts_settings, "acoustic_sampling_rate")
+
+        # The film takes a bin count; showing what the two settings work out to
+        # keeps the cost of raising either of them visible.
+        col.label(text=f"{acoustic_bands.time_bins(mts_settings)} time bins")
+
+
 class MITSUBA_CAMERA_PT_sampler(bpy.types.Panel):
     bl_idname = "MITSUBA_CAMERA_PT_sampler"
     bl_label = "Sampler"
@@ -445,6 +517,7 @@ def register():
     bpy.utils.register_class(MitsubaRenderSettings)
     bpy.utils.register_class(MitsubaCameraSettings)
     bpy.utils.register_class(MITSUBA_RENDER_PT_integrator)
+    bpy.utils.register_class(MITSUBA_OUTPUT_PT_acoustic_film)
     bpy.utils.register_class(MITSUBA_CAMERA_PT_sampler)
     bpy.utils.register_class(MITSUBA_CAMERA_PT_rfilter)
 
@@ -453,5 +526,6 @@ def unregister():
     bpy.utils.unregister_class(MitsubaRenderSettings)
     bpy.utils.unregister_class(MitsubaCameraSettings)
     bpy.utils.unregister_class(MITSUBA_RENDER_PT_integrator)
+    bpy.utils.unregister_class(MITSUBA_OUTPUT_PT_acoustic_film)
     bpy.utils.unregister_class(MITSUBA_CAMERA_PT_sampler)
     bpy.utils.unregister_class(MITSUBA_CAMERA_PT_rfilter)

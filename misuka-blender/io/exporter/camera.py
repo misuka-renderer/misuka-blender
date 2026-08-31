@@ -2,6 +2,8 @@ from mathutils import Matrix
 import numpy as np
 from math import degrees
 
+from ..acoustic_bands import resolution_frequencies
+
 def export_camera(camera_instance, b_scene, export_ctx):    #camera
 
     #acoustic_mode for camera
@@ -62,8 +64,12 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
 
     if acoustic_mode:
         film['type'] = 'tape'
-        film['time_bins'] = 2000
-        film['frequencies'] = "500"
+        film['time_bins'] = export_ctx.acoustic_time_bins
+        # The band centres the simulation runs at, and therefore the bands the
+        # material coefficient spectra are sampled at.
+        film['frequencies'] = ", ".join(
+            str(f) for f in resolution_frequencies(export_ctx.acoustic_band_resolution)
+        )
         film['rfilter'] = {'type': 'box'}
 
     else:
