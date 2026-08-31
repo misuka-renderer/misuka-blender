@@ -239,3 +239,35 @@ def test_max_energy_loss_is_declared_for_the_integrator_panel():
     settings = bpy.context.scene.mitsuba.available_integrators.acoustic_path
     assert settings.max_energy_loss == 300.0
     assert settings.to_dict()['max_energy_loss'] == 300.0
+
+
+def test_the_engine_defaults_to_the_acoustic_integrator():
+    '''
+    So its settings are in the Integrator panel the moment the engine is
+    picked, rather than behind a dropdown change.
+    '''
+    assert bpy.context.scene.mitsuba.active_integrator == 'acoustic_path'
+
+
+def test_visual_export_substitutes_a_visual_integrator(mat, tmp_path):
+    '''
+    The acoustic integrator cannot produce an image, so a visual export must
+    not write it just because it is now the engine default.
+    '''
+    scene = bpy.context.scene
+    scene.render.engine = 'MITSUBA'
+    assert scene.mitsuba.active_integrator == 'acoustic_path'
+
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+
+    path = os.path.join(str(tmp_path), 'visual.xml')
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, acoustic_mode=False) == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+
+    assert root.find(".//integrator[@type='acoustic_path']") is None
+    assert root.find(".//integrator[@type='path']") is not None
+    assert root.find(".//film[@type='hdrfilm']") is not None
