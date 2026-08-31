@@ -60,6 +60,17 @@ def resolution_frequencies(resolution):
     return THIRD_OCTAVES if resolution == 'THIRD_OCTAVE' else OCTAVES
 
 
+def scene_resolution(scene):
+    '''
+    The band resolution a scene exports at.
+
+    Falls back to the default when the misuka scene settings are not registered,
+    which keeps the material panel drawable in isolation.
+    '''
+    settings = getattr(scene, 'mitsuba', None)
+    return getattr(settings, 'acoustic_band_resolution', 'OCTAVE')
+
+
 # Axis the interpolation runs on. Band centres are spaced by a constant factor,
 # so the logarithmic axis is the one they are evenly distributed along: between
 # anchors at 500 Hz and 2 kHz it puts 1 kHz halfway, where the linear axis puts
@@ -72,9 +83,14 @@ INTERPOLATION_ITEMS = (
 )
 
 
-def active_bands(third_octave):
-    '''Return the (frequencies, indices) pair a material currently exports.'''
-    if third_octave:
+def active_bands(resolution):
+    '''
+    The (frequencies, indices) pair a BAND_RESOLUTION_ITEMS identifier selects.
+
+    `indices` positions each frequency in the full third-octave table, which is
+    what the material properties are always stored on.
+    '''
+    if resolution == 'THIRD_OCTAVE':
         return THIRD_OCTAVES, tuple(range(len(THIRD_OCTAVES)))
     return OCTAVES, OCTAVE_INDICES
 

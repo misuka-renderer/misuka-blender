@@ -26,8 +26,11 @@ Rendering inside Blender is not supported.
 - **Acoustic material workflow**:
 
   - frequency-dependent absorption and scattering
-  - editable absorption and scattering coefficients directly inside Blender, in
-    9 octave bands (63 Hz to 16 kHz) or 27 third-octave bands (50 Hz to 20 kHz)
+  - editable absorption and scattering coefficients directly inside Blender,
+    side by side in one table
+  - band resolution set once per scene in **Output** properties, alongside the
+    image resolution: 9 octave bands (63 Hz to 16 kHz) or 27 third-octave bands
+    (50 Hz to 20 kHz), plus the impulse response's time bin count
   - bands you set are marked, so measured values stay distinguishable from
     interpolated ones, and the values shown are the values exported
   - adjustable lobe width of the specular reflection component

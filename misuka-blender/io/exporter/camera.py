@@ -64,10 +64,9 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
 
     if acoustic_mode:
         film['type'] = 'tape'
-        film['time_bins'] = 2000
-        # The band centres the simulation runs at. Material spectra are sampled
-        # at these frequencies, so a material carrying finer or coarser data
-        # still works, it is just resampled.
+        film['time_bins'] = export_ctx.acoustic_time_bins
+        # The band centres the simulation runs at, and therefore the bands the
+        # material coefficient spectra are sampled at.
         film['frequencies'] = ", ".join(
             str(f) for f in resolution_frequencies(export_ctx.acoustic_band_resolution)
         )

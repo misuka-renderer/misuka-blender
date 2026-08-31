@@ -32,15 +32,14 @@ from . import exporter
 from .acoustic_bands import (
         ABS_PROPS,
         ACOUSTIC_DEFAULT,
-        BAND_RESOLUTION_ITEMS,
         INTERPOLATION_ITEMS,
         OCTAVE_INDICES,
         SCAT_PROPS,
         THIRD_OCTAVES,
-        active_bands,
         band_updates_suppressed,
         interpolate_bands,
         nearest_band_index,
+        scene_resolution,
         write_bands,
     )
 
@@ -251,17 +250,13 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
             return {'CANCELLED'}
 
         # Third-octave data is kept at its own resolution rather than averaged
-        # down to octaves, so switch the material over when we have it.
-        if third_oct:
-            measured, third_octave = third_oct, True
-        elif oct_data:
-            measured, third_octave = oct_data, False
-        else:
+        # down to octaves. Values always land on the full third-octave table;
+        # the scene's band resolution decides which of them get exported.
+        measured = third_oct or oct_data
+
+        if not measured:
             self.report({'ERROR'}, f"No {variant_type} data")
             return {'CANCELLED'}
-
-        mat.acoustic_third_octave = third_octave
-        frequencies, indices = active_bands(third_octave)
 
         # Mark only the bands that were actually measured, so the panel keeps
         # showing which numbers came from the lab and which we filled in.
@@ -275,28 +270,30 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
                 unmatched += 1
                 continue
 
-            band = nearest_band_index(freq, frequencies)
+            band = nearest_band_index(freq, THIRD_OCTAVES)
             if band is None:
                 unmatched += 1
             else:
-                anchors[frequencies[band]] = value
+                anchors[THIRD_OCTAVES[band]] = value
 
         if not anchors:
             self.report({'ERROR'}, f"No {variant_type} data on known bands")
             return {'CANCELLED'}
 
         values = interpolate_bands(
-            anchors, frequencies, interpolation=mat.acoustic_interpolation
+            anchors, THIRD_OCTAVES, interpolation=mat.acoustic_interpolation
         )
-        write_bands(mat, props, values, indices)
+        write_bands(mat, props, values)
 
-        flags = [False] * len(THIRD_OCTAVES)
-        for band, freq in enumerate(frequencies):
-            if freq in anchors:
-                flags[indices[band]] = True
-        setattr(mat, flag_prop, flags)
+        setattr(mat, flag_prop, [f in anchors for f in THIRD_OCTAVES])
 
-        if unmatched:
+        if third_oct and scene_resolution(context.scene) != 'THIRD_OCTAVE':
+            self.report(
+                {'WARNING'},
+                "Variant has third-octave data. Set Band Resolution to Third "
+                "Octave in Output properties to simulate it"
+            )
+        elif unmatched:
             self.report(
                 {'WARNING'},
                 f"Variant applied, {unmatched} value(s) outside the band table ignored"
@@ -374,15 +371,6 @@ def register_acoustic_properties():
         description="Frequency axis Interpolate Values works along",
         items=INTERPOLATION_ITEMS,
         default='LOG',
-    )
-
-    bpy.types.Material.acoustic_third_octave = BoolProperty(
-        name="Third Octave Bands",
-        description=(
-            "Define coefficients on all 27 third-octave centres. When off, only "
-            "the nine octave centres are editable and exported"
-        ),
-        default=False,
     )
 
     bpy.types.Material.acoustic_specular_lobe_width = FloatProperty(
@@ -469,13 +457,8 @@ def register_acoustic_properties():
         default=True
     )
 
-    bpy.types.Material.show_acoustic_absorption = BoolProperty(
-        name="Absorption",
-        default=True
-    )
-
-    bpy.types.Material.show_acoustic_scattering = BoolProperty(
-        name="Scattering",
+    bpy.types.Material.show_acoustic_bands = BoolProperty(
+        name="Coefficient Table",
         default=True
     )
 
@@ -489,13 +472,11 @@ def unregister_acoustic_properties():
         "acoustic_abs_band_set",
         "acoustic_scat_band_set",
         "acoustic_interpolation",
-        "acoustic_third_octave",
         "acoustic_specular_lobe_width",
         "acoustic_variant_enum",
         "show_acoustic_help",
         "show_acoustic_info",
-        "show_acoustic_absorption",
-        "show_acoustic_scattering",
+        "show_acoustic_bands",
     ):
         delattr(bpy.types.Material, name)
 
@@ -511,34 +492,66 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
     def poll(cls, context):
         return getattr(context, "material", None) is not None
 
-    def draw_band_family(self, col, mat, label, expander, props, flag_prop,
-                         interpolate_op, reset_op):
-        '''Draw one coefficient table with its per-band anchor checkboxes.'''
+    def draw_bands(self, col, mat, context):
+        '''
+        Draw both coefficient families side by side, one row per band.
+
+        Two columns rather than two stacked tables: 27 bands twice over is a lot
+        of scrolling, and absorption and scattering are usually read together.
+        '''
 
         row = col.row()
         row.prop(
-            mat, expander,
-            icon="TRIA_DOWN" if getattr(mat, expander) else "TRIA_RIGHT",
+            mat, "show_acoustic_bands",
+            icon="TRIA_DOWN" if mat.show_acoustic_bands else "TRIA_RIGHT",
             icon_only=True, emboss=False
         )
-        row.label(text=label)
+        row.label(text="Coefficients")
 
-        if not getattr(mat, expander):
+        if not mat.show_acoustic_bands:
             return
 
+        third_octave = scene_resolution(context.scene) == 'THIRD_OCTAVE'
+
         box = col.box()
+        columns = box.row()
+
+        # Separate columns keep the two families aligned row for row, which a
+        # single row per band cannot guarantee once labels differ in width.
+        freq_column = columns.column(align=True)
+        families = [
+            (columns.column(align=True), "Absorption", ABS_PROPS,
+             "acoustic_abs_band_set", "acoustic.interpolate_abs",
+             "acoustic.reset_abs"),
+            (columns.column(align=True), "Scattering", SCAT_PROPS,
+             "acoustic_scat_band_set", "acoustic.interpolate_scat",
+             "acoustic.reset_scat"),
+        ]
+
+        freq_column.label(text="")
+        for column, label, _, _, _, _ in families:
+            column.label(text=label)
 
         for index, freq in enumerate(THIRD_OCTAVES):
-            row = box.row(align=True)
             # Octave mode still shows the third-octave rows, greyed out, so the
-            # values stay visible and switching modes never loses them.
-            row.enabled = mat.acoustic_third_octave or index in OCTAVE_INDICES
-            row.prop(mat, flag_prop, index=index, text="")
-            row.prop(mat, props[index], text=f"{freq} Hz")
+            # values stay visible and changing resolution never loses them.
+            enabled = third_octave or index in OCTAVE_INDICES
 
-        row = box.row(align=True)
-        row.operator(interpolate_op, text="Interpolate Values")
-        row.operator(reset_op, text=f"Reset to {ACOUSTIC_DEFAULT}")
+            row = freq_column.row()
+            row.enabled = enabled
+            row.label(text=f"{freq} Hz")
+
+            for column, _, props, flag_prop, _, _ in families:
+                row = column.row(align=True)
+                row.enabled = enabled
+                row.prop(mat, flag_prop, index=index, text="")
+                row.prop(mat, props[index], text="")
+
+        freq_column.separator()
+        for column, _, _, _, interpolate_op, reset_op in families:
+            column.separator()
+            column.operator(interpolate_op, text="Interpolate")
+            column.operator(reset_op, text=f"Reset to {ACOUSTIC_DEFAULT}")
 
     def draw(self, context):
 
@@ -625,9 +638,9 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
             box.separator()
 
-            box.label(text="Third Octave Bands switches between the 9")
+            box.label(text="Greyed rows are not exported. Band Resolution")
+            box.label(text="in Output properties picks between the 9")
             box.label(text="octave centres and all 27 third-octave ones.")
-            box.label(text="Greyed rows are not exported.")
 
             box.separator()
 
@@ -651,22 +664,9 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
         col.separator()
 
-        col.prop(mat, "acoustic_third_octave")
         col.prop(mat, "acoustic_interpolation")
 
-        self.draw_band_family(
-            col, mat, "Absorption", "show_acoustic_absorption",
-            ABS_PROPS, "acoustic_abs_band_set",
-            "acoustic.interpolate_abs", "acoustic.reset_abs"
-        )
-
-        col.separator()
-
-        self.draw_band_family(
-            col, mat, "Scattering", "show_acoustic_scattering",
-            SCAT_PROPS, "acoustic_scat_band_set",
-            "acoustic.interpolate_scat", "acoustic.reset_scat"
-        )
+        self.draw_bands(col, mat, context)
 
         col.separator()
 
@@ -702,23 +702,24 @@ class ACOUSTIC_OT_interpolate_base(bpy.types.Operator):
     def execute(self, context):
 
         mat = context.material
-        frequencies, indices = active_bands(mat.acoustic_third_octave)
         flags = getattr(mat, self.flag_prop)
 
         anchors = {
-            freq: getattr(mat, self.props[indices[band]])
-            for band, freq in enumerate(frequencies)
-            if flags[indices[band]]
+            freq: getattr(mat, self.props[index])
+            for index, freq in enumerate(THIRD_OCTAVES)
+            if flags[index]
         }
 
         if not anchors:
             self.report({'WARNING'}, "Tick at least one band first")
             return {'CANCELLED'}
 
+        # Fill the whole table, including bands the current resolution greys
+        # out, so the curve stays coherent if the resolution changes later.
         values = interpolate_bands(
-            anchors, frequencies, interpolation=mat.acoustic_interpolation
+            anchors, THIRD_OCTAVES, interpolation=mat.acoustic_interpolation
         )
-        write_bands(mat, self.props, values, indices)
+        write_bands(mat, self.props, values)
 
         return {'FINISHED'}
 
@@ -879,16 +880,6 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         default=True
     )
 
-    # Sets the tape film's frequency list, which is what actually gets simulated.
-    # Materials carrying finer data are sampled down and coarser ones
-    # interpolated up, so this and the per-material band setting may differ.
-    acoustic_band_resolution: EnumProperty(
-        name="Band Resolution",
-        description="Frequency bands the acoustic simulation runs at",
-        items=BAND_RESOLUTION_ITEMS,
-        default='OCTAVE',
-    )
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -908,7 +899,10 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         # Add IDs to all base plugins (shape, emitter, sensor...)
         self.converter.export_ctx.export_ids = self.export_ids
         self.converter.export_ctx.acoustic_mode = self.acoustic_mode #add acoustic mode to export context
-        self.converter.export_ctx.acoustic_band_resolution = self.acoustic_band_resolution
+        # Acoustic film settings live on the scene, beside the image resolution.
+        mts_settings = context.scene.mitsuba
+        self.converter.export_ctx.acoustic_band_resolution = mts_settings.acoustic_band_resolution
+        self.converter.export_ctx.acoustic_time_bins = mts_settings.acoustic_time_bins
 
         self.converter.use_selection = self.use_selection
 

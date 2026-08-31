@@ -38,6 +38,11 @@ def octave_values(material, props):
     return [getattr(material, props[i]) for i in OCTAVE_INDICES]
 
 
+def set_resolution(resolution):
+    '''Band resolution is a scene-wide film setting, not a material one.'''
+    bpy.context.scene.mitsuba.acoustic_band_resolution = resolution
+
+
 def run(operator, material):
     '''
     Call an acoustic operator against `material`.
@@ -56,7 +61,7 @@ def test_defaults_are_shared_and_nothing_is_marked_set(mat):
 
     assert not any(mat.acoustic_abs_band_set)
     assert not any(mat.acoustic_scat_band_set)
-    assert mat.acoustic_third_octave is False
+    assert bpy.context.scene.mitsuba.acoustic_band_resolution == 'OCTAVE'
 
 
 def test_editing_a_value_marks_only_that_band(mat):
@@ -164,17 +169,24 @@ def test_interpolate_leaves_the_other_family_alone(mat):
     assert all(getattr(mat, p) == DEFAULT for p in SCAT_PROPS)
 
 
-def test_octave_mode_does_not_touch_third_octave_rows(mat):
-    setattr(mat, abs_prop(1000), 0.8)
+def test_interpolate_fills_the_greyed_bands_too(mat):
+    '''
+    Octave resolution greys the other 18 bands but still fills them, so raising
+    the resolution later gives a coherent curve rather than a comb of defaults.
+    '''
+    assert bpy.context.scene.mitsuba.acoustic_band_resolution == 'OCTAVE'
+
+    setattr(mat, abs_prop(250), 0.2)
+    setattr(mat, abs_prop(4000), 0.8)
     assert run(bpy.ops.acoustic.interpolate_abs, mat) == {'FINISHED'}
 
     for index, freq in enumerate(THIRD_OCTAVES):
-        if index not in OCTAVE_INDICES:
-            assert getattr(mat, ABS_PROPS[index]) == DEFAULT, f'{freq} Hz'
+        if index not in OCTAVE_INDICES and 250 < freq < 4000:
+            assert getattr(mat, ABS_PROPS[index]) != DEFAULT, f'{freq} Hz'
 
 
 def test_third_octave_mode_interpolates_all_bands(mat):
-    mat.acoustic_third_octave = True
+    set_resolution('THIRD_OCTAVE')
     setattr(mat, abs_prop(100), 0.2)
     setattr(mat, abs_prop(10000), 0.8)
 
@@ -198,7 +210,7 @@ def test_third_octave_mode_interpolates_all_bands(mat):
 
 
 def test_reset_restores_defaults_and_clears_marks(mat):
-    mat.acoustic_third_octave = True
+    set_resolution('THIRD_OCTAVE')
     setattr(mat, abs_prop(1000), 0.9)
     setattr(mat, abs_prop(50), 0.1)
 
@@ -206,8 +218,8 @@ def test_reset_restores_defaults_and_clears_marks(mat):
 
     assert all(getattr(mat, p) == DEFAULT for p in ABS_PROPS)
     assert not any(mat.acoustic_abs_band_set)
-    # the resolution choice is the user's, not something reset undoes
-    assert mat.acoustic_third_octave is True
+    # the scene's resolution is not a material setting for reset to undo
+    assert bpy.context.scene.mitsuba.acoustic_band_resolution == 'THIRD_OCTAVE'
 
 
 def test_operators_are_unavailable_without_a_material():
@@ -265,7 +277,7 @@ def test_export_writes_the_panel_values_verbatim(mat, tmp_path):
 
 
 def test_export_uses_the_third_octave_table_when_enabled(mat, tmp_path):
-    mat.acoustic_third_octave = True
+    set_resolution('THIRD_OCTAVE')
 
     root = export_scene(mat, tmp_path)
     bsdf = root.find(".//bsdf[@type='acousticbsdf']")
@@ -279,7 +291,8 @@ def test_export_uses_the_third_octave_table_when_enabled(mat, tmp_path):
 ])
 def test_film_frequencies_follow_the_band_resolution(mat, tmp_path, resolution, expected):
     '''The tape film used to be pinned to a single 500 Hz band.'''
-    root = export_scene(mat, tmp_path, acoustic_band_resolution=resolution)
+    set_resolution(resolution)
+    root = export_scene(mat, tmp_path)
 
     film = root.find(".//film[@type='tape']")
     written = film.find("string[@name='frequencies']").get('value')
@@ -330,6 +343,7 @@ class StubContext:
 
     def __init__(self, material):
         self.material = material
+        self.scene = bpy.context.scene
 
 
 class PanelStub:
@@ -341,7 +355,7 @@ class PanelStub:
     '''
 
     draw = io_module.ACOUSTIC_PT_material.draw
-    draw_band_family = io_module.ACOUSTIC_PT_material.draw_band_family
+    draw_bands = io_module.ACOUSTIC_PT_material.draw_bands
 
     def __init__(self, drawn):
         self.layout = StubLayout(drawn)
@@ -353,9 +367,9 @@ def draw_panel(mat):
     return drawn
 
 
-@pytest.mark.parametrize('third_octave', [False, True])
-def test_panel_draws_every_band(mat, third_octave):
-    mat.acoustic_third_octave = third_octave
+@pytest.mark.parametrize('resolution', ['OCTAVE', 'THIRD_OCTAVE'])
+def test_panel_draws_every_band(mat, resolution):
+    set_resolution(resolution)
 
     drawn = draw_panel(mat)
 
@@ -364,7 +378,6 @@ def test_panel_draws_every_band(mat, third_octave):
     for name in ABS_PROPS + SCAT_PROPS:
         assert name in props, f'{name} is missing from the panel'
 
-    assert 'acoustic_third_octave' in props
     assert 'acoustic_interpolation' in props
     assert 'acoustic_specular_lobe_width' in props
 
@@ -404,7 +417,6 @@ def test_apply_variant_keeps_third_octave_data_at_full_resolution(mat):
 
     assert run(bpy.ops.acoustic.apply_variant, mat) == {'FINISHED'}
 
-    assert mat.acoustic_third_octave is True
     assert all(mat.acoustic_abs_band_set), 'every measured band should be marked'
 
     for index, freq in enumerate(THIRD_OCTAVES):
@@ -419,8 +431,6 @@ def test_apply_variant_marks_only_the_measured_bands(mat):
     })
 
     assert run(bpy.ops.acoustic.apply_variant, mat) == {'FINISHED'}
-
-    assert mat.acoustic_third_octave is False
 
     marked = {THIRD_OCTAVES[i] for i, on in enumerate(mat.acoustic_abs_band_set) if on}
     assert marked == {250, 1000, 4000}
@@ -485,3 +495,25 @@ def test_apply_variant_without_usable_data_is_rejected(mat):
         run(bpy.ops.acoustic.apply_variant, mat)
 
     assert all(getattr(mat, p) == DEFAULT for p in ABS_PROPS)
+
+
+def test_time_bins_follow_the_scene_setting(mat, tmp_path):
+    '''time_bins used to be a hardcoded 2000 with no UI.'''
+    bpy.context.scene.mitsuba.acoustic_time_bins = 4096
+
+    root = export_scene(mat, tmp_path)
+    film = root.find(".//film[@type='tape']")
+
+    assert film.find("integer[@name='time_bins']").get('value') == '4096'
+
+
+def test_the_band_resolution_is_stored_on_the_scene(mat):
+    '''
+    It belongs to the film, so it is saved in the .blend and shared by every
+    material rather than being set per material or per export.
+    '''
+    scene = bpy.context.scene
+
+    assert scene.mitsuba.acoustic_band_resolution == 'OCTAVE'
+    assert not hasattr(mat, 'acoustic_third_octave')
+    assert 'acoustic_band_resolution' not in bpy.ops.export_scene.mitsuba.get_rna_type().properties

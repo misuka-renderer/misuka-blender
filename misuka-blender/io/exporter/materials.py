@@ -273,8 +273,9 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
     if export_ctx.acoustic_mode:
 
         # The panel's values are exported as they stand. Interpolation is an
-        # explicit button press there, so nothing is inferred here.
-        frequencies, indices = active_bands(material.acoustic_third_octave)
+        # explicit button press there, so nothing is inferred here. The scene's
+        # band resolution decides which of the stored bands are written.
+        frequencies, indices = active_bands(export_ctx.acoustic_band_resolution)
 
         absorption_pairs = [
             (f, round(v, 3))
