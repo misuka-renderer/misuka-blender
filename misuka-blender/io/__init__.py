@@ -562,22 +562,6 @@ def register_acoustic_properties():
         items=get_variant_items,
     )
 
-    # Both blocks explain how to use the section above them, so they are worth
-    # reading once and in the way afterwards.
-    bpy.types.Material.show_acoustic_help = BoolProperty(
-        name="Database Instructions",
-        default=False
-    )
-
-    bpy.types.Material.show_acoustic_info = BoolProperty(
-        name="Manual Input Instructions",
-        default=False
-    )
-
-    bpy.types.Material.show_acoustic_bands = BoolProperty(
-        name="Coefficient Table",
-        default=True
-    )
 
 
 def unregister_acoustic_properties():
@@ -590,16 +574,13 @@ def unregister_acoustic_properties():
         "acoustic_scat_band_set",
         "acoustic_specular_lobe_width",
         "acoustic_variant_enum",
-        "show_acoustic_help",
-        "show_acoustic_info",
-        "show_acoustic_bands",
     ):
         delattr(bpy.types.Material, name)
 
 
-class ACOUSTIC_PT_material(bpy.types.Panel):
+class AcousticPanel:
+    '''Shared setup for the acoustic material panel and its subpanels.'''
 
-    bl_label = "Acoustic Material"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "material"
@@ -608,28 +589,124 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
     def poll(cls, context):
         return getattr(context, "material", None) is not None
 
-    def draw_bands(self, col, mat, context):
+
+class ACOUSTIC_PT_material(AcousticPanel, bpy.types.Panel):
+
+    bl_idname = "ACOUSTIC_PT_material"
+    bl_label = "Acoustic Material"
+
+    def draw(self, context):
+        # Everything lives in the subpanels below, which is what gives them
+        # their own fold state, drag handles and nesting for free.
+        pass
+
+
+class ACOUSTIC_PT_database_help(AcousticPanel, bpy.types.Panel):
+
+    bl_idname = "ACOUSTIC_PT_database_help"
+    bl_parent_id = "ACOUSTIC_PT_material"
+    bl_label = "Database: How to use"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        draw_paragraphs(
+            self.layout, context,
+            "Set an AcousticIndex API key in the add-on preferences, then "
+            "name this material after a database entry or paste its id.",
+            "Load from Database fetches every measured variant of it. Pick "
+            "one and Apply Variant writes its coefficients into the table "
+            "below, ticking the bands where it contains values.",
+        )
+
+
+class ACOUSTIC_PT_database(AcousticPanel, bpy.types.Panel):
+
+    bl_idname = "ACOUSTIC_PT_database"
+    bl_parent_id = "ACOUSTIC_PT_material"
+    bl_label = "AcousticIndex Database"
+
+    def draw(self, context):
+
+        mat = context.material
+        col = self.layout.column()
+
+        row = col.row()
+        row.scale_y = 1.2
+        row.operator(
+            "acoustic.load_from_api",
+            text="Load from Database",
+            icon='IMPORT'
+        )
+
+        label = mat.get("_acoustic_loaded_label")
+        manufacturer = mat.get("_acoustic_loaded_manufacturer")
+
+        if label:
+            box = col.box()
+
+            row = box.row()
+            row.label(text="Matched Database Entry", icon='CHECKMARK')
+
+            # Product names and manufacturers are arbitrary length and would
+            # otherwise be clipped at the panel edge.
+            draw_paragraphs(box, context, *filter(None, (label, manufacturer)))
+
+        col.separator()
+        col.label(text="Variant Selection")
+        col.prop(mat, "acoustic_variant_enum", text="")
+
+        # IMPORTANT: force invoke() instead of execute()
+        col.operator_context = 'INVOKE_DEFAULT'
+
+        row = col.row()
+        row.operator(
+            "acoustic.apply_variant",
+            text="Apply Variant",
+            icon='CHECKMARK'
+        )
+
+
+class ACOUSTIC_PT_coefficients_help(AcousticPanel, bpy.types.Panel):
+
+    bl_idname = "ACOUSTIC_PT_coefficients_help"
+    bl_parent_id = "ACOUSTIC_PT_material"
+    bl_label = "Coefficients: How to use"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        # Only what is not already covered by a tooltip or visible in the table
+        # itself. The band values, the Keep ticks and the two dropdowns all
+        # carry their own descriptions.
+        draw_paragraphs(
+            self.layout, context,
+            "Values are exported exactly as shown. Select octave or "
+            "third-octave bands in the Output properties.",
+            "Tick 'Keep' to mark values you want to keep. Editing a value "
+            "ticks it for you.",
+            "'Interpolate' overwrites every unticked value by interpolating "
+            "between the ticked ones. Select linear or logarithmic "
+            "interpolation in the Output properties. Values outside the "
+            "ticked range take the value of the nearest ticked value.",
+        )
+
+
+class ACOUSTIC_PT_coefficients(AcousticPanel, bpy.types.Panel):
+
+    bl_idname = "ACOUSTIC_PT_coefficients"
+    bl_parent_id = "ACOUSTIC_PT_material"
+    bl_label = "Coefficients"
+
+    def draw(self, context):
         '''
         Draw both coefficient families side by side, one row per band.
 
         Two columns rather than two stacked tables: 30 bands twice over is a lot
         of scrolling, and absorption and scattering are usually read together.
         '''
-
-        row = col.row()
-        row.prop(
-            mat, "show_acoustic_bands",
-            icon="TRIA_DOWN" if mat.show_acoustic_bands else "TRIA_RIGHT",
-            icon_only=True, emboss=False
-        )
-        row.label(text="Coefficients")
-
-        if not mat.show_acoustic_bands:
-            return
-
+        mat = context.material
         third_octave = scene_resolution(context.scene) == 'THIRD_OCTAVE'
 
-        box = col.box()
+        box = self.layout.box()
         columns = box.row()
 
         # One column per cell rather than one row per band: separate columns
@@ -679,100 +756,16 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
             value_column.operator(quantity.reset_op,
                                   text=f"Reset to {ACOUSTIC_DEFAULT}")
 
+
+class ACOUSTIC_PT_specular(AcousticPanel, bpy.types.Panel):
+
+    bl_idname = "ACOUSTIC_PT_specular"
+    bl_parent_id = "ACOUSTIC_PT_material"
+    bl_label = "Specular Reflection"
+
     def draw(self, context):
-
-        layout = self.layout
-        mat = context.material
-
-        if mat is None:
-            return
-
-        col = layout.column()
-
-        # Header
-        col.label(text="AcousticIndex Database")
-
-        # db use instructions
-        row = col.row()
-        row.prop(mat, "show_acoustic_help", icon="TRIA_DOWN" if mat.show_acoustic_help else "TRIA_RIGHT", icon_only=True, emboss=False)
-        row.label(text="How to use")
-
-        if mat.show_acoustic_help:
-            draw_paragraphs(
-                col.box(), context,
-                "Set an AcousticIndex API key in the add-on preferences, then "
-                "name this material after a database entry or paste its id.",
-                "Load from Database fetches every measured variant of it. Pick "
-                "one and Apply Variant writes its coefficients into the table "
-                "below, ticking the bands where it contains values.",
-            )
-
-        col.separator()
-
-        # Button
-        row = col.row()
-        row.scale_y = 1.2
-        row.operator(
-            "acoustic.load_from_api",
-            text="Load from Database",
-            icon='IMPORT'
-        )
-
-        # --- DB feedback ---
-        label = mat.get("_acoustic_loaded_label")
-        manufacturer = mat.get("_acoustic_loaded_manufacturer")
-
-        if label:
-            box = col.box()
-
-            row = box.row()
-            row.label(text="Matched Database Entry", icon='CHECKMARK')
-
-            # Product names and manufacturers are arbitrary length and would
-            # otherwise be clipped at the panel edge.
-            draw_paragraphs(box, context, *filter(None, (label, manufacturer)))
-
-        col.separator()
-        col.label(text="Variant Selection")
-        col.prop(mat, "acoustic_variant_enum", text="")
-
-        # IMPORTANT: force invoke() instead of execute()
-        col.operator_context = 'INVOKE_DEFAULT'
-
-        row = col.row()
-        row.operator(
-            "acoustic.apply_variant",
-            text="Apply Variant",
-            icon='CHECKMARK'
-        )
-
-        col.separator()
-
-        row = col.row()
-        row.prop(mat, "show_acoustic_info", icon="TRIA_DOWN" if mat.show_acoustic_info else "TRIA_RIGHT", icon_only=True, emboss=False)
-        row.label(text="How to use")
-
-        if mat.show_acoustic_info:
-            # Only what is not already covered by a tooltip or visible in the
-            # table itself. The band values, the Keep ticks and the two
-            # dropdowns all carry their own descriptions.
-            draw_paragraphs(
-                col.box(), context,
-                "Values are exported exactly as shown. Select octave or third-octave bands in the Output properties.",
-                "Tick 'Keep' to mark values you want to keep. Editing a value ticks it for you.",
-                "'Interpolate' overwrites every unticked value by interpolating between the ticked ones. "
-                "Select linear or logarithmic interpolation in the Output properties. "
-                "Values outside the the ticked range take the value of the nearest ticked value.",
-            )
-
-        col.separator()
-
-        self.draw_bands(col, mat, context)
-
-        col.separator()
-
-        col.label(text="Specular Lobe Width")
-        col.prop(mat, "acoustic_specular_lobe_width")
+        col = self.layout.column()
+        col.prop(context.material, "acoustic_specular_lobe_width")
 
         row = col.row(align=True)
         row.operator(
@@ -1033,6 +1026,11 @@ classes = (
     ImportMistuba,
     ExportMitsuba,
     ACOUSTIC_PT_material,
+    ACOUSTIC_PT_database_help,
+    ACOUSTIC_PT_database,
+    ACOUSTIC_PT_coefficients_help,
+    ACOUSTIC_PT_coefficients,
+    ACOUSTIC_PT_specular,
     ACOUSTIC_OT_reset_abs,
     ACOUSTIC_OT_reset_scat,
     ACOUSTIC_OT_reset_specular_lobe_width,
