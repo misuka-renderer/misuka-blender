@@ -4,12 +4,12 @@ from mathutils import Matrix
 
 def test_prespective_sensor():
     import importlib
-    sensors = importlib.import_module("mitsuba-blender.io.importer.sensors")
+    sensors = importlib.import_module("misuka-blender.io.importer.sensors")
     assert sensors
-    common = importlib.import_module("mitsuba-blender.io.importer.common")
+    common = importlib.import_module("misuka-blender.io.importer.common")
     assert common
 
-    from mitsuba import Properties
+    from misuka import Properties
     mi_sensor_props = Properties('perspective')
     mi_context = common.MitsubaSceneImportContext(bpy.context, bpy.context.scene, bpy.context.scene.collection, '', mi_sensor_props, Matrix())
 

@@ -31,7 +31,7 @@ _emitter_spectrum_object_writers = {
 def write_mi_emitter_spectrum_object(mi_context, mi_obj, bl_world_wrap, radiance_socket_id, strength_socket_id, default=None):
     mi_obj_class_name = mi_obj.class_().name()
     if mi_obj_class_name not in _emitter_spectrum_object_writers:
-        mi_context.log(f'Mitsuba object type "{mi_obj_class_name}" is not supported.', 'ERROR')
+        mi_context.log(f'misuka object type "{mi_obj_class_name}" is not supported.', 'ERROR')
         return
     _emitter_spectrum_object_writers[mi_obj_class_name](mi_context, mi_obj, bl_world_wrap, radiance_socket_id, strength_socket_id, default)
 
@@ -105,7 +105,7 @@ def write_mi_emitter_to_node_graph(mi_context, mi_emitter, bl_world_wrap, out_so
     '''
     emitter_type = mi_emitter.plugin_name()
     if emitter_type not in _world_writers:
-        mi_context.log(f'Mitsuba Emitter type "{emitter_type}" not supported.', 'ERROR')
+        mi_context.log(f'misuka Emitter type "{emitter_type}" not supported.', 'ERROR')
         return
 
     if not _world_writers[emitter_type](mi_context, mi_emitter, bl_world_wrap, out_socket_id):

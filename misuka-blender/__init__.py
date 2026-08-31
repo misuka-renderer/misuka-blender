@@ -1,7 +1,7 @@
 bl_info = {
     'name': 'misuka Blender',
     'author': 'Julius Schwarz, Tobias Jüterbock',
-    'version': (1, 0),
+    'version': (0, 1, 1),
     'blender': (2, 93, 0),
     'category': 'Render',
     'location': 'File menu, render engine menu',
@@ -70,7 +70,7 @@ def try_register_mitsuba(context):
         else:
             prefs.mitsuba_dependencies_status_message = f'Found pip misuka v{prefs.installed_dependencies_version}. Supported version is v{DEPS_MITSUBA_VERSION}.'
     else:
-        prefs.mitsuba_dependencies_status_message = 'Mitsuba dependencies not installed.'
+        prefs.mitsuba_dependencies_status_message = 'misuka dependencies not installed.'
 
     prefs.is_mitsuba_initialized = could_init_mitsuba
 
@@ -117,6 +117,13 @@ def check_pip_dependencies(context):
             if len(parts) >= 2 and parts[0] == 'misuka':
                 prefs.has_pip_dependencies = True
                 prefs.installed_dependencies_version = parts[1]
+                break
+
+    if not prefs.has_pip_dependencies:
+        # Clear any version left over from a previous check, so a stale string
+        # can't leak into the status message.
+        prefs.installed_dependencies_version = ''
+        prefs.has_valid_dependencies_version = False
 
 def clean_additional_custom_paths(self, context):
     # Remove old values from system PATH and sys.path
@@ -146,7 +153,7 @@ def update_additional_custom_paths(self, context):
 
 class MITSUBA_OT_install_pip_dependencies(Operator):
     bl_idname = 'mitsuba.install_pip_dependencies'
-    bl_label = 'Install Mitsuba pip dependencies'
+    bl_label = 'Install misuka pip dependencies'
     bl_description = 'Use pip to install the add-on\'s required dependencies'
 
     @classmethod
@@ -181,11 +188,26 @@ def update_mitsuba_custom_path(self, context):
         if not self.is_mitsuba_initialized:
             try_reload_mitsuba(context)
 
+def release_version(version_string):
+    '''Leading numeric components of a version, e.g. '0.1.0.dev1+gabc' -> (0, 1, 0).
+
+    Custom builds carry a dev/commit suffix that never compares equal to a plain
+    release string, so both checks compare on the release components only.
+    '''
+    components = []
+    for part in version_string.split('+')[0].split('.'):
+        if not part.isdigit():
+            break
+        components.append(int(part))
+    return tuple(components)
+
 def update_installed_dependencies_version(self, context):
-    self.has_valid_dependencies_version = True
+    self.has_valid_dependencies_version = \
+        release_version(self.installed_dependencies_version) == release_version(DEPS_MITSUBA_VERSION)
 
 def update_mitsuba_custom_version(self, context):
-    self.has_valid_mitsuba_custom_version = True
+    self.has_valid_mitsuba_custom_version = \
+        release_version(self.mitsuba_custom_version) == release_version(DEPS_MITSUBA_VERSION)
 
 class MitsubaPreferences(AddonPreferences):
     bl_idname = __name__
@@ -196,7 +218,7 @@ class MitsubaPreferences(AddonPreferences):
     )
 
     is_mitsuba_initialized : BoolProperty(
-        name = 'Is Mitsuba initialized',
+        name = 'Is misuka initialized',
     )
 
     has_pip_dependencies : BoolProperty(
@@ -204,7 +226,7 @@ class MitsubaPreferences(AddonPreferences):
     )
 
     installed_dependencies_version : StringProperty(
-        name = 'Installed Mitsuba dependencies version string',
+        name = 'Installed misuka dependencies version string',
         default = '',
         update = update_installed_dependencies_version,
     )
@@ -214,7 +236,7 @@ class MitsubaPreferences(AddonPreferences):
     )
 
     mitsuba_dependencies_status_message : StringProperty(
-        name = 'Mitsuba dependencies status message',
+        name = 'misuka dependencies status message',
         default = '',
     )
 
@@ -302,12 +324,12 @@ def register():
     prefs.require_restart = False
 
     if not ensure_pip():
-        raise RuntimeError('Cannot activate mitsuba-blender add-on. Python pip module cannot be initialized.')
+        raise RuntimeError('Cannot activate misuka-blender add-on. Python pip module cannot be initialized.')
 
     check_pip_dependencies(context)
     if try_register_mitsuba(context):
         import misuka as mitsuba
-        print(f'mitsuba-blender v{".".join(str(e) for e in bl_info["version"])}{bl_info["warning"] if "warning" in bl_info else ""} registered (with mitsuba v{mitsuba.__version__})')
+        print(f'misuka-blender v{".".join(str(e) for e in bl_info["version"])}{bl_info["warning"] if "warning" in bl_info else ""} registered (with misuka v{mitsuba.__version__})')
 
 def unregister():
     for cls in classes:

@@ -180,7 +180,7 @@ _shape_converters = {
 def mi_shape_to_bl_shape(mi_context, mi_shape):
     shape_type = mi_shape.plugin_name()
     if shape_type not in _shape_converters:
-        mi_context.log(f'Mitsuba Shape type "{shape_type}" not supported.', 'ERROR')
+        mi_context.log(f'misuka Shape type "{shape_type}" not supported.', 'ERROR')
         return None
     
     # Create the Blender object

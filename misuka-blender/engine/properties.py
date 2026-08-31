@@ -267,12 +267,22 @@ class MitsubaRenderSettings(PropertyGroup):
     It creates classes for each plugin described in the JSON files dynamically.
     '''
 
-    from misuka import variant, variants, config
+    from misuka import variant, variants
+    available_variants = variants()
     enum_variants = []
-    for var in variants():
+    for var in available_variants:
         enum_variants.append((var, var, ""))
 
+    # Prefer GPU/JIT-accelerated variants for interactive rendering inside
+    # Blender; fall back to whatever misuka.variant() is currently active.
+    # NOTE: a generator expression here can't see other class-body names
+    # (only the outermost iterable is evaluated in the class scope), so a
+    # plain loop is used instead.
     default_variant = variant()
+    for _preferred in ['cuda_ad_rgb', 'metal_ad_rgb', 'llvm_ad_rgb', 'scalar_rgb']:
+        if _preferred in available_variants:
+            default_variant = _preferred
+            break
 
     variant : EnumProperty(
         name = "Variant",
@@ -282,10 +292,12 @@ class MitsubaRenderSettings(PropertyGroup):
     # TODO: break variant into its subcomponents (backend/color/polarization/precision)
     enum_integrators = [(name, integrator['label'], integrator['description']) for name, integrator in integrator_data.items()]
 
+    # 'acoustic_path' is only meant for XML export, not for rendering inside
+    # Blender; 'path' is the correct default for in-Blender rendering.
     active_integrator : EnumProperty(
         name = "Integrator",
         items = enum_integrators,
-        default = "acoustic_path"
+        default = "path"
     )
     # Dynamic class for integrator parameters
     IntegratorProperties = type("IntegratorProperties",
@@ -303,8 +315,8 @@ class MitsubaRenderSettings(PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Scene.mitsuba = PointerProperty(
-            name="Mitsuba Render Settings",
-            description="Mitsuba render settings",
+            name="misuka Render Settings",
+            description="misuka render settings",
             type=cls,
         )
 
@@ -363,8 +375,8 @@ class MitsubaCameraSettings(PropertyGroup):
     @classmethod
     def register(cls):
         bpy.types.Camera.mitsuba = PointerProperty(
-            name="Mitsuba Camera Settings",
-            description="Mitsuba camera settings",
+            name="misuka Camera Settings",
+            description="misuka camera settings",
             type=cls,
         )
 

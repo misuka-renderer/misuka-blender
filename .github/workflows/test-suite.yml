@@ -1,0 +1,100 @@
+# Reusable test suite: runs the add-on tests for ONE OS / Blender combination.
+#
+# It is deliberately single-job rather than a matrix: a status badge reports a
+# whole workflow run, so one badge per OS/Blender cell requires one run per cell.
+# The `test-<os>-<version>.yml` callers each pin one combination and supply the
+# badge shown in README.md. `release.yml` calls this with a matrix instead, where
+# a single pass/fail gate is what's wanted.
+name: Test suite
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        description: "Runner label, e.g. ubuntu-latest or windows-latest"
+        required: true
+        type: string
+      blender-version:
+        description: "Blender major.minor, e.g. 4.2 - the newest patch release is resolved at run time"
+        required: true
+        type: string
+
+# Keep in sync with DEPS_MITSUBA_VERSION in misuka-blender/__init__.py
+env:
+  DEPS_MITSUBA_VERSION: "0.1.0"
+
+jobs:
+  test:
+    name: "${{ inputs.os }} | Blender ${{ inputs.blender-version }}"
+    runs-on: ${{ inputs.os }}
+
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v2
+
+    - name: Setup Python
+      uses: "actions/setup-python@v2"
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Install Python dependencies
+      run: uv pip install --system --upgrade requests
+
+    - name: Retrieve Blender full version
+      id: blender-version
+      shell: bash
+      run: |
+        echo "::set-output name=BLENDER_VERSION::$(python scripts/blender_downloader.py ${{ inputs.blender-version }} --print-version)"
+
+    - name: Cache Blender archive
+      id: cache-blender
+      uses: actions/cache@v3
+      with:
+        path: blender
+        key: ${{ inputs.os }}-${{ steps.blender-version.outputs.BLENDER_VERSION }}-v1
+
+    - name: Download Blender
+      if: steps.cache-blender.outputs.cache-hit != 'true'
+      run: python scripts/blender_downloader.py ${{ inputs.blender-version }} -o blender
+
+    - name: Install Blender dependencies
+      shell: bash
+      run: |
+        BLENDER_PYTHON=$(find blender/ -regextype posix-extended -regex '.*bin\/python(.exe|[0-9].[0-9]{1,2}m?)' -print -quit)
+        echo "Blender Python is $BLENDER_PYTHON"
+        uv pip install --python "$BLENDER_PYTHON" --upgrade pytest pytest-cov
+        if ! uv pip install --python "$BLENDER_PYTHON" "misuka==$DEPS_MITSUBA_VERSION" --reinstall; then
+          # Take *only* misuka from TestPyPI. Its /simple/ pages for other projects
+          # are unreliable - drjit's returns 503 - so letting the resolver reach it
+          # for dependencies makes every install hostage to that.
+          REQS="${RUNNER_TEMP:-/tmp}/misuka-requirements.txt"
+          uv pip install --python "$BLENDER_PYTHON" --reinstall --no-deps \
+            --index-url https://test.pypi.org/simple/ "misuka==$DEPS_MITSUBA_VERSION"
+          # Then satisfy misuka's own requirements from PyPI, read from its metadata
+          # so this doesn't need updating when they change.
+          "$BLENDER_PYTHON" -c "import importlib.metadata as md; print('\n'.join(md.requires('misuka') or []))" > "$REQS"
+          cat "$REQS"
+          if [ -s "$REQS" ]; then
+            uv pip install --python "$BLENDER_PYTHON" -r "$REQS"
+          fi
+        fi
+
+    - name: Run Addon test suite
+      shell: bash
+      run: |
+        BLENDER_EXECUTABLE=$(find blender/ -maxdepth 1 -regextype posix-extended -regex '.*blender(.exe)?' -print -quit)
+        echo "Blender Executable is $BLENDER_EXECUTABLE"
+        set +e
+        ./$BLENDER_EXECUTABLE -b -noaudio --factory-startup --python scripts/run_tests.py -- \
+          -v --cov=misuka-blender --junitxml=pytest-report.xml
+        STATUS=$?
+        set -e
+        echo "Blender exited with status $STATUS"
+        # Blender's status is unusable on Windows - it faults unloading misuka once
+        # the tests are done (issue #4). Judge the run on pytest's own report; a
+        # crash mid-run leaves no usable report and still fails.
+        python scripts/check_pytest_report.py pytest-report.xml
+        if [ "$STATUS" -ne 0 ]; then
+          echo "::warning::Tests passed but Blender exited with status $STATUS - see issue #4"
+        fi

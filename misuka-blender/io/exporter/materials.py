@@ -20,7 +20,7 @@ def export_texture_node(export_ctx, tex_node):
         #non color data, tell mitsuba not to apply gamma conversion to it
         params['raw'] = True
     elif tex_node.image.colorspace_settings.name != 'sRGB':
-        export_ctx.log("Mitsuba only supports sRGB textures for color data.", 'WARN')
+        export_ctx.log("misuka only supports sRGB textures for color data.", 'WARN')
 
     return params
 
@@ -88,7 +88,7 @@ def convert_diffuse_materials_cycles(export_ctx, current_node):
         })
     """
     if current_node.inputs['Roughness'].is_linked or current_node.inputs['Roughness'].default_value != 0.0:
-        export_ctx.log("Warning: rough diffuse BSDF is currently not supported in Mitsuba. Ignoring alpha parameter.", 'WARN')
+        export_ctx.log("Warning: rough diffuse BSDF is currently not supported in misuka. Ignoring alpha parameter.", 'WARN')
     #Rough diffuse BSDF is currently not supported in Mitsuba
     params.update({
         'type': 'diffuse'
@@ -133,7 +133,7 @@ def convert_glass_materials_cycles(export_ctx, current_node):
     params = {}
 
     if current_node.inputs['IOR'].is_linked:
-        raise NotImplementedError("Only default IOR value is supported in Mitsuba.")
+        raise NotImplementedError("Only default IOR value is supported in misuka.")
 
     ior = current_node.inputs['IOR'].default_value
 
@@ -466,7 +466,7 @@ def cycles_material_to_dict(export_ctx, node, material):
 
     if node.type not in cycles_converters:
         raise NotImplementedError(
-            "Node type: %s is not supported in Mitsuba." % node.type
+            "Node type: %s is not supported in misuka." % node.type
         )
 
     if node.type == 'BSDF_PRINCIPLED':

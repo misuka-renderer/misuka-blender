@@ -39,11 +39,15 @@ from . import mi_props_utils
 
 def _check_unqueried_props(mi_context, mi_cls, mi_props):
     for prop_name in mi_props.unqueried():
-        mi_context.log(f'Mitsuba {mi_cls} property "{prop_name}" was not handled.', 'WARN')
+        mi_context.log(f'misuka {mi_cls} property "{prop_name}" was not handled.', 'WARN')
 
 def _convert_named_references(mi_context, mi_props, parent_node, type_filter=[]):
-    for _, ref_id in mi_props.named_references():
-        mi_child_cls, mi_child_props = mi_context.mi_scene_props.get_with_id(ref_id)
+    from misuka import Properties
+    for key in mi_props.keys():
+        if mi_props.type(key) != Properties.Type.ResolvedReference:
+            continue
+        ref_index = mi_props.get(key).index()
+        mi_child_cls, mi_child_props = mi_context.mi_scene_props.get_with_index(ref_index)
         assert mi_child_cls is not None and mi_child_props is not None
         if len(type_filter) == 0 or mi_child_cls in type_filter:
             child_node = mi_props_to_bl_data_node(mi_context, mi_child_cls, mi_child_props)
@@ -207,11 +211,11 @@ _bl_data_converters = {
 
 def mi_props_to_bl_data_node(mi_context, mi_cls, mi_props):
     if mi_cls not in _bl_data_converters:
-        mi_context.log(f'Mitsuba class "{mi_cls}" not supported.', 'ERROR')
+        mi_context.log(f'misuka class "{mi_cls}" not supported.', 'ERROR')
         return None
     node = _bl_data_converters[mi_cls](mi_context, mi_props)
     if node is None:
-        mi_context.log(f'Failed to convert Mitsuba class "{mi_cls}".', 'ERROR')
+        mi_context.log(f'Failed to convert misuka class "{mi_cls}".', 'ERROR')
         return None
     return node
 
@@ -376,15 +380,25 @@ def load_mitsuba_scene(bl_context, bl_scene, bl_collection, filepath, global_mat
     '''
     start_time = time.time()
     # Load the Mitsuba XML and extract the objects' properties
-    from misuka import xml_to_props
-    raw_props = xml_to_props(filepath)
+    from misuka import parser
+    config = parser.ParserConfig('scalar_rgb')
+    state = parser.parse_file(config, filepath)
+    parser.transform_upgrade(config, state)
+    parser.transform_resolve_references(config, state)
+    # Anonymous/inline nodes get props.id() == '' from the parser; assign a
+    # synthetic unique id so the id-keyed material/image caches below don't
+    # collide between distinct anonymous nodes.
+    for idx, node in enumerate(state.nodes):
+        if not node.props.id():
+            node.props.set_id(f'_unnamed_{idx}')
+    raw_props = [(node.type.name, node.props) for node in state.nodes]
     mi_scene_props = common.MitsubaSceneProperties(raw_props)
     mi_context = common.MitsubaSceneImportContext(bl_context, bl_scene, bl_collection, filepath, mi_scene_props, global_mat)
 
     _, mi_props = mi_scene_props.get_first_of_class('Scene')
     bl_scene_data_node = mi_props_to_bl_data_node(mi_context, 'Scene', mi_props)
     if bl_scene_data_node is None:
-        mi_context.log('Failed to load Mitsuba scene', 'ERROR')
+        mi_context.log('Failed to load misuka scene', 'ERROR')
         return
     
     # Initialize the Mitsuba renderer inside of Blender
@@ -403,6 +417,6 @@ def load_mitsuba_scene(bl_context, bl_scene, bl_collection, filepath, global_mat
         _check_unqueried_props(mi_context, cls, prop)
 
     end_time = time.time()
-    mi_context.log(f'Finished loading Mitsuba scene. Took {end_time-start_time:.2f}s.', 'INFO')
+    mi_context.log(f'Finished loading misuka scene. Took {end_time-start_time:.2f}s.', 'INFO')
 
     return

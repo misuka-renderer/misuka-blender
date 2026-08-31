@@ -40,7 +40,7 @@ def convert_mesh(export_ctx, b_mesh, matrix_world, name, mat_nr):
     props['loop_tri_count'] = loop_tri_count
 
     if len(b_mesh.uv_layers) > 1:
-        export_ctx.log(f"Mesh: '{name}' has multiple UV layers. Mitsuba only supports one. Exporting the one set active for render.", 'WARN')
+        export_ctx.log(f"Mesh: '{name}' has multiple UV layers. misuka only supports one. Exporting the one set active for render.", 'WARN')
     for uv_layer in b_mesh.uv_layers:
         if uv_layer.active_render: # If there is only 1 UV layer, it is always active
             if uv_layer.name in b_mesh.attributes:

@@ -1,4 +1,4 @@
 
 def test_mitsuba_has_correct_variant():
-    import mitsuba
+    import misuka as mitsuba
     assert mitsuba.variant() == 'scalar_rgb'

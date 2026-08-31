@@ -109,7 +109,7 @@ _emitter_converters = {
 def mi_emitter_to_bl_light(mi_context, mi_emitter):
     emitter_type = mi_emitter.plugin_name()
     if emitter_type not in _emitter_converters:
-        mi_context.log(f'Mitsuba Emitter type "{emitter_type}" not supported.', 'ERROR')
+        mi_context.log(f'misuka Emitter type "{emitter_type}" not supported.', 'ERROR')
         return None
     
     # Create the Blender object

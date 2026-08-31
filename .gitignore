@@ -19,3 +19,4 @@ venv/
 tests/**/out
 
 .DS_Store
+pytest-report.xml
