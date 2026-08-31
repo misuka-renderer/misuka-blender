@@ -43,6 +43,11 @@ from .acoustic_bands import (
         write_bands,
     )
 
+import urllib.parse
+import urllib.request
+import urllib.error
+import json
+
 # ---------- Acoustic Material UI ----------
 
 # Width of the per-band "Keep" checkbox column relative to a value column.
@@ -50,10 +55,94 @@ from .acoustic_bands import (
 # belonging to the value beside it.
 KEEP_COLUMN_SCALE = 0.4
 
-import urllib.parse
-import urllib.request
-import urllib.error
-import json
+# Vertical scale for stacked text rows. A label occupies a full widget row, so
+# unscaled paragraphs are spaced like buttons rather than like prose.
+TEXT_LINE_SCALE = 0.7
+
+# Assumed properties editor width when there is no region to measure, which is
+# the case in background renders and when drawing outside a real UI.
+DEFAULT_PANEL_WIDTH = 320
+
+# Rough width of one character, used only when the font cannot be measured.
+FALLBACK_CHARACTER_WIDTH = 6.0
+
+# Padding inside the enclosing box, so the last word does not touch the edge.
+TEXT_PADDING = 16
+
+
+def text_measurer(ui_scale):
+    '''
+    Return a function giving the pixel width of a string in the widget font.
+
+    Blender's UI font is proportional, so estimating from a character count
+    either wraps far short of the panel edge or overruns it. `blf` measures the
+    real thing. It needs a font size, which moved out of `blf.size` in 4.0.
+    '''
+    try:
+        import blf
+
+        points = bpy.context.preferences.ui_styles[0].widget.points * ui_scale
+
+        if bpy.app.version >= (4, 0, 0):
+            blf.size(0, points)
+        else:
+            blf.size(0, points, 72)
+
+        if blf.dimensions(0, "reference")[0] > 0:
+            return lambda text: blf.dimensions(0, text)[0]
+
+    except Exception:
+        pass
+
+    # Headless, or a Blender build without a usable font.
+    return lambda text: len(text) * FALLBACK_CHARACTER_WIDTH * ui_scale
+
+
+def wrap_text(text, max_width, measure):
+    '''Greedily break `text` into lines no wider than `max_width` pixels.'''
+    lines = []
+    line = ""
+
+    for word in text.split():
+        candidate = f"{line} {word}" if line else word
+
+        if line and measure(candidate) > max_width:
+            lines.append(line)
+            line = word
+        else:
+            line = candidate
+
+    if line:
+        lines.append(line)
+
+    return lines
+
+
+def draw_paragraphs(layout, context, *paragraphs):
+    '''
+    Draw text wrapped to the current panel width.
+
+    `UILayout.label` has no wrapping of its own, so the text is broken up here
+    against the region width. That also means the help text reflows when the
+    properties editor is resized, instead of being cut off at a fixed width.
+    '''
+    region = getattr(context, "region", None)
+    # Blender reports a UI scale of 0 when running headless.
+    ui_scale = bpy.context.preferences.system.ui_scale or 1.0
+
+    width = (getattr(region, "width", 0) or DEFAULT_PANEL_WIDTH) - TEXT_PADDING * ui_scale
+    measure = text_measurer(ui_scale)
+
+    # An aligned column drops the gap Blender leaves between separate widgets,
+    # which is what makes unaligned labels read as double spaced.
+    column = layout.column(align=True)
+    column.scale_y = TEXT_LINE_SCALE
+
+    for index, paragraph in enumerate(paragraphs):
+        if index:
+            column.separator()
+        for line in wrap_text(paragraph, width, measure):
+            column.label(text=line)
 
 
 class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
@@ -649,39 +738,18 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         row.label(text="Manual Input")
 
         if mat.show_acoustic_info:
-            box = col.box()
-            box.label(text="The enabled values below are exported as shown.")
-
-            box.separator()
-
-            box.label(text="Tick a band to mark it as known.")
-            box.label(text="Editing a value ticks its band for you.")
-
-            box.separator()
-
-            box.label(text="Greyed rows are not exported. Band Resolution")
-            box.label(text="in Output properties picks between the 9")
-            box.label(text="octave centres and all 27 third-octave ones.")
-
-            box.separator()
-
-            box.label(text="Interpolate Values overwrites every unticked")
-            box.label(text="band from the ticked ones:")
-            box.label(text="    1 ticked band: all bands take its value")
-            box.label(text="    several: interpolated between them")
-            box.label(text="    outside the ticked range: nearest value")
-
-            box.separator()
-
-            box.label(text="Interpolation picks the frequency axis for that.")
-            box.label(text="Logarithmic spaces the bands evenly, so 1 kHz")
-            box.label(text="sits halfway between 500 Hz and 2 kHz. Linear")
-            box.label(text="puts it a third of the way.")
-
-            box.separator()
-
-            box.label(text=f"Reset returns all bands to {ACOUSTIC_DEFAULT}")
-            box.label(text="and unticks them.")
+            # Only what is not already covered by a tooltip or visible in the
+            # table itself. The band values, the Keep ticks and the two
+            # dropdowns all carry their own descriptions.
+            draw_paragraphs(
+                col.box(), context,
+                "Values are exported exactly as shown. Greyed bands are not "
+                "exported; Band Resolution in Output properties picks which.",
+                "Tick Keep to mark a band as yours. Editing a value ticks it "
+                "for you.",
+                "Interpolate overwrites every unticked band from the ticked "
+                "ones, holding the nearest value beyond the outermost.",
+            )
 
         col.separator()
 

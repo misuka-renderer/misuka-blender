@@ -327,8 +327,8 @@ class StubLayout:
     def label(self, text='', **kwargs):
         self.drawn.append(('label', text))
 
-    def operator(self, idname, **kwargs):
-        self.drawn.append(('operator', idname))
+    def operator(self, idname, text='', **kwargs):
+        self.drawn.append(('operator', idname, text))
         return StubLayout(self.drawn)
 
     def prop(self, data, name, index=-1, **kwargs):
@@ -401,12 +401,24 @@ def test_panel_draws_every_band(mat, resolution):
         assert idname in operators, f'{idname} is missing from the panel'
 
 
-def test_panel_labels_mention_the_shared_default(mat):
-    text = ' '.join(entry[1] for entry in draw_panel(mat) if entry[0] == 'label')
+def test_panel_quotes_the_shared_default_rather_than_hardcoding_it(mat):
+    drawn = draw_panel(mat)
+    text = ' '.join(entry[-1] for entry in drawn if entry[0] in ('label', 'operator'))
 
-    # the one number the help text has to explain, quoted from the constant
+    # the Reset buttons name the default, built from the constant
     assert str(DEFAULT) in text
     assert '0.25' not in text, 'scattering no longer has a default of its own'
+
+
+def test_panel_help_text_is_wrapped_to_the_panel(mat):
+    '''Blender labels do not wrap, so the help text is broken up by hand.'''
+    labels = [entry[1] for entry in draw_panel(mat) if entry[0] == 'label']
+
+    help_lines = [line for line in labels if line.startswith('Values are exported')]
+    assert help_lines, 'the manual input help should be drawn'
+
+    # wrapped, not one long line, and no line long enough to be clipped
+    assert all(len(line) <= 80 for line in labels), max(labels, key=len)
 
 
 def load_variant(mat, variant):
@@ -522,3 +534,34 @@ def test_the_band_resolution_is_stored_on_the_scene(mat):
     assert scene.mitsuba.acoustic_band_resolution == 'OCTAVE'
     assert not hasattr(mat, 'acoustic_third_octave')
     assert 'acoustic_band_resolution' not in bpy.ops.export_scene.mitsuba.get_rna_type().properties
+
+
+def test_wrap_text_fills_each_line(mat):
+    '''
+    Greedy wrapping against a measured width, so lines reach the panel edge
+    instead of breaking at a guessed character count.
+    '''
+    # one unit per character, so the expected breaks are easy to read off
+    measure = len
+
+    assert io_module.wrap_text('aaa bbb ccc ddd', 7, measure) == ['aaa bbb', 'ccc ddd']
+    assert io_module.wrap_text('aaa bbb ccc', 100, measure) == ['aaa bbb ccc']
+    assert io_module.wrap_text('', 10, measure) == []
+
+    # a word longer than the line still gets its own line rather than vanishing
+    assert io_module.wrap_text('short enormouslylongword', 6, measure) == [
+        'short', 'enormouslylongword'
+    ]
+
+
+def test_wrap_text_uses_the_full_width_available(mat):
+    text = 'Values are exported exactly as shown. Greyed bands are not exported.'
+
+    narrow = io_module.wrap_text(text, 30, len)
+    wide = io_module.wrap_text(text, 60, len)
+
+    assert len(wide) < len(narrow)
+    # every line but the last is within one word of the limit
+    for lines, width in ((narrow, 30), (wide, 60)):
+        for line, following in zip(lines, lines[1:]):
+            assert len(line) + 1 + len(following.split()[0]) > width, line
