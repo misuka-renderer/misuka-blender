@@ -64,7 +64,13 @@ class SceneConverter:
                     "acoustic_path"
                 ).to_dict()
             else:
-                integrator = {'type': 'acoustic_path', 'max_depth': -1}
+                # No misuka settings to read, so mirror the defaults declared
+                # for acoustic_path in engine/integrators.json.
+                integrator = {
+                    'type': 'acoustic_path',
+                    'max_depth': -1,
+                    'max_energy_loss': 300.0,
+                }
 
             # Required for acoustic integrator
             integrator['max_time'] = self.export_ctx.acoustic_max_time
