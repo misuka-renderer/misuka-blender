@@ -80,6 +80,8 @@ class ExportContext:
             'spectrum': 'spectra'
                             }
         self.acoustic_mode = False #default
+        # Band centres the acoustic simulation runs at. See acoustic_bands.
+        self.acoustic_band_resolution = 'OCTAVE'
 
 
     def data_add(self, mts_dict, name=''):
