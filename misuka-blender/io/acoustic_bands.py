@@ -60,6 +60,18 @@ def resolution_frequencies(resolution):
     return THIRD_OCTAVES if resolution == 'THIRD_OCTAVE' else OCTAVES
 
 
+# Axis the interpolation runs on. Band centres are spaced by a constant factor,
+# so the logarithmic axis is the one they are evenly distributed along: between
+# anchors at 500 Hz and 2 kHz it puts 1 kHz halfway, where the linear axis puts
+# it a third of the way. Linear stays available for datasets that were tabulated
+# that way.
+INTERPOLATION_ITEMS = (
+    ('LOG', "Logarithmic",
+     "Interpolate along log(frequency), the axis band centres are evenly spaced on"),
+    ('LINEAR', "Linear", "Interpolate along frequency in Hz"),
+)
+
+
 def active_bands(third_octave):
     '''Return the (frequencies, indices) pair a material currently exports.'''
     if third_octave:
@@ -122,12 +134,14 @@ def write_bands(mat, props, values, indices=None):
             setattr(mat, props[i], value)
 
 
-def interpolate_bands(anchors, target_freqs, fallback=ACOUSTIC_DEFAULT):
+def interpolate_bands(anchors, target_freqs, fallback=ACOUSTIC_DEFAULT,
+                      interpolation='LOG'):
     '''
     Fill `target_freqs` from the `{frequency: value}` anchors.
 
-    Interpolation is linear in log(frequency), the axis band centres are spaced
-    on. Targets outside the anchor range take the nearest anchor's value.
+    `interpolation` is an INTERPOLATION_ITEMS identifier choosing the frequency
+    axis. Targets outside the anchor range take the nearest anchor's value on
+    either axis.
     '''
     freqs = sorted(anchors.keys())
 
@@ -136,6 +150,8 @@ def interpolate_bands(anchors, target_freqs, fallback=ACOUSTIC_DEFAULT):
 
     if len(freqs) == 1:
         return [anchors[freqs[0]]] * len(target_freqs)
+
+    axis = (lambda f: f) if interpolation == 'LINEAR' else log
 
     values = []
 
@@ -150,7 +166,7 @@ def interpolate_bands(anchors, target_freqs, fallback=ACOUSTIC_DEFAULT):
             i = max(j for j in range(len(freqs) - 1) if freqs[j] < f)
             f1, f2 = freqs[i], freqs[i + 1]
             v1, v2 = anchors[f1], anchors[f2]
-            t = (log(f) - log(f1)) / (log(f2) - log(f1))
+            t = (axis(f) - axis(f1)) / (axis(f2) - axis(f1))
             values.append(v1 + t * (v2 - v1))
 
     return values

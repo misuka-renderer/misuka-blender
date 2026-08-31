@@ -33,6 +33,7 @@ from .acoustic_bands import (
         ABS_PROPS,
         ACOUSTIC_DEFAULT,
         BAND_RESOLUTION_ITEMS,
+        INTERPOLATION_ITEMS,
         OCTAVE_INDICES,
         SCAT_PROPS,
         THIRD_OCTAVES,
@@ -284,7 +285,10 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
             self.report({'ERROR'}, f"No {variant_type} data on known bands")
             return {'CANCELLED'}
 
-        write_bands(mat, props, interpolate_bands(anchors, frequencies), indices)
+        values = interpolate_bands(
+            anchors, frequencies, interpolation=mat.acoustic_interpolation
+        )
+        write_bands(mat, props, values, indices)
 
         flags = [False] * len(THIRD_OCTAVES)
         for band, freq in enumerate(frequencies):
@@ -363,6 +367,13 @@ def register_acoustic_properties():
         description=band_set_description,
         size=len(THIRD_OCTAVES),
         default=(False,) * len(THIRD_OCTAVES),
+    )
+
+    bpy.types.Material.acoustic_interpolation = EnumProperty(
+        name="Interpolation",
+        description="Frequency axis Interpolate Values works along",
+        items=INTERPOLATION_ITEMS,
+        default='LOG',
     )
 
     bpy.types.Material.acoustic_third_octave = BoolProperty(
@@ -477,6 +488,7 @@ def unregister_acoustic_properties():
     for name in (
         "acoustic_abs_band_set",
         "acoustic_scat_band_set",
+        "acoustic_interpolation",
         "acoustic_third_octave",
         "acoustic_specular_lobe_width",
         "acoustic_variant_enum",
@@ -627,12 +639,20 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
             box.separator()
 
+            box.label(text="Interpolation picks the frequency axis for that.")
+            box.label(text="Logarithmic spaces the bands evenly, so 1 kHz")
+            box.label(text="sits halfway between 500 Hz and 2 kHz. Linear")
+            box.label(text="puts it a third of the way.")
+
+            box.separator()
+
             box.label(text=f"Reset returns all bands to {ACOUSTIC_DEFAULT}")
             box.label(text="and unticks them.")
 
         col.separator()
 
         col.prop(mat, "acoustic_third_octave")
+        col.prop(mat, "acoustic_interpolation")
 
         self.draw_band_family(
             col, mat, "Absorption", "show_acoustic_absorption",
@@ -695,7 +715,10 @@ class ACOUSTIC_OT_interpolate_base(bpy.types.Operator):
             self.report({'WARNING'}, "Tick at least one band first")
             return {'CANCELLED'}
 
-        write_bands(mat, self.props, interpolate_bands(anchors, frequencies), indices)
+        values = interpolate_bands(
+            anchors, frequencies, interpolation=mat.acoustic_interpolation
+        )
+        write_bands(mat, self.props, values, indices)
 
         return {'FINISHED'}
 

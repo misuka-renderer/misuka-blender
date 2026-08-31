@@ -31,7 +31,8 @@ Rendering inside Blender is not supported.
   - bands you set are marked, so measured values stay distinguishable from
     interpolated ones, and the values shown are the values exported
   - adjustable lobe width of the specular reflection component
-  - interpolation and reset utilities
+  - interpolation and reset utilities, with a switchable logarithmic or linear
+    frequency axis
 
 - **AcousticIndex integration**:
 

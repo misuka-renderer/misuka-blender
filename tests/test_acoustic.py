@@ -84,6 +84,56 @@ def test_interpolate_fills_between_and_clamps_outside(mat):
     assert values[16000] == pytest.approx(0.8)
 
 
+def test_interpolation_defaults_to_logarithmic(mat):
+    assert mat.acoustic_interpolation == 'LOG'
+
+
+def test_linear_interpolation_uses_the_hertz_axis(mat):
+    '''
+    500 Hz and 2 kHz are one octave either side of 1 kHz, so the logarithmic
+    axis puts 1 kHz halfway between the anchors while the linear one puts it a
+    third of the way.
+    '''
+    mat.acoustic_interpolation = 'LINEAR'
+    setattr(mat, abs_prop(500), 0.2)
+    setattr(mat, abs_prop(2000), 0.8)
+
+    assert run(bpy.ops.acoustic.interpolate_abs, mat) == {'FINISHED'}
+
+    values = dict(zip(OCTAVES, octave_values(mat, ABS_PROPS)))
+
+    assert values[1000] == pytest.approx(0.2 + (0.8 - 0.2) / 3, abs=1e-5)
+    # the anchors themselves and the clamped ends do not depend on the axis
+    assert values[500] == pytest.approx(0.2)
+    assert values[2000] == pytest.approx(0.8)
+    assert values[63] == pytest.approx(0.2)
+    assert values[16000] == pytest.approx(0.8)
+
+
+def test_the_two_axes_disagree_only_between_the_anchors(mat):
+    setattr(mat, abs_prop(250), 0.1)
+    setattr(mat, abs_prop(8000), 0.9)
+
+    assert run(bpy.ops.acoustic.interpolate_abs, mat) == {'FINISHED'}
+    logarithmic = octave_values(mat, ABS_PROPS)
+
+    assert run(bpy.ops.acoustic.reset_abs, mat) == {'FINISHED'}
+    mat.acoustic_interpolation = 'LINEAR'
+    setattr(mat, abs_prop(250), 0.1)
+    setattr(mat, abs_prop(8000), 0.9)
+
+    assert run(bpy.ops.acoustic.interpolate_abs, mat) == {'FINISHED'}
+    linear = octave_values(mat, ABS_PROPS)
+
+    lo = OCTAVES.index(250)
+    hi = OCTAVES.index(8000)
+
+    # linear in Hz leans everything toward the low anchor
+    assert all(a > b for a, b in zip(logarithmic[lo + 1:hi], linear[lo + 1:hi]))
+    assert logarithmic[:lo + 1] == pytest.approx(linear[:lo + 1])
+    assert logarithmic[hi:] == pytest.approx(linear[hi:])
+
+
 def test_interpolate_honours_an_anchor_sitting_on_the_default(mat):
     '''
     The old rule inferred anchors by comparing against the default, so a band
@@ -315,6 +365,7 @@ def test_panel_draws_every_band(mat, third_octave):
         assert name in props, f'{name} is missing from the panel'
 
     assert 'acoustic_third_octave' in props
+    assert 'acoustic_interpolation' in props
     assert 'acoustic_specular_lobe_width' in props
 
     # every band row carries its anchor checkbox
@@ -397,6 +448,20 @@ def test_apply_variant_reads_scattering_octave_data(mat):
     assert values[500] == pytest.approx(0.3)
     assert values[2000] == pytest.approx(0.7)
     assert all(getattr(mat, p) == DEFAULT for p in ABS_PROPS)
+
+
+def test_apply_variant_fills_gaps_on_the_chosen_axis(mat):
+    '''Sparse database data is filled in the same way manual input is.'''
+    mat.acoustic_interpolation = 'LINEAR'
+    load_variant(mat, {
+        '_type': 'absorption',
+        'alpha_s_octave': {'500': 0.2, '2000': 0.8},
+    })
+
+    assert run(bpy.ops.acoustic.apply_variant, mat) == {'FINISHED'}
+
+    values = dict(zip(OCTAVES, octave_values(mat, ABS_PROPS)))
+    assert values[1000] == pytest.approx(0.2 + (0.8 - 0.2) / 3, abs=1e-5)
 
 
 def test_apply_variant_snaps_off_nominal_frequencies(mat):
