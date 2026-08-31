@@ -18,6 +18,13 @@ on:
         description: "Blender major.minor, e.g. 4.2 - the newest patch release is resolved at run time"
         required: true
         type: string
+    secrets:
+      acousticindex-api-key:
+        description: >
+          Optional. When set, the AcousticIndex contract tests run against the
+          real API instead of skipping. Only pass this from workflows that do
+          not run on pull requests.
+        required: false
 
 # Keep in sync with DEPS_MITSUBA_VERSION in misuka-blender/__init__.py
 env:
@@ -87,6 +94,9 @@ jobs:
 
     - name: Run Addon test suite
       shell: bash
+      env:
+        # Empty for the badge workflows, so the live tests skip there.
+        ACOUSTICINDEX_API_KEY: ${{ secrets.acousticindex-api-key }}
       run: |
         BLENDER_EXECUTABLE=$(find blender/ -maxdepth 1 -regextype posix-extended -regex '.*blender(.exe)?' -print -quit)
         echo "Blender Executable is $BLENDER_EXECUTABLE"

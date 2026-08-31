@@ -1,0 +1,30 @@
+# Contract tests against the real AcousticIndex API.
+#
+# Deliberately NOT triggered by pull_request. GitHub withholds secrets from
+# fork pull requests, but a pull request from a branch in this repository does
+# receive them, and a workflow file is editable in that same pull request. This
+# runs only on master and on demand, so the key is never exposed to a change
+# that has not been merged.
+#
+# It also keeps the network out of the badge matrix in test-<os>-<version>.yml:
+# those must fail only when the add-on is broken, not when the API is slow.
+name: AcousticIndex API
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'misuka-blender/io/__init__.py'
+      - 'tests/test_acousticindex_live.py'
+      - '.github/workflows/test-acousticindex.yml'
+      - '.github/workflows/test-suite.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      os: ubuntu-latest
+      blender-version: "4.2"
+    secrets:
+      acousticindex-api-key: ${{ secrets.ACOUSTICINDEX_API_KEY }}
