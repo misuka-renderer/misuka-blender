@@ -388,48 +388,80 @@ class StubContext:
         self.scene = bpy.context.scene
 
 
-class PanelStub:
+ACOUSTIC_PANELS = (
+    'ACOUSTIC_PT_material',
+    'ACOUSTIC_PT_database_help',
+    'ACOUSTIC_PT_database',
+    'ACOUSTIC_PT_coefficients_help',
+    'ACOUSTIC_PT_coefficients',
+    'ACOUSTIC_PT_specular',
+)
+
+
+def draw_panel(mat, only=None):
     '''
-    Borrows the panel's draw methods without being a bpy_struct.
+    Render the acoustic panels against the stub.
 
-    Panel subclasses cannot be instantiated from Python, so the methods are
-    lifted onto a plain class that supplies the one attribute they touch.
+    Blender draws each subpanel separately and hides a collapsed one, so the
+    stub does the same: it walks the panel classes and calls each draw.
     '''
-
-    draw = io_module.ACOUSTIC_PT_material.draw
-    draw_bands = io_module.ACOUSTIC_PT_material.draw_bands
-
-    def __init__(self, drawn):
-        self.layout = StubLayout(drawn)
-
-
-def draw_panel(mat, expand_help=False):
-    '''
-    Render the panel against the stub.
-
-    The two help blocks are collapsed by default, so a test that wants to read
-    them has to open them first, the same way a user would.
-    '''
-    if expand_help:
-        mat.show_acoustic_help = True
-        mat.show_acoustic_info = True
-
     drawn = []
-    PanelStub(drawn).draw(StubContext(mat))
+
+    for name in (only,) if only else ACOUSTIC_PANELS:
+        panel = getattr(io_module, name)
+        stub = type('Stub', (), {'draw': panel.draw})()
+        stub.layout = StubLayout(drawn)
+        stub.draw(StubContext(mat))
+
     return drawn
 
 
-def test_the_help_blocks_are_collapsed_by_default(mat):
-    '''They explain the section above them, so they are in the way once read.'''
-    assert mat.show_acoustic_help is False
-    assert mat.show_acoustic_info is False
-    # the coefficient table itself is the point of the panel, so it stays open
-    assert mat.show_acoustic_bands is True
+def test_the_sections_are_real_subpanels(mat):
+    '''
+    Blender nests panels itself, with fold state, drag handles and the right
+    triangles, so none of that is hand-rolled here.
+    '''
+    parents = {name: getattr(io_module, name).bl_parent_id
+               for name in ACOUSTIC_PANELS
+               if hasattr(getattr(io_module, name), 'bl_parent_id')}
 
-    labels = [entry[1] for entry in draw_panel(mat) if entry[0] == 'label']
+    # Blender draws a panel's own content before its subpanels, so a help block
+    # nested in its section could only ever sit below it. They are siblings
+    # registered just ahead of the section they introduce instead.
+    assert parents == {
+        'ACOUSTIC_PT_database_help': 'ACOUSTIC_PT_material',
+        'ACOUSTIC_PT_database': 'ACOUSTIC_PT_material',
+        'ACOUSTIC_PT_coefficients_help': 'ACOUSTIC_PT_material',
+        'ACOUSTIC_PT_coefficients': 'ACOUSTIC_PT_material',
+        'ACOUSTIC_PT_specular': 'ACOUSTIC_PT_material',
+    }
 
-    assert not any(line.startswith('Values are exported') for line in labels)
-    assert not any(line.startswith('Set an AcousticIndex API key') for line in labels)
+    # and each help block is registered before the section it introduces
+    order = list(io_module.classes)
+    for help_panel, section in (
+        ('ACOUSTIC_PT_database_help', 'ACOUSTIC_PT_database'),
+        ('ACOUSTIC_PT_coefficients_help', 'ACOUSTIC_PT_coefficients'),
+    ):
+        assert order.index(getattr(io_module, help_panel)) < \
+            order.index(getattr(io_module, section)), help_panel
+
+    # no leftover hand-rolled fold state on the material
+    for name in ('show_acoustic_help', 'show_acoustic_info',
+                 'show_acoustic_bands'):
+        assert not hasattr(mat, name), name
+
+
+def test_the_help_subpanels_start_closed(mat):
+    '''They explain the section they sit in, so they are in the way once read.'''
+    closed = {'DEFAULT_CLOSED'}
+
+    assert io_module.ACOUSTIC_PT_database_help.bl_options == closed
+    assert io_module.ACOUSTIC_PT_coefficients_help.bl_options == closed
+
+    # the sections themselves start open
+    for name in ('ACOUSTIC_PT_database', 'ACOUSTIC_PT_coefficients'):
+        options = getattr(getattr(io_module, name), 'bl_options', set())
+        assert 'DEFAULT_CLOSED' not in options, name
 
 
 @pytest.mark.parametrize('resolution', ['OCTAVE', 'THIRD_OCTAVE'])
@@ -480,7 +512,7 @@ def test_panel_quotes_the_shared_default_rather_than_hardcoding_it(mat):
 
 def test_panel_help_text_is_wrapped_to_the_panel(mat):
     '''Blender labels do not wrap, so the help text is broken up by hand.'''
-    labels = [entry[1] for entry in draw_panel(mat, expand_help=True)
+    labels = [entry[1] for entry in draw_panel(mat, 'ACOUSTIC_PT_coefficients_help')
               if entry[0] == 'label']
 
     help_lines = [line for line in labels if line.startswith('Values are exported')]
@@ -814,16 +846,18 @@ def test_the_manual_input_help_points_at_the_scene_settings(mat):
     Band Resolution and Interpolation are single scene settings, so the panel
     says where they are rather than drawing a second copy of them.
     '''
-    text = ' '.join(entry[1] for entry in draw_panel(mat, expand_help=True)
+    text = ' '.join(entry[1] for entry in
+                    draw_panel(mat, 'ACOUSTIC_PT_coefficients_help')
                     if entry[0] == 'label')
 
-    assert 'Band Resolution in Output properties' in text
-    assert 'Interpolation in Output properties' in text
+    # both are single scene settings, so the help points at them by location
+    assert 'octave or third-octave bands in the Output properties' in text
+    assert 'linear or logarithmic interpolation in the Output properties' in text
 
 
 def test_the_database_instructions_are_wrapped(mat):
     '''They were five hand-broken numbered lines that clipped when narrowed.'''
-    labels = [entry[1] for entry in draw_panel(mat, expand_help=True)
+    labels = [entry[1] for entry in draw_panel(mat, 'ACOUSTIC_PT_database_help')
               if entry[0] == 'label']
 
     assert any(line.startswith('Set an AcousticIndex API key') for line in labels)
