@@ -219,6 +219,21 @@ def test_max_energy_loss_is_exported(mat, tmp_path):
     assert float(integrator_setting(root, 'float', 'max_energy_loss')) == 300.0
 
 
+def test_russian_roulette_is_not_offered_for_the_acoustic_integrator(mat, tmp_path):
+    '''
+    misuka's acoustic_path has no Russian Roulette and rejects rr_depth, so the
+    panel used to show a field that was stripped again on the way out.
+    '''
+    settings = bpy.context.scene.mitsuba.available_integrators.acoustic_path
+
+    assert not hasattr(settings, 'rr_depth')
+    assert 'rr_depth' not in settings.to_dict()
+    assert integrator_setting(export_scene(mat, tmp_path), 'integer', 'rr_depth') is None
+
+    # the visual tracers still have it
+    assert hasattr(bpy.context.scene.mitsuba.available_integrators.path, 'rr_depth')
+
+
 def test_max_energy_loss_is_declared_for_the_integrator_panel():
     '''
     Declaring it in integrators.json is what generates the property, its row in
