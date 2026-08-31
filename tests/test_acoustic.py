@@ -7,6 +7,8 @@ they can register properties, drive the operators and export a real scene.
 import importlib
 import json
 import os
+import urllib.error
+import urllib.request
 import xml.etree.ElementTree as ET
 
 import bpy
@@ -941,3 +943,109 @@ def test_the_reset_tooltips_quote_the_shared_default():
     for name in ('reset_abs', 'reset_scat'):
         description = getattr(bpy.ops.acoustic, name).get_rna_type().description
         assert str(DEFAULT) in description, (name, description)
+
+
+class FakeAPI:
+    '''
+    Stand in for AcousticIndex, recording what was asked for.
+
+    The lookup is the interesting part and it is pure request plumbing, so the
+    requests are what the tests assert on.
+    '''
+
+    def __init__(self, ids=(), search=None):
+        self.ids = dict(ids)
+        self.search = search
+        self.urls = []
+
+    def __call__(self, request, *args, **kwargs):
+        url = request.full_url
+        self.urls.append(url)
+
+        if '/materials/search' in url:
+            payload = {'items': [{'id': self.search}]} if self.search else {'items': []}
+        else:
+            key = url.rsplit('/', 1)[-1]
+            if key not in self.ids:
+                raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+            payload = self.ids[key]
+
+        return FakeResponse(payload)
+
+
+class FakeResponse:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def read(self):
+        return json.dumps(self._payload).encode()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+@pytest.fixture
+def fake_api(monkeypatch):
+    def install(api):
+        monkeypatch.setattr(io_module.urllib.request, 'urlopen', api)
+        return api
+    return install
+
+
+def test_a_name_that_is_an_id_is_fetched_directly(fake_api):
+    api = fake_api(FakeAPI(ids={'abc-123': {'label': 'Carpet'}}))
+
+    assert io_module.fetch_material('key', 'abc-123') == {'label': 'Carpet'}
+    # one request, and no search
+    assert len(api.urls) == 1
+    assert '/materials/abc-123' in api.urls[0]
+
+
+def test_a_name_that_is_not_an_id_falls_back_to_the_search(fake_api):
+    api = fake_api(FakeAPI(ids={'found-id': {'label': 'Carpet'}}, search='found-id'))
+
+    assert io_module.fetch_material('key', 'Heavy Carpet') == {'label': 'Carpet'}
+
+    assert len(api.urls) == 3
+    assert '/materials/Heavy%20Carpet' in api.urls[0]
+    assert '/materials/search?q=Heavy%20Carpet' in api.urls[1]
+    assert '/materials/found-id' in api.urls[2]
+
+
+def test_a_long_hyphenated_product_name_is_still_found(fake_api):
+    '''
+    The old heuristic called anything hyphenated and over 30 characters an id,
+    so a name like this was fetched as one and the lookup failed outright.
+    '''
+    name = 'Acoustic Panel Type A - Perforated 16mm'
+    assert len(name) > 30 and '-' in name
+
+    api = fake_api(FakeAPI(ids={'real-id': {'label': 'Panel'}}, search='real-id'))
+
+    assert io_module.fetch_material('key', name) == {'label': 'Panel'}
+    assert any('/materials/search' in url for url in api.urls)
+
+
+def test_an_unknown_name_reports_rather_than_guessing(fake_api):
+    fake_api(FakeAPI())
+
+    with pytest.raises(io_module.AcousticIndexError, match='No AcousticIndex material'):
+        io_module.fetch_material('key', 'nothing like this')
+
+
+def test_a_bad_key_is_not_reported_as_a_missing_material(fake_api):
+    '''The search uses the same key, so falling through would mislead.'''
+    class Unauthorised(FakeAPI):
+        def __call__(self, request, *args, **kwargs):
+            self.urls.append(request.full_url)
+            raise urllib.error.HTTPError(request.full_url, 401, 'Unauthorized', {}, None)
+
+    api = fake_api(Unauthorised())
+
+    with pytest.raises(io_module.AcousticIndexError, match='Not authorised'):
+        io_module.fetch_material('bad key', 'Carpet')
+
+    assert len(api.urls) == 1, 'should not have tried the search'
