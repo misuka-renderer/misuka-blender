@@ -24,7 +24,7 @@ from bpy_extras.io_utils import (
 from . import bl_utils
 from . import importer
 from . import exporter
-from .exporter.materials import interpolate_octaves
+from .exporter.materials import interpolate_octaves, octave_lookup
 
 # ---------- Acoustic Material UI ----------
 
@@ -37,6 +37,10 @@ import json
 class ACOUSTIC_OT_load_from_api(bpy.types.Operator):
     bl_idname = "acoustic.load_from_api"
     bl_label = "Load Acoustic Data"
+
+    @classmethod
+    def poll(cls, context):
+        return getattr(context, "material", None) is not None
 
     def execute(self, context):
 
@@ -144,6 +148,10 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
     bl_idname = "acoustic.apply_variant"
     bl_label = "Apply Variant"
 
+    @classmethod
+    def poll(cls, context):
+        return getattr(context, "material", None) is not None
+
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
@@ -240,18 +248,7 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
                 oct_vals = interpolate_octaves(third_oct_clean, iso_octaves)
 
             elif oct_data:
-                freqs = sorted(int(k) for k in oct_data.keys())
-
-                def get_oct(f):
-                    if str(f) in oct_data:
-                        return oct_data[str(f)]
-                    if f < freqs[0]:
-                        return oct_data[str(freqs[0])]
-                    if f > freqs[-1]:
-                        return oct_data[str(freqs[-1])]
-                    return 0.5
-
-                oct_vals = [get_oct(f) for f in iso_octaves]
+                oct_vals = octave_lookup(oct_data, iso_octaves, 0.5)
 
             else:
                 self.report({'ERROR'}, "No absorption data")
@@ -279,18 +276,7 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
                 s_vals = interpolate_octaves(s_terz_clean, iso_octaves)
 
             elif s_oct:
-                freqs = sorted(int(k) for k in s_oct.keys())
-
-                def get_s(f):
-                    if f in s_oct:
-                        return s_oct[f]
-                    if f < freqs[0]:
-                        return s_oct[freqs[0]]
-                    if f > freqs[-1]:
-                        return s_oct[freqs[-1]]
-                    return 0.25
-
-                s_vals = [get_s(f) for f in iso_octaves]
+                s_vals = octave_lookup(s_oct, iso_octaves, 0.25)
 
             else:
                 s_vals = [0.25] * len(iso_octaves)
@@ -561,6 +547,10 @@ class ACOUSTIC_OT_interpolate_abs(bpy.types.Operator):
     bl_idname = "acoustic.interpolate_abs"
     bl_label = "Change Absorption Values"
 
+    @classmethod
+    def poll(cls, context):
+        return getattr(context, "material", None) is not None
+
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
 
@@ -597,6 +587,10 @@ class ACOUSTIC_OT_interpolate_abs(bpy.types.Operator):
 class ACOUSTIC_OT_interpolate_scat(bpy.types.Operator):
     bl_idname = "acoustic.interpolate_scat"
     bl_label = "Change Scattering Values"
+
+    @classmethod
+    def poll(cls, context):
+        return getattr(context, "material", None) is not None
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
@@ -635,6 +629,10 @@ class ACOUSTIC_OT_reset_abs(bpy.types.Operator):
     bl_idname = "acoustic.reset_abs"
     bl_label = "Reset Absorption"
 
+    @classmethod
+    def poll(cls, context):
+        return getattr(context, "material", None) is not None
+
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
 
@@ -661,6 +659,10 @@ class ACOUSTIC_OT_reset_scat(bpy.types.Operator):
     bl_idname = "acoustic.reset_scat"
     bl_label = "Reset Scattering"
 
+    @classmethod
+    def poll(cls, context):
+        return getattr(context, "material", None) is not None
+
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
 
@@ -686,6 +688,10 @@ class ACOUSTIC_OT_reset_scat(bpy.types.Operator):
 class ACOUSTIC_OT_reset_specular_lobe_width(bpy.types.Operator):
     bl_idname = "acoustic.reset_specular_lobe_width"
     bl_label = "Reset Specular Lobe Width"
+
+    @classmethod
+    def poll(cls, context):
+        return getattr(context, "material", None) is not None
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)

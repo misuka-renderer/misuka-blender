@@ -266,6 +266,27 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
         raise NotImplementedError("Mixing a BSDF and an emitter is not supported. Consider using an Add shader instead.")
 
 
+def octave_lookup(oct_data, target_freqs, fallback):
+    '''
+    Read octave-band measurements onto `target_freqs`, clamping at both ends.
+
+    Measurement data comes from JSON, so its keys are strings. Comparing raw
+    ints against them silently matches nothing.
+    '''
+    freqs = sorted(int(k) for k in oct_data.keys())
+
+    def value_at(f):
+        if str(f) in oct_data:
+            return oct_data[str(f)]
+        if f < freqs[0]:
+            return oct_data[str(freqs[0])]
+        if f > freqs[-1]:
+            return oct_data[str(freqs[-1])]
+        return fallback
+
+    return [value_at(f) for f in target_freqs]
+
+
 #missing values filled by linear interpolation, Values out of range are filled with closest known value.
 def interpolate_octaves(abs_data, target_freqs):
 
