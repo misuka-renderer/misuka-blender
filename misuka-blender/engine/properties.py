@@ -294,12 +294,14 @@ class MitsubaRenderSettings(PropertyGroup):
     # TODO: break variant into its subcomponents (backend/color/polarization/precision)
     enum_integrators = [(name, integrator['label'], integrator['description']) for name, integrator in integrator_data.items()]
 
-    # 'acoustic_path' is only meant for XML export, not for rendering inside
-    # Blender; 'path' is the correct default for in-Blender rendering.
+    # Acoustic export is what this add-on is for, so its integrator is the
+    # default: its settings are then in the Integrator panel from the moment
+    # the engine is selected, rather than behind a dropdown change. Pick a
+    # visual integrator here when exporting with Acoustic Mode off.
     active_integrator : EnumProperty(
         name = "Integrator",
         items = enum_integrators,
-        default = "path"
+        default = "acoustic_path"
     )
     # Dynamic class for integrator parameters
     IntegratorProperties = type("IntegratorProperties",

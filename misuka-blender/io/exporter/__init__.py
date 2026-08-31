@@ -79,9 +79,22 @@ class SceneConverter:
             integrator.pop('rr_depth', None)
 
         elif b_scene.render.engine == 'MITSUBA':
+            active_integrator = b_scene.mitsuba.active_integrator
+
+            # acoustic_path is the engine's default, since acoustic export is
+            # what the add-on is for. It cannot produce an image though, so a
+            # visual export or an F12 render substitutes a path tracer rather
+            # than writing a scene misuka would reject.
+            if active_integrator == 'acoustic_path':
+                self.export_ctx.log(
+                    "The acoustic integrator cannot render an image. Exporting "
+                    "with 'path' instead; pick a visual integrator in the "
+                    "Integrator panel, or enable Acoustic Mode.", 'WARN')
+                active_integrator = 'path'
+
             integrator = getattr(
                 b_scene.mitsuba.available_integrators,
-                b_scene.mitsuba.active_integrator
+                active_integrator
             ).to_dict()
 
         else:
