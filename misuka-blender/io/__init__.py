@@ -32,13 +32,13 @@ from . import exporter
 from .acoustic_bands import (
         ABS_PROPS,
         ACOUSTIC_DEFAULT,
-        INTERPOLATION_ITEMS,
         OCTAVE_INDICES,
         SCAT_PROPS,
         THIRD_OCTAVES,
         band_updates_suppressed,
         interpolate_bands,
         nearest_band_index,
+        scene_interpolation,
         scene_resolution,
         write_bands,
     )
@@ -402,7 +402,7 @@ class ACOUSTIC_OT_apply_variant(AcousticOperator, bpy.types.Operator):
             return {'CANCELLED'}
 
         values = interpolate_bands(
-            anchors, THIRD_OCTAVES, interpolation=mat.acoustic_interpolation
+            anchors, THIRD_OCTAVES, interpolation=scene_interpolation(context.scene)
         )
         write_bands(mat, quantity.props, values)
 
@@ -449,9 +449,9 @@ def register_acoustic_properties():
         setattr(bpy.types.Material, ABS_PROPS[index], FloatProperty(
             name=f"{freq} Hz",
             description=(
-                "Absorption coefficient in this band. 0 reflects all energy, "
-                "1 absorbs all of it. Measured Sabine coefficients can exceed 1, "
-                "so values up to 2 are accepted"
+                f"Fraction of incident sound energy absorbed at {freq} Hz. "
+                "0 reflects everything, 1 absorbs everything. Measured Sabine "
+                "coefficients can exceed 1, so up to 2 is accepted"
             ),
             default=ACOUSTIC_DEFAULT,
             min=0, max=2, soft_max=1.0,
@@ -461,8 +461,8 @@ def register_acoustic_properties():
         setattr(bpy.types.Material, SCAT_PROPS[index], FloatProperty(
             name=f"{freq} Hz",
             description=(
-                "Scattering coefficient in this band. 0 reflects purely "
-                "specularly, 1 scatters all reflected energy diffusely"
+                f"Fraction of reflected sound energy scattered at {freq} Hz. "
+                "0 reflects like a mirror, 1 scatters in all directions"
             ),
             default=ACOUSTIC_DEFAULT,
             min=0, max=1,
@@ -470,8 +470,8 @@ def register_acoustic_properties():
         ))
 
     band_set_description = (
-        "Bands you have set yourself. Interpolate Values treats these as "
-        "anchors and overwrites the rest"
+        "Bands whose value you set yourself, or that a database variant "
+        "measured. Interpolate keeps these and overwrites the rest"
     )
 
     bpy.types.Material.acoustic_abs_band_set = BoolVectorProperty(
@@ -488,18 +488,11 @@ def register_acoustic_properties():
         default=(False,) * len(THIRD_OCTAVES),
     )
 
-    bpy.types.Material.acoustic_interpolation = EnumProperty(
-        name="Interpolation",
-        description="Frequency axis Interpolate Values works along",
-        items=INTERPOLATION_ITEMS,
-        default='LOG',
-    )
-
     bpy.types.Material.acoustic_specular_lobe_width = FloatProperty(
         name="Specular Lobe Width",
         description=(
-            "Angular width of the specular reflection lobe. Small values give a "
-            "mirror-like reflection, larger ones spread it out"
+            "Angular width of the specular reflection lobe, in radians. Small "
+            "values reflect like a mirror, larger ones spread the reflection out"
         ),
         default=0.001,
         min=0.001,
@@ -593,7 +586,6 @@ def unregister_acoustic_properties():
     for name in (
         "acoustic_abs_band_set",
         "acoustic_scat_band_set",
-        "acoustic_interpolation",
         "acoustic_specular_lobe_width",
         "acoustic_variant_enum",
         "show_acoustic_help",
@@ -704,12 +696,14 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         row.label(text="Database: How to use")
 
         if mat.show_acoustic_help:
-            box = col.box()
-            box.label(text="1. Rename material to match database name/id")
-            box.label(text="2. Set API Key in Addon Preferences")
-            box.label(text="3. Click 'Load from Database'")
-            box.label(text="4. Select variant")
-            box.label(text="5. Click 'Apply Variant'")
+            draw_paragraphs(
+                col.box(), context,
+                "Set an AcousticIndex API key in the add-on preferences, then "
+                "name this material after a database entry or paste its id.",
+                "Load from Database fetches every measured variant of it. Pick "
+                "one and Apply Variant writes its coefficients into the table "
+                "below, ticking the bands it actually measured.",
+            )
 
         col.separator()
 
@@ -734,10 +728,9 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
             row = box.row()
             row.label(text="Matched Database Entry", icon='CHECKMARK')
 
-            box.label(text=label)
-
-            if manufacturer:
-                box.label(text=manufacturer)
+            # Product names and manufacturers are arbitrary length and would
+            # otherwise be clipped at the panel edge.
+            draw_paragraphs(box, context, *filter(None, (label, manufacturer)))
 
         col.separator()
         col.label(text="Variant Selection")
@@ -770,12 +763,12 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
                 "Tick Keep to mark a band as yours. Editing a value ticks it "
                 "for you.",
                 "Interpolate overwrites every unticked band from the ticked "
-                "ones, holding the nearest value beyond the outermost.",
+                "ones, holding the nearest value beyond the outermost. "
+                "Interpolation in Output properties picks the frequency axis "
+                "it works along.",
             )
 
         col.separator()
-
-        col.prop(mat, "acoustic_interpolation")
 
         self.draw_bands(col, mat, context)
 
@@ -823,7 +816,7 @@ class ACOUSTIC_OT_interpolate_base(AcousticOperator, bpy.types.Operator):
         # Fill the whole table, including bands the current resolution greys
         # out, so the curve stays coherent if the resolution changes later.
         values = interpolate_bands(
-            anchors, THIRD_OCTAVES, interpolation=mat.acoustic_interpolation
+            anchors, THIRD_OCTAVES, interpolation=scene_interpolation(context.scene)
         )
         write_bands(mat, self.quantity.props, values)
 

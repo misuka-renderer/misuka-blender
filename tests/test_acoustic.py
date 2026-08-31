@@ -43,6 +43,11 @@ def set_resolution(resolution):
     bpy.context.scene.mitsuba.acoustic_band_resolution = resolution
 
 
+def set_interpolation(axis):
+    '''So is the interpolation axis.'''
+    bpy.context.scene.mitsuba.acoustic_interpolation = axis
+
+
 def run(operator, material):
     '''
     Call an acoustic operator against `material`.
@@ -90,7 +95,9 @@ def test_interpolate_fills_between_and_clamps_outside(mat):
 
 
 def test_interpolation_defaults_to_logarithmic(mat):
-    assert mat.acoustic_interpolation == 'LOG'
+    assert bpy.context.scene.mitsuba.acoustic_interpolation == 'LOG'
+    assert not hasattr(mat, 'acoustic_interpolation'), \
+        'the axis is a scene setting, not a per-material one'
 
 
 def test_linear_interpolation_uses_the_hertz_axis(mat):
@@ -99,7 +106,7 @@ def test_linear_interpolation_uses_the_hertz_axis(mat):
     axis puts 1 kHz halfway between the anchors while the linear one puts it a
     third of the way.
     '''
-    mat.acoustic_interpolation = 'LINEAR'
+    set_interpolation('LINEAR')
     setattr(mat, abs_prop(500), 0.2)
     setattr(mat, abs_prop(2000), 0.8)
 
@@ -123,7 +130,7 @@ def test_the_two_axes_disagree_only_between_the_anchors(mat):
     logarithmic = octave_values(mat, ABS_PROPS)
 
     assert run(bpy.ops.acoustic.reset_abs, mat) == {'FINISHED'}
-    mat.acoustic_interpolation = 'LINEAR'
+    set_interpolation('LINEAR')
     setattr(mat, abs_prop(250), 0.1)
     setattr(mat, abs_prop(8000), 0.9)
 
@@ -413,8 +420,11 @@ def test_panel_draws_every_band(mat, resolution):
     for name in ABS_PROPS + SCAT_PROPS:
         assert name in props, f'{name} is missing from the panel'
 
-    assert 'acoustic_interpolation' in props
     assert 'acoustic_specular_lobe_width' in props
+
+    # the interpolation axis is a single scene setting, drawn once, in Output
+    # properties; the material panel only points at it
+    assert 'acoustic_interpolation' not in props
 
     # every band row carries its anchor checkbox
     for flag in ('acoustic_abs_band_set', 'acoustic_scat_band_set'):
@@ -514,7 +524,7 @@ def test_apply_variant_reads_scattering_octave_data(mat):
 
 def test_apply_variant_fills_gaps_on_the_chosen_axis(mat):
     '''Sparse database data is filled in the same way manual input is.'''
-    mat.acoustic_interpolation = 'LINEAR'
+    set_interpolation('LINEAR')
     load_variant(mat, {
         '_type': 'absorption',
         'alpha_s_octave': {'500': 0.2, '2000': 0.8},
@@ -747,3 +757,48 @@ def test_wrap_text_uses_the_full_width_available(mat):
     for lines, width in ((narrow, 30), (wide, 60)):
         for line, following in zip(lines, lines[1:]):
             assert len(line) + 1 + len(following.split()[0]) > width, line
+
+
+def test_every_acoustic_property_carries_a_description():
+    '''
+    Descriptions are the tooltips, and they are where the per-value guidance
+    belongs rather than in the panel's help boxes.
+    '''
+    material_props = bpy.types.Material.bl_rna.properties
+    scene_props = bpy.types.Scene.bl_rna.properties['mitsuba'].fixed_type.properties
+
+    checked = 0
+
+    for props, names in (
+        (material_props, ABS_PROPS + SCAT_PROPS + (
+            'acoustic_abs_band_set', 'acoustic_scat_band_set',
+            'acoustic_specular_lobe_width')),
+        (scene_props, (
+            'acoustic_band_resolution', 'acoustic_interpolation',
+            'acoustic_max_time', 'acoustic_sampling_rate')),
+    ):
+        for name in names:
+            assert name in props, name
+            assert props[name].description.strip(), f'{name} has no tooltip'
+            checked += 1
+
+    assert checked == 2 * len(bands.THIRD_OCTAVES) + 7
+
+
+def test_the_manual_input_help_points_at_the_scene_settings(mat):
+    '''
+    Band Resolution and Interpolation are single scene settings, so the panel
+    says where they are rather than drawing a second copy of them.
+    '''
+    text = ' '.join(entry[1] for entry in draw_panel(mat) if entry[0] == 'label')
+
+    assert 'Band Resolution in Output properties' in text
+    assert 'Interpolation in Output properties' in text
+
+
+def test_the_database_instructions_are_wrapped(mat):
+    '''They were five hand-broken numbered lines that clipped when narrowed.'''
+    labels = [entry[1] for entry in draw_panel(mat) if entry[0] == 'label']
+
+    assert any(line.startswith('Set an AcousticIndex API key') for line in labels)
+    assert all(len(line) <= 80 for line in labels), max(labels, key=len)

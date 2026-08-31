@@ -320,14 +320,21 @@ class MitsubaRenderSettings(PropertyGroup):
     # band centres, so this decides which bands actually get simulated.
     acoustic_band_resolution : EnumProperty(
         name = "Band Resolution",
-        description = "Frequency bands the acoustic simulation runs at",
+        description = "Frequency bands the acoustic simulation runs at. Material coefficients are sampled at these centres",
         items = acoustic_bands.BAND_RESOLUTION_ITEMS,
         default = 'OCTAVE'
     )
 
+    acoustic_interpolation : EnumProperty(
+        name = "Interpolation",
+        description = "Frequency axis the material Interpolate buttons work along. Band centres are evenly spaced on the logarithmic one",
+        items = acoustic_bands.INTERPOLATION_ITEMS,
+        default = 'LOG'
+    )
+
     acoustic_max_time : FloatProperty(
         name = "Max Time",
-        description = "Length of the simulated impulse response, in seconds",
+        description = "How long a tail the impulse response captures, in seconds. Longer costs proportionally more time bins",
         default = 2.0,
         min = 0.001,
         soft_max = 10.0
@@ -335,7 +342,7 @@ class MitsubaRenderSettings(PropertyGroup):
 
     acoustic_sampling_rate : FloatProperty(
         name = "Sampling Rate",
-        description = "Time resolution of the impulse response, in Hz",
+        description = "How finely the impulse response is sampled in time, in Hz. This is not an audio sample rate",
         default = 1000.0,
         min = 1.0,
         soft_max = 48000.0
@@ -463,6 +470,8 @@ class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
             text=f"{len(frequencies)} bands, "
                  f"{frequencies[0]} Hz to {frequencies[-1] / 1000:g} kHz"
         )
+
+        col.prop(mts_settings, "acoustic_interpolation")
 
         col = layout.column()
         col.prop(mts_settings, "acoustic_max_time")
