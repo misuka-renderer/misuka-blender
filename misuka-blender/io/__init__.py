@@ -562,14 +562,16 @@ def register_acoustic_properties():
         items=get_variant_items,
     )
 
+    # Both blocks explain how to use the section above them, so they are worth
+    # reading once and in the way afterwards.
     bpy.types.Material.show_acoustic_help = BoolProperty(
         name="Database Instructions",
-        default=True
+        default=False
     )
 
     bpy.types.Material.show_acoustic_info = BoolProperty(
         name="Manual Input Instructions",
-        default=True
+        default=False
     )
 
     bpy.types.Material.show_acoustic_bands = BoolProperty(
@@ -693,7 +695,7 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         # db use instructions
         row = col.row()
         row.prop(mat, "show_acoustic_help", icon="TRIA_DOWN" if mat.show_acoustic_help else "TRIA_RIGHT", icon_only=True, emboss=False)
-        row.label(text="Database: How to use")
+        row.label(text="How to use")
 
         if mat.show_acoustic_help:
             draw_paragraphs(
@@ -702,13 +704,11 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
                 "name this material after a database entry or paste its id.",
                 "Load from Database fetches every measured variant of it. Pick "
                 "one and Apply Variant writes its coefficients into the table "
-                "below, ticking the bands it actually measured.",
+                "below, ticking the bands where it contains values.",
             )
 
         col.separator()
 
-        row = col.row()
-        row.label(text="API Key in Addon Preferences", icon='PREFERENCES')
         # Button
         row = col.row()
         row.scale_y = 1.2
@@ -750,7 +750,7 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
 
         row = col.row()
         row.prop(mat, "show_acoustic_info", icon="TRIA_DOWN" if mat.show_acoustic_info else "TRIA_RIGHT", icon_only=True, emboss=False)
-        row.label(text="Manual Input")
+        row.label(text="How to use")
 
         if mat.show_acoustic_info:
             # Only what is not already covered by a tooltip or visible in the
@@ -758,14 +758,11 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
             # dropdowns all carry their own descriptions.
             draw_paragraphs(
                 col.box(), context,
-                "Values are exported exactly as shown. Greyed bands are not "
-                "exported; Band Resolution in Output properties picks which.",
-                "Tick Keep to mark a band as yours. Editing a value ticks it "
-                "for you.",
-                "Interpolate overwrites every unticked band from the ticked "
-                "ones, holding the nearest value beyond the outermost. "
-                "Interpolation in Output properties picks the frequency axis "
-                "it works along.",
+                "Values are exported exactly as shown. Select octave or third-octave bands in the Output properties.",
+                "Tick 'Keep' to mark values you want to keep. Editing a value ticks it for you.",
+                "'Interpolate' overwrites every unticked value by interpolating between the ticked ones. "
+                "Select linear or logarithmic interpolation in the Output properties. "
+                "Values outside the the ticked range take the value of the nearest ticked value.",
             )
 
         col.separator()

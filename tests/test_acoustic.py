@@ -403,10 +403,33 @@ class PanelStub:
         self.layout = StubLayout(drawn)
 
 
-def draw_panel(mat):
+def draw_panel(mat, expand_help=False):
+    '''
+    Render the panel against the stub.
+
+    The two help blocks are collapsed by default, so a test that wants to read
+    them has to open them first, the same way a user would.
+    '''
+    if expand_help:
+        mat.show_acoustic_help = True
+        mat.show_acoustic_info = True
+
     drawn = []
     PanelStub(drawn).draw(StubContext(mat))
     return drawn
+
+
+def test_the_help_blocks_are_collapsed_by_default(mat):
+    '''They explain the section above them, so they are in the way once read.'''
+    assert mat.show_acoustic_help is False
+    assert mat.show_acoustic_info is False
+    # the coefficient table itself is the point of the panel, so it stays open
+    assert mat.show_acoustic_bands is True
+
+    labels = [entry[1] for entry in draw_panel(mat) if entry[0] == 'label']
+
+    assert not any(line.startswith('Values are exported') for line in labels)
+    assert not any(line.startswith('Set an AcousticIndex API key') for line in labels)
 
 
 @pytest.mark.parametrize('resolution', ['OCTAVE', 'THIRD_OCTAVE'])
@@ -457,7 +480,8 @@ def test_panel_quotes_the_shared_default_rather_than_hardcoding_it(mat):
 
 def test_panel_help_text_is_wrapped_to_the_panel(mat):
     '''Blender labels do not wrap, so the help text is broken up by hand.'''
-    labels = [entry[1] for entry in draw_panel(mat) if entry[0] == 'label']
+    labels = [entry[1] for entry in draw_panel(mat, expand_help=True)
+              if entry[0] == 'label']
 
     help_lines = [line for line in labels if line.startswith('Values are exported')]
     assert help_lines, 'the manual input help should be drawn'
@@ -790,7 +814,8 @@ def test_the_manual_input_help_points_at_the_scene_settings(mat):
     Band Resolution and Interpolation are single scene settings, so the panel
     says where they are rather than drawing a second copy of them.
     '''
-    text = ' '.join(entry[1] for entry in draw_panel(mat) if entry[0] == 'label')
+    text = ' '.join(entry[1] for entry in draw_panel(mat, expand_help=True)
+                    if entry[0] == 'label')
 
     assert 'Band Resolution in Output properties' in text
     assert 'Interpolation in Output properties' in text
@@ -798,7 +823,8 @@ def test_the_manual_input_help_points_at_the_scene_settings(mat):
 
 def test_the_database_instructions_are_wrapped(mat):
     '''They were five hand-broken numbered lines that clipped when narrowed.'''
-    labels = [entry[1] for entry in draw_panel(mat) if entry[0] == 'label']
+    labels = [entry[1] for entry in draw_panel(mat, expand_help=True)
+              if entry[0] == 'label']
 
     assert any(line.startswith('Set an AcousticIndex API key') for line in labels)
     assert all(len(line) <= 80 for line in labels), max(labels, key=len)
