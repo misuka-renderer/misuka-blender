@@ -802,3 +802,51 @@ def test_the_database_instructions_are_wrapped(mat):
 
     assert any(line.startswith('Set an AcousticIndex API key') for line in labels)
     assert all(len(line) <= 80 for line in labels), max(labels, key=len)
+
+
+def export_with(mat, tmp_path, **kwargs):
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+    assert bpy.ops.export_scene.mitsuba(filepath=path, **kwargs) == {'FINISHED'}
+
+    return ET.parse(path).getroot()
+
+
+@pytest.mark.parametrize('engine', ['MITSUBA', 'CYCLES'])
+@pytest.mark.parametrize('export_mode, integrator, film', [
+    ('ACOUSTIC', 'acoustic_path', 'tape'),
+    ('VISUAL', 'path', 'hdrfilm'),
+])
+def test_the_export_mode_picks_the_integrator(
+        mat, tmp_path, engine, export_mode, integrator, film):
+    '''
+    An acoustic export gets the acoustic integrator and an optical one gets a
+    visual tracer, whatever the render engine is and whatever the Integrator
+    panel happens to be showing.
+    '''
+    bpy.context.scene.render.engine = engine
+
+    root = export_with(mat, tmp_path, export_mode=export_mode)
+
+    assert root.find(f".//integrator[@type='{integrator}']") is not None
+    assert root.find(f".//film[@type='{film}']") is not None
+
+    unwanted = 'path' if integrator == 'acoustic_path' else 'acoustic_path'
+    assert root.find(f".//integrator[@type='{unwanted}']") is None
+
+
+def test_an_optical_export_still_honours_a_chosen_integrator(mat, tmp_path):
+    '''
+    Only acoustic_path is overridden. Picking a different visual integrator has
+    to keep working, or the dropdown would be pointless.
+    '''
+    scene = bpy.context.scene
+    scene.render.engine = 'MITSUBA'
+    scene.mitsuba.active_integrator = 'direct'
+
+    root = export_with(mat, tmp_path, export_mode='VISUAL')
+
+    assert root.find(".//integrator[@type='direct']") is not None
