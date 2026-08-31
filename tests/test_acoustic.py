@@ -122,7 +122,7 @@ def export_scene(mat, tmp_path):
     path = os.path.join(str(tmp_path), 'scene.xml')
 
     assert bpy.ops.export_scene.mitsuba(
-        filepath=path, acoustic_mode=True) == {'FINISHED'}
+        filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
 
     return ET.parse(path).getroot()
 
@@ -279,10 +279,24 @@ def test_visual_export_substitutes_a_visual_integrator(mat, tmp_path):
 
     path = os.path.join(str(tmp_path), 'visual.xml')
     assert bpy.ops.export_scene.mitsuba(
-        filepath=path, acoustic_mode=False) == {'FINISHED'}
+        filepath=path, export_mode='VISUAL') == {'FINISHED'}
 
     root = ET.parse(path).getroot()
 
     assert root.find(".//integrator[@type='acoustic_path']") is None
     assert root.find(".//integrator[@type='path']") is not None
     assert root.find(".//film[@type='hdrfilm']") is not None
+
+
+def test_export_mode_is_a_choice_of_two_scenes():
+    '''
+    The two modes swap out the integrator, sensor, film and materials, so the
+    dialog names them rather than offering a checkbox to modify one.
+    '''
+    props = bpy.ops.export_scene.mitsuba.get_rna_type().properties
+
+    assert 'acoustic_mode' not in props
+    assert props['export_mode'].type == 'ENUM'
+    assert [item.identifier for item in props['export_mode'].enum_items] == \
+        ['ACOUSTIC', 'VISUAL']
+    assert props['export_mode'].default == 'ACOUSTIC'

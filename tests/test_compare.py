@@ -38,7 +38,7 @@ def test_round_trip_visual(xml_scene, resource_resolver, mitsuba_scene_ztest):
     bpy.context.scene.mitsuba.active_integrator = 'path'
 
     assert bpy.ops.export_scene.mitsuba(
-        filepath=output_scene_file, ignore_background=True, acoustic_mode=False) == {'FINISHED'}
+        filepath=output_scene_file, ignore_background=True, export_mode='VISUAL') == {'FINISHED'}
 
     assert mitsuba_scene_ztest.compare_scenes(ref_scene_file, output_scene_file, spp, resolution, test_output_dir)
 
@@ -60,7 +60,7 @@ def test_round_trip_acoustic(xml_scene, resource_resolver):
 
     assert bpy.ops.import_scene.mitsuba(filepath=ref_scene_file) == {'FINISHED'}
     assert bpy.ops.export_scene.mitsuba(
-        filepath=output_scene_file, ignore_background=True, acoustic_mode=True) == {'FINISHED'}
+        filepath=output_scene_file, ignore_background=True, export_mode='ACOUSTIC') == {'FINISHED'}
 
     scene = load_file(output_scene_file)
 

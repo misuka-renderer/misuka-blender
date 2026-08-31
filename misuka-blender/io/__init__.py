@@ -14,6 +14,7 @@ import bpy
 from bpy.props import (
         StringProperty,
         BoolProperty,
+        EnumProperty,
         FloatProperty,
     )
 from bpy_extras.io_utils import (
@@ -712,11 +713,20 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
             default = True
     )
 
-    #misuka check box in export window
-    acoustic_mode: bpy.props.BoolProperty(                  
-        name="misuka: Acoustic Mode",
-        description="Export misuka acoustic scene",
-        default=True
+    # The two modes swap out most of the scene, not just one setting, so this
+    # is a choice between two kinds of export rather than a modifier on one.
+    export_mode: EnumProperty(
+        name="Export Mode",
+        description="What kind of scene to write",
+        items=(
+            ('ACOUSTIC', "Acoustic",
+             "Acoustic scene: acoustic_path integrator, microphone sensor, "
+             "tape film and acousticbsdf materials"),
+            ('VISUAL', "Visual",
+             "Visual scene for rendering an image, with the integrator, sensor "
+             "and materials the render engine implies"),
+        ),
+        default='ACOUSTIC',
     )
 
 
@@ -737,7 +747,8 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         self.converter.export_ctx.axis_mat = axis_mat
         # Add IDs to all base plugins (shape, emitter, sensor...)
         self.converter.export_ctx.export_ids = self.export_ids
-        self.converter.export_ctx.acoustic_mode = self.acoustic_mode #add acoustic mode to export context
+        # The exporter reads a flag; the dialog offers the two modes by name.
+        self.converter.export_ctx.acoustic_mode = self.export_mode == 'ACOUSTIC'
         # Acoustic film settings live on the scene, beside the image resolution.
         mts_settings = context.scene.mitsuba
         self.converter.export_ctx.acoustic_band_resolution = mts_settings.acoustic_band_resolution
