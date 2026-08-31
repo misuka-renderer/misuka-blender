@@ -1,13 +1,20 @@
-# This workflow runs on every pushed version tags. It runs the tests and
-# packages the release. It then creates a new entry in the release section
-# of the repo.
+# Packages the add-on and opens a draft GitHub release for a version tag.
+#
+# Automatic releases are OFF for now.
+# To go back to releasing on tag push, uncomment the `push:`
+# trigger below; everything else here is already set up for it.
 name: Release
 
-# Triggers the workflow on tags with a specific format
 on:
-  push:
-    tags:
-      - v*
+  # push:
+  #   tags:
+  #     - v*
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to package, e.g. v0.1.1"
+        required: true
+        type: string
 
 # Workflow steps
 jobs:
@@ -30,16 +37,28 @@ jobs:
     needs: [tests]
     runs-on: "ubuntu-latest"
 
+    permissions:
+      contents: write
+
     steps:
     - name: Git checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
+      with:
+        # Empty on a tag push, which checks out the triggering tag as usual.
+        ref: ${{ inputs.tag }}
 
     - name: Query Git Tag
       id: git-tag
-      run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+      env:
+        TAG: ${{ inputs.tag || github.ref_name }}
+      run: echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
     - name: Setup Python
-      uses: "actions/setup-python@v2"
+      uses: "actions/setup-python@v7"
+      with:
+        # setup-python v2 defaulted to 3.x; v7 dropped the default and falls back
+        # to the system interpreter, which is externally managed on Ubuntu.
+        python-version: "3.x"
 
     - name: Create package
       run: python release/package.py
@@ -47,6 +66,7 @@ jobs:
     - name: Create GitHub draft release
       uses: ncipollo/release-action@v1
       with:
+        tag: ${{ steps.git-tag.outputs.tag }}
         artifacts: "misuka-blender.zip"
         artifactErrorsFailBuild: true
         bodyFile: "release/release_body_template.md"

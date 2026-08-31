@@ -30,10 +30,14 @@ jobs:
 
     steps:
     - name: Git checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
 
     - name: Setup Python
-      uses: "actions/setup-python@v2"
+      uses: "actions/setup-python@v7"
+      with:
+        # setup-python v2 defaulted to 3.x; v7 dropped the default and falls back
+        # to the system interpreter, which is externally managed on Ubuntu.
+        python-version: "3.x"
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v5
@@ -45,11 +49,12 @@ jobs:
       id: blender-version
       shell: bash
       run: |
-        echo "::set-output name=BLENDER_VERSION::$(python scripts/blender_downloader.py ${{ inputs.blender-version }} --print-version)"
+        VERSION=$(python scripts/blender_downloader.py ${{ inputs.blender-version }} --print-version)
+        echo "BLENDER_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
     - name: Cache Blender archive
       id: cache-blender
-      uses: actions/cache@v3
+      uses: actions/cache@v6
       with:
         path: blender
         key: ${{ inputs.os }}-${{ steps.blender-version.outputs.BLENDER_VERSION }}-v1
