@@ -53,6 +53,15 @@ Rendering inside Blender is not supported.
     - set a custom misuka build path
   - optionally enter an AcousticIndex API key
 
+The pip route also offers **Upgrade dependencies** and **Uninstall dependencies**.
+Uninstalling needs a Blender restart to take effect, since the misuka module stays
+loaded in the running interpreter.
+
+If a pip install fails, a dialog shows pip's own error output and offers to retry
+with misuka taken from [TestPyPI](https://test.pypi.org/project/misuka/), where
+releases land before they reach PyPI. Only misuka itself comes from TestPyPI; its
+dependencies are still installed from PyPI.
+
 **Note:** if you use a custom misuka path, that build must have been compiled
 against the same Python version as Blender's bundled Python interpreter (see table below).
 

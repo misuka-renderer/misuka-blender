@@ -24,6 +24,9 @@ from . import io, engine
 
 DEPS_MITSUBA_VERSION = '0.1.0'
 
+# Fallback index for the releases that land here before they reach PyPI.
+TESTPYPI_INDEX_URL = 'https://test.pypi.org/simple/'
+
 def get_addon_preferences(context):
     return context.preferences.addons[__name__].preferences
 
@@ -102,6 +105,104 @@ def ensure_pip():
     result = subprocess.run([sys.executable, '-m', 'ensurepip'], capture_output=True)
     return result.returncode == 0
 
+def run_pip(args):
+    '''Run pip in Blender's interpreter, returning (return code, combined output).
+
+    The output is captured so that a failure can be shown in a dialog, and echoed
+    to the console so that it still ends up where it always did.
+    '''
+    result = subprocess.run([sys.executable, '-m', 'pip', *args], capture_output=True)
+    parts = [part for part in (result.stdout, result.stderr) if part]
+    output = b'\n'.join(parts).decode('utf-8', errors='replace')
+    if output:
+        print(output)
+    return result.returncode, output
+
+def pip_install_args(requirement, index_url=None, no_deps=False, upgrade=False, force_reinstall=False):
+    '''The pip arguments for one install, without running anything.'''
+    args = ['install']
+    if upgrade:
+        args.append('--upgrade')
+    if force_reinstall:
+        args.append('--force-reinstall')
+    if no_deps:
+        args.append('--no-deps')
+    if index_url is not None:
+        args += ['--index-url', index_url]
+    args.append(requirement)
+    return args
+
+def runtime_requirements(requirements):
+    '''Requirements without the ones gated behind an optional extra.
+
+    Package metadata lists every extra's dependencies alongside the mandatory
+    ones, marked with an `extra == "..."` environment marker. Installing those
+    would pull in test and documentation dependencies nobody asked for.
+    '''
+    return [req for req in requirements if 'extra ==' not in req and 'extra==' not in req]
+
+def installed_requires(package):
+    '''The requirements of an installed distribution, read in a fresh interpreter.
+
+    The running interpreter caches package metadata, so a distribution installed
+    moments ago has to be inspected from a subprocess to be seen at all.
+    '''
+    script = f"import importlib.metadata as md; print('\\n'.join(md.requires({package!r}) or []))"
+    result = subprocess.run([sys.executable, '-c', script], capture_output=True)
+    if result.returncode != 0:
+        return []
+    output = result.stdout.decode('utf-8', errors='replace')
+    return [line.strip() for line in output.splitlines() if line.strip()]
+
+def install_dependencies_from_testpypi():
+    '''Install misuka from TestPyPI, with its dependencies still coming from PyPI.
+
+    Take *only* misuka from TestPyPI. Its /simple/ pages for other projects are
+    unreliable (drjit's returns 503), so letting the resolver reach it for
+    dependencies makes every install hostage to that. This mirrors the fallback
+    in .github/workflows/test-suite.yml.
+    '''
+    returncode, output = run_pip(pip_install_args(
+        f'misuka=={DEPS_MITSUBA_VERSION}',
+        index_url=TESTPYPI_INDEX_URL,
+        no_deps=True,
+        force_reinstall=True))
+    if returncode != 0:
+        return False, output
+
+    requirements = runtime_requirements(installed_requires('misuka'))
+    if requirements:
+        returncode, deps_output = run_pip(['install', *requirements])
+        if returncode != 0:
+            return False, deps_output
+
+    return True, output
+
+def log_lines(text, max_lines=12):
+    '''The last few meaningful lines of a command's output.
+
+    pip signs off with its own `[notice]` block advertising a pip upgrade, which
+    would otherwise be the tail we show and bury the actual error.
+    '''
+    lines = [line.rstrip() for line in text.splitlines() if line.strip()]
+    lines = [line for line in lines if not line.startswith('[notice]')]
+    return lines[-max_lines:]
+
+def draw_log_lines(layout, text):
+    box = layout.box()
+    for line in log_lines(text):
+        box.label(text=line)
+
+def last_log_line(text):
+    lines = log_lines(text, max_lines=1)
+    return lines[0] if lines else 'no output'
+
+def offer_testpypi_fallback(operator, returncode, output):
+    '''Report a failed PyPI install and open the TestPyPI retry dialog.'''
+    operator.report({'ERROR'}, f'Failed to install misuka with return code {returncode}.')
+    bpy.ops.mitsuba.pip_install_from_testpypi('INVOKE_DEFAULT', error_log=output)
+    return {'CANCELLED'}
+
 def check_pip_dependencies(context):
     prefs = get_addon_preferences(context)
     result = subprocess.run([sys.executable, '-m', 'pip', 'list'], capture_output=True)
@@ -162,9 +263,95 @@ class MITSUBA_OT_install_pip_dependencies(Operator):
         return not prefs.has_pip_dependencies or not prefs.has_valid_dependencies_version
 
     def execute(self, context):
-        result = subprocess.run([sys.executable, '-m', 'pip', 'install', f'misuka=={DEPS_MITSUBA_VERSION}', '--force-reinstall'], capture_output=False)
-        if result.returncode != 0:
-            self.report({'ERROR'}, f'Failed to install misuka with return code {result.returncode}.')
+        returncode, output = run_pip(pip_install_args(f'misuka=={DEPS_MITSUBA_VERSION}', force_reinstall=True))
+        if returncode != 0:
+            return offer_testpypi_fallback(self, returncode, output)
+
+        check_pip_dependencies(context)
+
+        try_reload_mitsuba(context)
+
+        return {'FINISHED'}
+
+class MITSUBA_OT_upgrade_pip_dependencies(Operator):
+    bl_idname = 'mitsuba.upgrade_pip_dependencies'
+    bl_label = 'Upgrade misuka pip dependencies'
+    bl_description = 'Use pip to upgrade misuka to the version supported by this add-on'
+
+    @classmethod
+    def poll(cls, context):
+        prefs = get_addon_preferences(context)
+        return prefs.has_pip_dependencies
+
+    def execute(self, context):
+        returncode, output = run_pip(pip_install_args(f'misuka=={DEPS_MITSUBA_VERSION}', upgrade=True))
+        if returncode != 0:
+            return offer_testpypi_fallback(self, returncode, output)
+
+        check_pip_dependencies(context)
+
+        try_reload_mitsuba(context)
+
+        return {'FINISHED'}
+
+class MITSUBA_OT_uninstall_pip_dependencies(Operator):
+    bl_idname = 'mitsuba.uninstall_pip_dependencies'
+    bl_label = 'Uninstall misuka pip dependencies'
+    bl_description = 'Use pip to uninstall the misuka package'
+
+    @classmethod
+    def poll(cls, context):
+        prefs = get_addon_preferences(context)
+        return prefs.has_pip_dependencies
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+    def execute(self, context):
+        prefs = get_addon_preferences(context)
+
+        returncode, output = run_pip(['uninstall', '-y', 'misuka'])
+        if returncode != 0:
+            self.report({'ERROR'}, f'Failed to uninstall misuka with return code {returncode}. '
+                                   f'Restarting Blender may be required first: {last_log_line(output)}')
+            return {'CANCELLED'}
+
+        try_unregister_mitsuba()
+
+        check_pip_dependencies(context)
+
+        # The extension module stays loaded in this interpreter, so the add-on
+        # cannot honestly claim a clean state until Blender restarts.
+        prefs.is_mitsuba_initialized = False
+        prefs.require_restart = True
+        bpy.ops.wm.save_userpref()
+
+        return {'FINISHED'}
+
+class MITSUBA_OT_pip_install_from_testpypi(Operator):
+    bl_idname = 'mitsuba.pip_install_from_testpypi'
+    bl_label = 'Retry the misuka install from TestPyPI'
+    bl_description = 'Retry the failed install, taking misuka from TestPyPI'
+
+    error_log : StringProperty(
+        name = 'pip output of the failed install',
+        default = '',
+        options = {'SKIP_SAVE'},
+    )
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=600)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text='Installing misuka from PyPI failed.', icon='ERROR')
+        draw_log_lines(layout, self.error_log)
+        layout.label(text=f'Retry with misuka taken from {TESTPYPI_INDEX_URL} instead?')
+
+    def execute(self, context):
+        succeeded, output = install_dependencies_from_testpypi()
+        if not succeeded:
+            self.report({'ERROR'}, f'Failed to install misuka from TestPyPI: {last_log_line(output)}')
             return {'CANCELLED'}
 
         check_pip_dependencies(context)
@@ -297,7 +484,10 @@ class MitsubaPreferences(AddonPreferences):
         operator_text = 'Install dependencies'
         if self.has_pip_dependencies and not self.has_valid_dependencies_version:
             operator_text = 'Update dependencies'
-        layout.operator(MITSUBA_OT_install_pip_dependencies.bl_idname, text=operator_text)
+        row = layout.row(align=True)
+        row.operator(MITSUBA_OT_install_pip_dependencies.bl_idname, text=operator_text)
+        row.operator(MITSUBA_OT_upgrade_pip_dependencies.bl_idname, text='Upgrade dependencies')
+        row.operator(MITSUBA_OT_uninstall_pip_dependencies.bl_idname, text='Uninstall dependencies')
 
         box = layout.box()
         box.label(text='Advanced Settings')
@@ -312,6 +502,9 @@ class MitsubaPreferences(AddonPreferences):
 
 classes = (
     MITSUBA_OT_install_pip_dependencies,
+    MITSUBA_OT_upgrade_pip_dependencies,
+    MITSUBA_OT_uninstall_pip_dependencies,
+    MITSUBA_OT_pip_install_from_testpypi,
     MitsubaPreferences,
 )
 
