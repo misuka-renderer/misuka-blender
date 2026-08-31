@@ -200,3 +200,42 @@ def test_film_settings_are_stored_on_the_scene(mat):
                  'acoustic_sampling_rate'):
         assert hasattr(bpy.context.scene.mitsuba, name), name
         assert name not in operator_props, name
+
+
+def integrator_setting(root, kind, name):
+    integrator = root.find(".//integrator[@type='acoustic_path']")
+    assert integrator is not None, 'no acoustic integrator in the exported scene'
+    node = integrator.find(f"{kind}[@name='{name}']")
+    return node.get('value') if node is not None else None
+
+
+def test_max_energy_loss_is_exported(mat, tmp_path):
+    '''
+    It was never written at all, so misuka fell back to its own default. The
+    fallback path builds the integrator by hand and has to carry it too.
+    '''
+    root = export_scene(mat, tmp_path)
+
+    assert float(integrator_setting(root, 'float', 'max_energy_loss')) == 300.0
+
+
+def test_max_energy_loss_is_declared_for_the_integrator_panel():
+    '''
+    Declaring it in integrators.json is what generates the property, its row in
+    the Integrator panel and its entry in to_dict().
+    '''
+    import json
+    import os
+
+    addon = os.path.dirname(bands.__file__)
+    path = os.path.join(os.path.dirname(addon), 'engine', 'integrators.json')
+
+    with open(path) as handle:
+        declared = json.load(handle)['acoustic_path']['parameters']
+
+    assert declared['max_energy_loss']['type'] == 'float'
+    assert declared['max_energy_loss']['default'] == 300.0
+
+    settings = bpy.context.scene.mitsuba.available_integrators.acoustic_path
+    assert settings.max_energy_loss == 300.0
+    assert settings.to_dict()['max_energy_loss'] == 300.0
