@@ -53,24 +53,30 @@ class SceneConverter:
             self.export_ctx.export_ids = True
 
         # --- Integrator setup ---
-        if b_scene.render.engine == 'MITSUBA':
-
-            if acoustic_mode:
-                # Force acoustic integrator
+        if acoustic_mode:
+            # Force the acoustic integrator whatever the render engine is. The
+            # engine only decides where its other settings come from: an
+            # acoustic export from Cycles used to emit a visual `path`
+            # integrator into an otherwise acoustic scene.
+            if b_scene.render.engine == 'MITSUBA':
                 integrator = getattr(
                     b_scene.mitsuba.available_integrators,
                     "acoustic_path"
                 ).to_dict()
-                # Required for acoustic integrator
-                integrator['max_time'] = 2.0
-                # NOTE: misuka's acoustic_path has no Russian Roulette; it rejects
-                #       rr_depth outright, so it stays a visual-mode parameter.
-                integrator.pop('rr_depth', None)
             else:
-                integrator = getattr(
-                    b_scene.mitsuba.available_integrators,
-                    b_scene.mitsuba.active_integrator
-                ).to_dict()
+                integrator = {'type': 'acoustic_path', 'max_depth': -1}
+
+            # Required for acoustic integrator
+            integrator['max_time'] = self.export_ctx.acoustic_max_time
+            # NOTE: misuka's acoustic_path has no Russian Roulette; it rejects
+            #       rr_depth outright, so it stays a visual-mode parameter.
+            integrator.pop('rr_depth', None)
+
+        elif b_scene.render.engine == 'MITSUBA':
+            integrator = getattr(
+                b_scene.mitsuba.available_integrators,
+                b_scene.mitsuba.active_integrator
+            ).to_dict()
 
         else:
             integrator = {

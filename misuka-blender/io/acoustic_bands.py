@@ -15,8 +15,48 @@ SCATTERING_DEFAULT = 0.25
 # ISO octave band centre frequencies.
 OCTAVES = (63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
 
+# ISO 266 preferred third-octave centre frequencies, 50 Hz to 20 kHz, three per
+# octave band. Materials are still authored per octave; this is the finer grid
+# the acoustic film can be asked to simulate on.
+THIRD_OCTAVES = (
+    50, 63, 80,
+    100, 125, 160,
+    200, 250, 315,
+    400, 500, 630,
+    800, 1000, 1250,
+    1600, 2000, 2500,
+    3150, 4000, 5000,
+    6300, 8000, 10000,
+    12500, 16000, 20000,
+)
+
 ABS_PROPS = tuple(f'acoustic_abs_{f}' for f in OCTAVES)
 SCAT_PROPS = tuple(f'acoustic_scat_{f}' for f in OCTAVES)
+
+# Choices for the scene-wide band resolution, which drives the tape film's
+# frequency list and therefore what actually gets simulated.
+BAND_RESOLUTION_ITEMS = (
+    ('OCTAVE', "Octave Bands", "Simulate the 9 octave centres, 63 Hz to 16 kHz"),
+    ('THIRD_OCTAVE', "Third Octave Bands",
+     "Simulate all 27 third-octave centres, 50 Hz to 20 kHz"),
+)
+
+
+def resolution_frequencies(resolution):
+    '''Band centres for a BAND_RESOLUTION_ITEMS identifier.'''
+    return THIRD_OCTAVES if resolution == 'THIRD_OCTAVE' else OCTAVES
+
+
+def time_bins(mts_settings):
+    '''
+    Number of time samples the tape film records.
+
+    The film is configured by bin count, but a response is naturally described
+    by how long it is and how finely it is sampled, so those are what the UI
+    asks for.
+    '''
+    return max(round(mts_settings.acoustic_max_time
+                     * mts_settings.acoustic_sampling_rate), 1)
 
 
 def read_bands(mat, props):
