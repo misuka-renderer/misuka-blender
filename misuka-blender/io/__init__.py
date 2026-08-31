@@ -45,6 +45,11 @@ from .acoustic_bands import (
 
 # ---------- Acoustic Material UI ----------
 
+# Width of the per-band "Keep" checkbox column relative to a value column.
+# Wide enough for the header word, narrow enough that the tick still reads as
+# belonging to the value beside it.
+KEEP_COLUMN_SCALE = 0.4
+
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -516,21 +521,33 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
         box = col.box()
         columns = box.row()
 
-        # Separate columns keep the two families aligned row for row, which a
-        # single row per band cannot guarantee once labels differ in width.
+        # One column per cell rather than one row per band: separate columns
+        # stay aligned row for row on their own, and each gets its own header.
+        # The checkbox columns are narrowed so "Keep" sits over the tick rather
+        # than claiming an even share of the width.
         freq_column = columns.column(align=True)
-        families = [
-            (columns.column(align=True), "Absorption", ABS_PROPS,
-             "acoustic_abs_band_set", "acoustic.interpolate_abs",
-             "acoustic.reset_abs"),
-            (columns.column(align=True), "Scattering", SCAT_PROPS,
-             "acoustic_scat_band_set", "acoustic.interpolate_scat",
-             "acoustic.reset_scat"),
-        ]
+
+        families = []
+        for label, props, flag_prop, interpolate_op, reset_op in (
+            ("Absorption", ABS_PROPS, "acoustic_abs_band_set",
+             "acoustic.interpolate_abs", "acoustic.reset_abs"),
+            ("Scattering", SCAT_PROPS, "acoustic_scat_band_set",
+             "acoustic.interpolate_scat", "acoustic.reset_scat"),
+        ):
+            family = columns.row(align=True)
+
+            keep_column = family.column(align=True)
+            keep_column.scale_x = KEEP_COLUMN_SCALE
+
+            families.append((
+                keep_column, family.column(align=True),
+                label, props, flag_prop, interpolate_op, reset_op,
+            ))
 
         freq_column.label(text="")
-        for column, label, _, _, _, _ in families:
-            column.label(text=label)
+        for keep_column, value_column, label, *_ in families:
+            keep_column.label(text="Keep")
+            value_column.label(text=label)
 
         for index, freq in enumerate(THIRD_OCTAVES):
             # Octave mode still shows the third-octave rows, greyed out, so the
@@ -541,17 +558,21 @@ class ACOUSTIC_PT_material(bpy.types.Panel):
             row.enabled = enabled
             row.label(text=f"{freq} Hz")
 
-            for column, _, props, flag_prop, _, _ in families:
-                row = column.row(align=True)
+            for keep_column, value_column, _, props, flag_prop, _, _ in families:
+                row = keep_column.row(align=True)
                 row.enabled = enabled
                 row.prop(mat, flag_prop, index=index, text="")
+
+                row = value_column.row(align=True)
+                row.enabled = enabled
                 row.prop(mat, props[index], text="")
 
         freq_column.separator()
-        for column, _, _, _, interpolate_op, reset_op in families:
-            column.separator()
-            column.operator(interpolate_op, text="Interpolate")
-            column.operator(reset_op, text=f"Reset to {ACOUSTIC_DEFAULT}")
+        for keep_column, value_column, _, _, _, interpolate_op, reset_op in families:
+            keep_column.separator()
+            value_column.separator()
+            value_column.operator(interpolate_op, text="Interpolate")
+            value_column.operator(reset_op, text=f"Reset to {ACOUSTIC_DEFAULT}")
 
     def draw(self, context):
 

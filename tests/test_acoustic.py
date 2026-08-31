@@ -386,6 +386,11 @@ def test_panel_draws_every_band(mat, resolution):
         indices = sorted(e[2] for e in drawn if e[0] == 'prop' and e[1] == flag)
         assert indices == list(range(len(THIRD_OCTAVES)))
 
+    # every family is headed by its name and a "Keep" column for the ticks
+    labels = [entry[1] for entry in drawn if entry[0] == 'label']
+    assert labels.count('Keep') == 2
+    assert 'Absorption' in labels and 'Scattering' in labels
+
     operators = [entry[1] for entry in drawn if entry[0] == 'operator']
     for idname in (
         'acoustic.interpolate_abs', 'acoustic.reset_abs',
