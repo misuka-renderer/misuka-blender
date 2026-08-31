@@ -190,12 +190,71 @@ def draw_paragraphs(layout, context, *paragraphs):
             column.label(text=line)
 
 
+ACOUSTICINDEX_API = "https://acousticindex.com/api/v1"
+
+
+class AcousticIndexError(Exception):
+    '''A lookup failed in a way worth telling the user about.'''
+
+
+def request_json(url, api_key):
+    '''GET `url` with the key and parse the response.'''
+    request = urllib.request.Request(
+        url, headers={"Authorization": f"Bearer {api_key}"})
+
+    with urllib.request.urlopen(request) as response:
+        return json.loads(response.read().decode())
+
+
+def fetch_material(api_key, query):
+    '''
+    Look a material up on AcousticIndex by id, then by name.
+
+    The id is tried first and verbatim: only AcousticIndex can say whether a
+    string is one of its ids, and guessing from the shape of the name got it
+    wrong both ways, treating a product name that happened to be long and
+    hyphenated as an id.
+
+    Anything the id endpoint rejects as unknown falls through to the search.
+    An authentication failure does not, since the search would fail the same
+    way and reporting a missing material would be misleading.
+    '''
+    try:
+        return request_json(f"{ACOUSTICINDEX_API}/materials/{urllib.parse.quote(query)}",
+                            api_key)
+    except urllib.error.HTTPError as error:
+        if error.code in (401, 403):
+            raise AcousticIndexError(f"Not authorised: {error.code}") from error
+        if error.code >= 500:
+            raise AcousticIndexError(f"API request failed: {error.code}") from error
+        # 404 and friends: not an id, so try it as a name.
+
+    search_url = (f"{ACOUSTICINDEX_API}/materials/search"
+                  f"?q={urllib.parse.quote(query)}&limit=1")
+
+    try:
+        results = request_json(search_url, api_key)
+    except urllib.error.HTTPError as error:
+        raise AcousticIndexError(f"Search failed: {error.code}") from error
+
+    items = results.get("items", [])
+
+    if not items:
+        raise AcousticIndexError("No AcousticIndex material found.")
+
+    try:
+        return request_json(f"{ACOUSTICINDEX_API}/materials/{items[0]['id']}",
+                            api_key)
+    except urllib.error.HTTPError as error:
+        raise AcousticIndexError(f"API request failed: {error.code}") from error
+
+
 class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
     bl_idname = "acoustic.load_from_api"
     bl_label = "Load Acoustic Data"
-    bl_description = ("Search AcousticIndex for the material's name and fetch "
-                      "the top match, with all its measured variants. A name "
-                      "that is a product id is fetched directly")
+    bl_description = ("Look the material's name up on AcousticIndex as a "
+                      "product id, then as a name, and fetch the match with "
+                      "all its measured variants")
 
     def execute(self, context):
 
@@ -219,53 +278,11 @@ class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
             self.report({'ERROR'}, "Material name required.")
             return {'CANCELLED'}
 
-        # ID or search
-        if "-" in search_query and len(search_query) > 30:
-            product_id = search_query
-
-        else:
-            search_url = (
-                "https://acousticindex.com/api/v1/materials/search"
-                f"?q={urllib.parse.quote(search_query)}&limit=1"
-            )
-
-            search_req = urllib.request.Request(
-                search_url,
-                headers={"Authorization": f"Bearer {api_key}"}
-            )
-
-            try:
-                with urllib.request.urlopen(search_req) as response:
-                    search_data = json.loads(response.read().decode())
-            except urllib.error.HTTPError as e:
-                self.report({'ERROR'}, f"Search failed: {e.code}")
-                return {'CANCELLED'}
-
-            items = search_data.get("items", [])
-            if not items:
-                self.report({'ERROR'}, "No AcousticIndex material found.")
-                return {'CANCELLED'}
-
-            product_id = items[0]["id"]
-
-        # --- load material detail ---
-        url = f"https://acousticindex.com/api/v1/materials/{product_id}"
-
-        req = urllib.request.Request(
-            url,
-            headers={"Authorization": f"Bearer {api_key}"}
-        )
-
         try:
-            with urllib.request.urlopen(req) as response:
-                data = json.loads(response.read().decode())
-
-        except urllib.error.HTTPError as e:
-            self.report({'ERROR'}, f"API request failed: {e.code}")
-            return {'CANCELLED'}
-
-        except Exception as e:
-            self.report({'ERROR'}, str(e))
+            data = fetch_material(api_key, search_query)
+        # OSError covers a dead network, ValueError a response that is not JSON.
+        except (AcousticIndexError, OSError, ValueError) as error:
+            self.report({'ERROR'}, str(error))
             return {'CANCELLED'}
 
         # --- extract measurement variants ---
@@ -614,11 +631,10 @@ class ACOUSTIC_PT_database_help(AcousticPanel, bpy.types.Panel):
             "Set an AcousticIndex API key in the add-on preferences, then "
             "name this material after a database entry, or paste its product "
             "id as the name.",
-            "Load from Database searches for that name and takes the top "
-            "match, or fetches the id directly, with all its measured "
-            "variants. Pick one and Apply Variant writes its coefficients "
-            "into the table below, ticking the bands where it contains "
-            "values.",
+            "Load from Database looks the name up as an id first, then as "
+            "a name, and fetches the match with all its measured variants. "
+            "Pick one and Apply Variant writes its coefficients into the "
+            "table below, ticking the bands where it contains values.",
         )
 
 
