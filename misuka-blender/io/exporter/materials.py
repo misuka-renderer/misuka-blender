@@ -2,6 +2,15 @@ import bpy
 import numpy as np
 from mathutils import Matrix
 from .export_context import Files
+from ..acoustic_bands import (
+    ABS_PROPS,
+    ABSORPTION_DEFAULT,
+    OCTAVES,
+    SCAT_PROPS,
+    SCATTERING_DEFAULT,
+    interpolate_bands,
+    read_bands,
+)
 
 import json
 import os
@@ -266,133 +275,52 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
         raise NotImplementedError("Mixing a BSDF and an emitter is not supported. Consider using an Add shader instead.")
 
 
-def octave_lookup(oct_data, target_freqs, fallback):
-    '''
-    Read octave-band measurements onto `target_freqs`, clamping at both ends.
-
-    Measurement data comes from JSON, so its keys are strings. Comparing raw
-    ints against them silently matches nothing.
-    '''
-    freqs = sorted(int(k) for k in oct_data.keys())
-
-    def value_at(f):
-        if str(f) in oct_data:
-            return oct_data[str(f)]
-        if f < freqs[0]:
-            return oct_data[str(freqs[0])]
-        if f > freqs[-1]:
-            return oct_data[str(freqs[-1])]
-        return fallback
-
-    return [value_at(f) for f in target_freqs]
-
-
-#missing values filled by linear interpolation, Values out of range are filled with closest known value.
-def interpolate_octaves(abs_data, target_freqs):
-
-    freqs = sorted(abs_data.keys())
-    if not freqs:
-        return [0.5] * len(target_freqs)
-
-    # edge case: only one frequency available
-    if len(freqs) == 1:
-        return [abs_data[freqs[0]]] * len(target_freqs)
-
-    values = []
-
-    for f in target_freqs:
-
-        if f in abs_data:
-            values.append(abs_data[f])
-            continue
-
-        if f < freqs[0]:
-            values.append(abs_data[freqs[0]])
-            continue
-
-        if f > freqs[-1]:
-            values.append(abs_data[freqs[-1]])
-            continue
-
-        for i in range(len(freqs)-1):
-            f1, f2 = freqs[i], freqs[i+1]
-
-            if f1 < f < f2:
-                v1, v2 = abs_data[f1], abs_data[f2]
-                v = v1 + (f-f1)/(f2-f1) * (v2-v1)
-                values.append(v)
-                break
-
-    return values
-
 #Extension for acoustic rendering
 def convert_principled_materials_cycles(export_ctx, current_node, material):
 
     if export_ctx.acoustic_mode:
 
-        material_name = material.name
-        iso_octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
-
-        manual_absorption_values = [
-            material.acoustic_abs_63,
-            material.acoustic_abs_125,
-            material.acoustic_abs_250,
-            material.acoustic_abs_500,
-            material.acoustic_abs_1000,
-            material.acoustic_abs_2000,
-            material.acoustic_abs_4000,
-            material.acoustic_abs_8000,
-            material.acoustic_abs_16000
-        ]
-
-        manual_scattering_values = [
-            material.acoustic_scat_63,
-            material.acoustic_scat_125,
-            material.acoustic_scat_250,
-            material.acoustic_scat_500,
-            material.acoustic_scat_1000,
-            material.acoustic_scat_2000,
-            material.acoustic_scat_4000,
-            material.acoustic_scat_8000,
-            material.acoustic_scat_16000
-        ]
+        manual_absorption_values = read_bands(material, ABS_PROPS)
+        manual_scattering_values = read_bands(material, SCAT_PROPS)
 
         absorption_dict = {}
 
         #collect manual values
-        for f, v in zip(iso_octaves, manual_absorption_values):
-            if v != 0.5:
+        for f, v in zip(OCTAVES, manual_absorption_values):
+            if v != ABSORPTION_DEFAULT:
                 absorption_dict[f] = v
 
         #check if ALL values are default
-        all_default = all(v == 0.5 for v in manual_absorption_values)
+        all_default = all(v == ABSORPTION_DEFAULT for v in manual_absorption_values)
 
         if not all_default:
-            absorption_values = interpolate_octaves(absorption_dict, iso_octaves)
+            absorption_values = interpolate_bands(absorption_dict, OCTAVES)
 
         else:
-           absorption_values = [0.5] * len(iso_octaves)
+            absorption_values = [ABSORPTION_DEFAULT] * len(OCTAVES)
 
         scattering_dict = {}
 
-        for f, v in zip(iso_octaves, manual_scattering_values):
-            if v != 0.25:
+        for f, v in zip(OCTAVES, manual_scattering_values):
+            if v != SCATTERING_DEFAULT:
                 scattering_dict[f] = v
 
-        scattering_all_default = all(v == 0.25 for v in manual_scattering_values)
+        scattering_all_default = all(
+            v == SCATTERING_DEFAULT for v in manual_scattering_values)
 
         if not scattering_all_default:
-            scattering_values = interpolate_octaves(scattering_dict, iso_octaves)
+            scattering_values = interpolate_bands(
+                scattering_dict, OCTAVES, SCATTERING_DEFAULT)
         else:
-            scattering_values = [0.25] * len(iso_octaves)
+            scattering_values = [SCATTERING_DEFAULT] * len(OCTAVES)
 
         absorption_pairs = [
             (f, round(v, 3))
-            for f, v in zip(iso_octaves, absorption_values)
+            for f, v in zip(OCTAVES, absorption_values)
         ]
         scattering_pairs = [
             (f, round(v, 3))
-            for f, v in zip(iso_octaves, scattering_values)
+            for f, v in zip(OCTAVES, scattering_values)
         ]
 
         params = {

@@ -10,12 +10,11 @@ import bpy
 import pytest
 
 
-materials = importlib.import_module('misuka-blender.io.exporter.materials')
+bands = importlib.import_module('misuka-blender.io.acoustic_bands')
 
-OCTAVES = [63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
-
-ABS_PROPS = [f'acoustic_abs_{f}' for f in OCTAVES]
-SCAT_PROPS = [f'acoustic_scat_{f}' for f in OCTAVES]
+OCTAVES = bands.OCTAVES
+ABS_PROPS = bands.ABS_PROPS
+SCAT_PROPS = bands.SCAT_PROPS
 
 
 @pytest.fixture
@@ -50,7 +49,7 @@ def test_octave_lookup_reads_json_string_keys():
     '''
     data = {'250': 0.2, '1000': 0.6}
 
-    values = materials.octave_lookup(data, OCTAVES, 0.25)
+    values = bands.octave_lookup(data, OCTAVES, 0.25)
 
     assert values[OCTAVES.index(250)] == 0.2
     assert values[OCTAVES.index(1000)] == 0.6
