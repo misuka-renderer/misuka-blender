@@ -108,6 +108,12 @@ def scene_resolution(scene):
     return getattr(settings, 'acoustic_band_resolution', 'OCTAVE')
 
 
+def scene_interpolation(scene):
+    '''The frequency axis a scene interpolates along. See scene_resolution.'''
+    settings = getattr(scene, 'mitsuba', None)
+    return getattr(settings, 'acoustic_interpolation', 'LOG')
+
+
 # Axis the interpolation runs on. Band centres are spaced by a constant factor,
 # so the logarithmic axis is the one they are evenly distributed along: between
 # anchors at 500 Hz and 2 kHz it puts 1 kHz halfway, where the linear axis puts
