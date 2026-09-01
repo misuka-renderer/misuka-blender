@@ -1,24 +1,22 @@
 '''
-Shared definitions for the acoustic band table.
+Shared definitions for the acoustic band tables.
 
-The band centre frequencies and the names of the per-band Blender properties
-were spelled out by hand in every place that touched them, which is why the two
-octave lookups in the material UI were able to drift apart. Both the UI
-(`io/__init__.py`) and the exporter (`io/exporter/materials.py`) take them from
-here instead, so adding or removing a band is a one-line change.
+Both the material UI (`io/__init__.py`) and the scene exporter
+(`io/exporter/materials.py`) need the band centre frequencies, the names of the
+per-band Blender properties and the interpolation helper. Keeping them here
+avoids the UI importing from the exporter, and means adding or removing a band
+is a one-line change.
 '''
 
-# Neutral placeholder for a coefficient the user has not supplied.
-ABSORPTION_DEFAULT = 0.5
-SCATTERING_DEFAULT = 0.25
+from math import log
 
-# ISO octave band centre frequencies. The 31.5 Hz band is included because room
-# acoustics is judged well below 63 Hz.
-OCTAVES = (31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
+# Neutral placeholder for a coefficient the user has not supplied. It carries no
+# physical meaning: it is simply a mid-range value that is obviously not a
+# measurement. Absorption and scattering share it so the panel has one number to
+# explain instead of two.
+ACOUSTIC_DEFAULT = 0.5
 
-# ISO 266 preferred third-octave centre frequencies, 25 Hz to 20 kHz, three per
-# octave band. Materials are still authored per octave; this is the finer grid
-# the acoustic film can be asked to simulate on.
+# ISO 266 preferred third-octave centre frequencies, 25 Hz to 20 kHz.
 THIRD_OCTAVES = (
     25, 31.5, 40,
     50, 63, 80,
@@ -32,6 +30,14 @@ THIRD_OCTAVES = (
     12500, 16000, 20000,
 )
 
+# Octave centres, every third entry of THIRD_OCTAVES starting at the second.
+# The 31.5 Hz band is included because room acoustics is judged well below 63 Hz.
+OCTAVES = THIRD_OCTAVES[1::3]
+
+# Positions of the octave centres within THIRD_OCTAVES, so the panel can grey
+# out the rows that octave mode does not use.
+OCTAVE_INDICES = tuple(THIRD_OCTAVES.index(f) for f in OCTAVES)
+
 
 def band_suffix(freq):
     '''
@@ -43,8 +49,15 @@ def band_suffix(freq):
     return str(freq).replace('.', '_')
 
 
-ABS_PROPS = tuple(f'acoustic_abs_{band_suffix(f)}' for f in OCTAVES)
-SCAT_PROPS = tuple(f'acoustic_scat_{band_suffix(f)}' for f in OCTAVES)
+ABS_PROPS = tuple(f'acoustic_abs_{band_suffix(f)}' for f in THIRD_OCTAVES)
+SCAT_PROPS = tuple(f'acoustic_scat_{band_suffix(f)}' for f in THIRD_OCTAVES)
+
+# Largest relative deviation still counted as the same band when matching a
+# measured frequency onto the table. Third-octave centres are spaced by a
+# constant factor of about 1.26, so anything below ~12% cannot reach a
+# neighbouring band.
+BAND_MATCH_TOLERANCE = 0.03
+
 
 # Choices for the scene-wide band resolution, which drives the tape film's
 # frequency list and therefore what actually gets simulated.
@@ -55,9 +68,21 @@ BAND_RESOLUTION_ITEMS = (
 )
 
 
+def active_bands(resolution):
+    '''
+    The (frequencies, indices) pair a BAND_RESOLUTION_ITEMS identifier selects.
+
+    `indices` positions each frequency in the full third-octave table, which is
+    what the material properties are always stored on.
+    '''
+    if resolution == 'THIRD_OCTAVE':
+        return THIRD_OCTAVES, tuple(range(len(THIRD_OCTAVES)))
+    return OCTAVES, OCTAVE_INDICES
+
+
 def resolution_frequencies(resolution):
     '''Band centres for a BAND_RESOLUTION_ITEMS identifier.'''
-    return THIRD_OCTAVES if resolution == 'THIRD_OCTAVE' else OCTAVES
+    return active_bands(resolution)[0]
 
 
 def time_bins(mts_settings):
@@ -72,47 +97,78 @@ def time_bins(mts_settings):
                      * mts_settings.acoustic_sampling_rate), 1)
 
 
-def read_bands(mat, props):
-    '''Read the band values of one family.'''
-    return [getattr(mat, prop) for prop in props]
+def scene_resolution(scene):
+    '''
+    The band resolution a scene exports at.
+
+    Falls back to the default when the misuka scene settings are not registered,
+    which keeps the material panel drawable in isolation.
+    '''
+    settings = getattr(scene, 'mitsuba', None)
+    return getattr(settings, 'acoustic_band_resolution', 'OCTAVE')
+
+
+# Axis the interpolation runs on. Band centres are spaced by a constant factor,
+# so the logarithmic axis is the one they are evenly distributed along: between
+# anchors at 500 Hz and 2 kHz it puts 1 kHz halfway, where the linear axis puts
+# it a third of the way. Linear stays available for datasets that were tabulated
+# that way.
+INTERPOLATION_ITEMS = (
+    ('LOG', "Logarithmic",
+     "Interpolate along log(frequency), the axis band centres are evenly spaced on"),
+    ('LINEAR', "Linear", "Interpolate along frequency in Hz"),
+)
+
+
+def nearest_band_index(freq, frequencies):
+    '''
+    Index of the band centre closest to `freq`, or None if none is close enough.
+
+    Measured data is not always reported on the preferred centres (3150 Hz may
+    come back as 3200 Hz), so match by relative distance rather than equality.
+    '''
+    best = min(range(len(frequencies)), key=lambda i: abs(log(frequencies[i]) - log(freq)))
+    if abs(frequencies[best] - freq) / frequencies[best] > BAND_MATCH_TOLERANCE:
+        return None
+    return best
+
+
+# The per-band float properties tick their own "set" checkbox when edited, which
+# is what makes typing a value mark it as an anchor. Batch writes (interpolate,
+# reset, applying a database variant) manage the checkboxes themselves and must
+# not trip that callback.
+_suppress_band_update = False
+
+
+def band_updates_suppressed():
+    return _suppress_band_update
+
+
+def read_bands(mat, props, indices):
+    '''Read the band values of one family at `indices`.'''
+    return [getattr(mat, props[i]) for i in indices]
 
 
 def write_bands(mat, props, values):
-    '''Write band values back.'''
-    for prop, value in zip(props, values):
-        setattr(mat, prop, value)
+    '''Write a whole family back, skipping the per-band "set" callback.'''
+    global _suppress_band_update
+
+    _suppress_band_update = True
+    try:
+        for prop, value in zip(props, values):
+            setattr(mat, prop, value)
+    finally:
+        _suppress_band_update = False
 
 
-def octave_lookup(oct_data, target_freqs, fallback):
-    '''
-    Read octave-band measurements onto `target_freqs`, clamping at both ends.
-
-    Measurement data comes from JSON, so its keys are strings. Comparing raw
-    numbers against them silently matches nothing, and the clamped ends are read
-    back through the original key rather than a rebuilt one, since str(31.5) is
-    "31.5" but str(float("63")) is "63.0".
-    '''
-    keys = sorted(oct_data.keys(), key=float)
-    freqs = [float(k) for k in keys]
-
-    def value_at(f):
-        if str(f) in oct_data:
-            return oct_data[str(f)]
-        if f < freqs[0]:
-            return oct_data[keys[0]]
-        if f > freqs[-1]:
-            return oct_data[keys[-1]]
-        return fallback
-
-    return [value_at(f) for f in target_freqs]
-
-
-def interpolate_bands(anchors, target_freqs, fallback=ABSORPTION_DEFAULT):
+def interpolate_bands(anchors, target_freqs, fallback=ACOUSTIC_DEFAULT,
+                      interpolation='LOG'):
     '''
     Fill `target_freqs` from the `{frequency: value}` anchors.
 
-    Missing values are filled by linear interpolation; targets outside the
-    anchor range take the nearest anchor's value.
+    `interpolation` is an INTERPOLATION_ITEMS identifier choosing the frequency
+    axis. Targets outside the anchor range take the nearest anchor's value on
+    either axis.
     '''
     freqs = sorted(anchors.keys())
 
@@ -121,6 +177,8 @@ def interpolate_bands(anchors, target_freqs, fallback=ABSORPTION_DEFAULT):
 
     if len(freqs) == 1:
         return [anchors[freqs[0]]] * len(target_freqs)
+
+    axis = (lambda f: f) if interpolation == 'LINEAR' else log
 
     values = []
 
@@ -135,6 +193,7 @@ def interpolate_bands(anchors, target_freqs, fallback=ABSORPTION_DEFAULT):
             i = max(j for j in range(len(freqs) - 1) if freqs[j] < f)
             f1, f2 = freqs[i], freqs[i + 1]
             v1, v2 = anchors[f1], anchors[f2]
-            values.append(v1 + (f - f1) / (f2 - f1) * (v2 - v1))
+            t = (axis(f) - axis(f1)) / (axis(f2) - axis(f1))
+            values.append(v1 + t * (v2 - v1))
 
     return values
