@@ -747,9 +747,7 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         self.converter.export_ctx.axis_mat = axis_mat
         # Add IDs to all base plugins (shape, emitter, sensor...)
         self.converter.export_ctx.export_ids = self.export_ids
-        # The exporter reads a flag; the dialog offers the two modes by name.
         self.converter.export_ctx.acoustic_mode = self.export_mode == 'ACOUSTIC'
-        # Acoustic film settings live on the scene, beside the image resolution.
         mts_settings = context.scene.mitsuba
         self.converter.export_ctx.acoustic_band_resolution = mts_settings.acoustic_band_resolution
         self.converter.export_ctx.acoustic_time_bins = acoustic_bands.time_bins(mts_settings)

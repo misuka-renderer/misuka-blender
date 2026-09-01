@@ -54,10 +54,8 @@ class SceneConverter:
 
         # --- Integrator setup ---
         if acoustic_mode:
-            # Force the acoustic integrator whatever the render engine is. The
-            # engine only decides where its other settings come from: an
-            # acoustic export from Cycles used to emit a visual `path`
-            # integrator into an otherwise acoustic scene.
+            # Force the acoustic integrator whatever the render engine is.
+            # The engine only decides where its other settings come from.
             if b_scene.render.engine == 'MITSUBA':
                 integrator = getattr(
                     b_scene.mitsuba.available_integrators,

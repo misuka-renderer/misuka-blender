@@ -295,9 +295,8 @@ class MitsubaRenderSettings(PropertyGroup):
     enum_integrators = [(name, integrator['label'], integrator['description']) for name, integrator in integrator_data.items()]
 
     # Acoustic export is what this add-on is for, so its integrator is the
-    # default: its settings are then in the Integrator panel from the moment
-    # the engine is selected, rather than behind a dropdown change. Pick a
-    # visual integrator here when exporting with Acoustic Mode off.
+    # default, and its settings are in the Integrator panel from the moment the
+    # engine is picked. Choose a visual integrator here for a Visual export.
     active_integrator : EnumProperty(
         name = "Integrator",
         items = enum_integrators,
@@ -316,11 +315,9 @@ class MitsubaRenderSettings(PropertyGroup):
     bpy.utils.register_class(IntegratorProperties)
     available_integrators : PointerProperty(type = IntegratorProperties)
 
-    # Acoustic `tape` film settings. These sit beside the image resolution in
-    # the Output properties because they are the acoustic equivalent: they say
-    # how finely the result is resolved, in frequency and in time. Material
-    # coefficient spectra are sampled at these band centres, so this is what
-    # decides which bands actually get simulated.
+    # Acoustic `tape` film settings, the acoustic equivalent of the image
+    # resolution they sit beside. Material coefficients are sampled at these
+    # band centres, so this decides which bands actually get simulated.
     acoustic_band_resolution : EnumProperty(
         name = "Band Resolution",
         description = "Frequency bands the acoustic simulation runs at",
