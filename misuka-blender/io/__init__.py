@@ -52,6 +52,10 @@ import json
 
 # ---------- Acoustic Material UI ----------
 
+# The variant dropdown's "nothing picked" identifier. Every other identifier is
+# a variant's index in the cache.
+NO_VARIANT = "NONE"
+
 Quantity = namedtuple("Quantity", (
     "label", "props", "flag_prop", "variant_type",
     "third_octave_key", "octave_key", "interpolate_op", "reset_op",
@@ -77,7 +81,6 @@ class AcousticOperator:
     @classmethod
     def poll(cls, context):
         return getattr(context, "material", None) is not None
-
 
 # Width of the per-band "Keep" checkbox column relative to a value column.
 # Wide enough for the header word, narrow enough that the tick still reads as
@@ -288,6 +291,11 @@ class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
         mat["_acoustic_variants_cache"] = variants
         mat["_acoustic_raw_data"] = data
 
+        # Clear the selection rather than land on a variant nobody chose. The
+        # dropdown also holds an index into the cache we just replaced, so a
+        # stale one would point at a variant this entry does not have.
+        mat.acoustic_variant_enum = NO_VARIANT
+
         #show feedback for UI ---
         mat["_acoustic_loaded_label"] = data.get("label", "")
         mat["_acoustic_loaded_manufacturer"] = data.get("manufacturer", "")
@@ -299,30 +307,21 @@ class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
 def select_variant(mat):
     '''
     Resolve the variant enum to a variant dict, or None when there is nothing
-    usable. "Auto Selection" prefers the most absorbent absorption variant,
-    since that is the measurement people are usually after.
+    usable. The enum holds the variant's index in the cache, so the only
+    variant that is ever applied is the one named in the dropdown.
     '''
     variants = mat.get("_acoustic_variants_cache", [])
 
     if not variants:
         return None
 
-    selection = getattr(mat, "acoustic_variant_enum", "NONE")
+    selection = getattr(mat, "acoustic_variant_enum", NO_VARIANT)
 
-    if selection != "NONE":
-        idx = int(selection)
-        return variants[idx] if idx < len(variants) else None
+    if not selection.isdigit():
+        return None
 
-    abs_variants = [v for v in variants if v.get("_type") == "absorption"]
-    if abs_variants:
-        return max(abs_variants, key=lambda v: v.get("calculated_absorption", 0))
-
-    scat_variants = [v for v in variants if v.get("_type") == "scattering"]
-    if scat_variants:
-        # no ranking available -> fallback
-        return scat_variants[0]
-
-    return None
+    idx = int(selection)
+    return variants[idx] if idx < len(variants) else None
 
 
 class ACOUSTIC_OT_apply_variant(AcousticOperator, bpy.types.Operator):
@@ -332,6 +331,11 @@ class ACOUSTIC_OT_apply_variant(AcousticOperator, bpy.types.Operator):
                       "the table, ticking the bands it covers")
 
     def invoke(self, context, event):
+        # Nothing picked is a normal state now, so say so here rather than ask
+        # for a confirmation and then refuse.
+        if select_variant(context.material) is None:
+            return self.execute(context)
+
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
@@ -361,7 +365,7 @@ class ACOUSTIC_OT_apply_variant(AcousticOperator, bpy.types.Operator):
         variant = select_variant(mat)
 
         if variant is None:
-            self.report({'ERROR'}, "No usable variants")
+            self.report({'ERROR'}, "Select a variant first.")
             return {'CANCELLED'}
 
         quantity = next((q for q in QUANTITIES
@@ -509,28 +513,16 @@ def register_acoustic_properties():
     def get_variant_items(self, context):
 
         mat = getattr(context, "material", None)
+        variants = mat.get("_acoustic_variants_cache", []) if mat else []
 
-        if mat is None:
-            return [("NONE", "Auto Selection", "")]
+        # The list leads with a "nothing picked" entry, so a fresh lookup can
+        # land there and the choice of variant stays the user's. It is not a
+        # variant, and Apply Variant refuses to run on it.
+        if not variants:
+            return [(NO_VARIANT, "No Variants Loaded", "")]
 
-        variants = mat.get("_acoustic_variants_cache", [])
+        items = [(NO_VARIANT, "Select a Variant", "")]
 
-        items = []
-
-        # --- auto selection label ---
-        has_abs = any(v.get("_type") == "absorption" for v in variants)
-        has_scat = any(v.get("_type") == "scattering" for v in variants)
-
-        if has_abs:
-            auto_label = "Auto Selection (best Absorption)"
-        elif has_scat:
-            auto_label = "Auto Selection (Scattering)"
-        else:
-            auto_label = "Auto Selection"
-
-        items.append(("NONE", auto_label, ""))
-
-        # --- variant items ---
         for i, v in enumerate(variants):
             label = v.get("label", f"Variant {i+1}")
             variant_type = v.get("_type")
