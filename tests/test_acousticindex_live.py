@@ -11,6 +11,7 @@ an Authorization header, not a URL, so a failing assertion cannot print it.
 '''
 import importlib
 import os
+import uuid
 
 import pytest
 
@@ -58,8 +59,16 @@ def test_a_known_id_is_fetched_without_searching(material):
 
 
 def test_an_unknown_query_reports_no_material():
+    '''
+    The query is generated rather than a fixed nonsense string. The search
+    matches loosely, so any fixed string can start matching the day a product
+    is added that shares a word with it. The previous one already did:
+    'zzzz-no-such-material-zzzz' contains 'material', which is common in the
+    German product names, and it found two. Hex digits are a word in no
+    language, so nothing real can match this.
+    '''
     with pytest.raises(io_module.AcousticIndexError, match='No AcousticIndex material'):
-        io_module.fetch_material(API_KEY, 'zzzz-no-such-material-zzzz')
+        io_module.fetch_material(API_KEY, 'zz' + uuid.uuid4().hex)
 
 
 def test_the_measurement_keys_we_read_still_exist(material):
