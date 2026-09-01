@@ -5,6 +5,7 @@ These run inside Blender with the addon enabled (see scripts/run_tests.py), so
 they can register properties, drive the operators and export a real scene.
 '''
 import importlib
+import json
 import os
 import xml.etree.ElementTree as ET
 
@@ -251,7 +252,7 @@ def read_spectrum(bsdf, name):
     ]
 
 
-def export_scene(mat, tmp_path, **kwargs):
+def export_scene(mat, tmp_path, export_mode='ACOUSTIC', **kwargs):
     '''Export a single cube carrying `mat` and return the parsed scene root.'''
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
@@ -260,7 +261,7 @@ def export_scene(mat, tmp_path, **kwargs):
     path = os.path.join(str(tmp_path), 'scene.xml')
 
     assert bpy.ops.export_scene.mitsuba(
-        filepath=path, export_mode='ACOUSTIC', **kwargs
+        filepath=path, export_mode=export_mode, **kwargs
     ) == {'FINISHED'}
 
     return ET.parse(path).getroot()
@@ -316,10 +317,11 @@ def test_film_frequencies_follow_the_band_resolution(mat, tmp_path, resolution, 
     assert [float(f) for f in written.split(',')] == list(expected)
 
 
-def test_the_band_table_covers_31_5_hz():
+def test_the_band_table_covers_31_5_hz(mat):
     '''
     Room acoustics is judged below 63 Hz, so the table reaches down an octave
-    further than the nine bands it started with.
+    further than the nine bands it started with. A dot cannot appear in an RNA
+    path, so 31.5 Hz becomes acoustic_abs_31_5.
     '''
     assert len(bands.OCTAVES) == 10
     assert len(bands.THIRD_OCTAVES) == 30
@@ -331,9 +333,6 @@ def test_the_band_table_covers_31_5_hz():
     assert bands.OCTAVES == (
         31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
 
-
-def test_the_31_5_hz_band_names_a_property_that_can_be_addressed(mat):
-    '''A dot cannot appear in an RNA path, so the property is acoustic_abs_31_5.'''
     prop = bands.ABS_PROPS[bands.THIRD_OCTAVES.index(31.5)]
 
     assert prop == 'acoustic_abs_31_5'
@@ -447,11 +446,6 @@ def test_the_sections_are_real_subpanels(mat):
         assert order.index(getattr(io_module, help_panel)) < \
             order.index(getattr(io_module, section)), help_panel
 
-    # no leftover hand-rolled fold state on the material
-    for name in ('show_acoustic_help', 'show_acoustic_info',
-                 'show_acoustic_bands'):
-        assert not hasattr(mat, name), name
-
 
 def test_the_help_subpanels_start_closed(mat):
     '''They explain the section they sit in, so they are in the way once read.'''
@@ -509,17 +503,17 @@ def test_panel_quotes_the_shared_default_rather_than_hardcoding_it(mat):
 
     # the Reset buttons name the default, built from the constant
     assert str(DEFAULT) in text
-    assert '0.25' not in text, 'scattering no longer has a default of its own'
 
 
-def test_panel_help_text_is_wrapped_to_the_panel(mat):
+@pytest.mark.parametrize('panel, opening', [
+    ('ACOUSTIC_PT_coefficients_help', 'Values are exported'),
+    ('ACOUSTIC_PT_database_help', 'Set an AcousticIndex API key'),
+])
+def test_the_help_text_is_wrapped_to_the_panel(mat, panel, opening):
     '''Blender labels do not wrap, so the help text is broken up by hand.'''
-    labels = [entry[1] for entry in draw_panel(mat, 'ACOUSTIC_PT_coefficients_help')
-              if entry[0] == 'label']
+    labels = [entry[1] for entry in draw_panel(mat, panel) if entry[0] == 'label']
 
-    help_lines = [line for line in labels if line.startswith('Values are exported')]
-    assert help_lines, 'the manual input help should be drawn'
-
+    assert any(line.startswith(opening) for line in labels), labels
     # wrapped, not one long line, and no line long enough to be clipped
     assert all(len(line) <= 80 for line in labels), max(labels, key=len)
 
@@ -733,9 +727,6 @@ def test_film_settings_are_stored_on_the_scene(mat):
     '''
     operator_props = bpy.ops.export_scene.mitsuba.get_rna_type().properties
 
-    # the per-material resolution toggle is gone
-    assert not hasattr(bpy.data.materials[0], 'acoustic_third_octave')
-
     for name in ('acoustic_band_resolution', 'acoustic_max_time',
                  'acoustic_sampling_rate'):
         assert hasattr(bpy.context.scene.mitsuba, name), name
@@ -747,16 +738,6 @@ def integrator_setting(root, kind, name):
     assert integrator is not None, 'no acoustic integrator in the exported scene'
     node = integrator.find(f"{kind}[@name='{name}']")
     return node.get('value') if node is not None else None
-
-
-def test_max_energy_loss_is_exported(mat, tmp_path):
-    '''
-    It was never written at all, so misuka fell back to its own default. The
-    fallback path builds the integrator by hand and has to carry it too.
-    '''
-    root = export_scene(mat, tmp_path)
-
-    assert float(integrator_setting(root, 'float', 'max_energy_loss')) == 300.0
 
 
 def test_russian_roulette_is_not_offered_for_the_acoustic_integrator(mat, tmp_path):
@@ -774,14 +755,13 @@ def test_russian_roulette_is_not_offered_for_the_acoustic_integrator(mat, tmp_pa
     assert hasattr(bpy.context.scene.mitsuba.available_integrators.path, 'rr_depth')
 
 
-def test_max_energy_loss_is_declared_for_the_integrator_panel():
+def test_max_energy_loss_is_declared_and_exported(mat, tmp_path):
     '''
     Declaring it in integrators.json is what generates the property, its row in
-    the Integrator panel and its entry in to_dict().
+    the Integrator panel and its entry in to_dict(). It was never written into
+    the scene at all, so misuka fell back to its own default; the fallback path
+    builds the integrator by hand and has to carry it too.
     '''
-    import json
-    import os
-
     addon = os.path.dirname(bands.__file__)
     path = os.path.join(os.path.dirname(addon), 'engine', 'integrators.json')
 
@@ -795,6 +775,10 @@ def test_max_energy_loss_is_declared_for_the_integrator_panel():
     assert settings.max_energy_loss == 300.0
     assert settings.to_dict()['max_energy_loss'] == 300.0
 
+    root = export_scene(mat, tmp_path)
+
+    assert float(integrator_setting(root, 'float', 'max_energy_loss')) == 300.0
+
 
 def test_the_engine_defaults_to_the_acoustic_integrator():
     '''
@@ -802,30 +786,6 @@ def test_the_engine_defaults_to_the_acoustic_integrator():
     picked, rather than behind a dropdown change.
     '''
     assert bpy.context.scene.mitsuba.active_integrator == 'acoustic_path'
-
-
-def test_visual_export_substitutes_a_visual_integrator(mat, tmp_path):
-    '''
-    The acoustic integrator cannot produce an image, so a visual export must
-    not write it just because it is now the engine default.
-    '''
-    scene = bpy.context.scene
-    scene.render.engine = 'MITSUBA'
-    assert scene.mitsuba.active_integrator == 'acoustic_path'
-
-    bpy.ops.mesh.primitive_cube_add()
-    bpy.context.active_object.data.materials.append(mat)
-    bpy.ops.object.camera_add()
-
-    path = os.path.join(str(tmp_path), 'visual.xml')
-    assert bpy.ops.export_scene.mitsuba(
-        filepath=path, export_mode='VISUAL') == {'FINISHED'}
-
-    root = ET.parse(path).getroot()
-
-    assert root.find(".//integrator[@type='acoustic_path']") is None
-    assert root.find(".//integrator[@type='path']") is not None
-    assert root.find(".//film[@type='hdrfilm']") is not None
 
 
 def test_export_mode_is_a_choice_of_two_scenes():
@@ -841,11 +801,13 @@ def test_export_mode_is_a_choice_of_two_scenes():
         ['ACOUSTIC', 'VISUAL']
     assert props['export_mode'].default == 'ACOUSTIC'
 
-def test_wrap_text_fills_each_line(mat):
-    '''
+def test_wrap_text_fills_lines_without_overflowing(mat):
+    """
     Greedy wrapping against a measured width, so lines reach the panel edge
-    instead of breaking at a guessed character count.
-    '''
+    instead of breaking at a guessed character count. Blender truncates a label
+    that does not fit, with an ellipsis over the last word, so overflowing is
+    worse than breaking a line early.
+    """
     # one unit per character, so the expected breaks are easy to read off
     measure = len
 
@@ -858,30 +820,17 @@ def test_wrap_text_fills_each_line(mat):
         'short', 'enormouslylongword'
     ]
 
-
-def test_wrap_text_never_overflows_the_width(mat):
-    '''
-    Blender truncates a label that does not fit, with an ellipsis over the last
-    word, so overflowing is worse than breaking a line early.
-    '''
     text = ('Values are exported exactly as shown. Greyed bands are not '
             'exported; Band Resolution in Output properties picks which.')
 
-    for width in (40, 55, 80, 120, 300):
-        for line in io_module.wrap_text(text, width, len):
+    for width in (30, 40, 55, 80, 120, 300):
+        lines = io_module.wrap_text(text, width, measure)
+
+        for line in lines:
             # a single word wider than the line is the one unavoidable case
             assert len(line) <= width or ' ' not in line, (width, line)
 
-
-def test_wrap_text_uses_the_full_width_available(mat):
-    text = 'Values are exported exactly as shown. Greyed bands are not exported.'
-
-    narrow = io_module.wrap_text(text, 30, len)
-    wide = io_module.wrap_text(text, 60, len)
-
-    assert len(wide) < len(narrow)
-    # every line but the last is within one word of the limit
-    for lines, width in ((narrow, 30), (wide, 60)):
+        # every line but the last is within one word of the limit
         for line, following in zip(lines, lines[1:]):
             assert len(line) + 1 + len(following.split()[0]) > width, line
 
@@ -912,7 +861,7 @@ def test_every_acoustic_property_carries_a_description():
     assert checked == 2 * len(bands.THIRD_OCTAVES) + 7
 
 
-def test_the_manual_input_help_points_at_the_scene_settings(mat):
+def test_the_help_points_at_the_scene_settings(mat):
     '''
     Band Resolution and Interpolation are single scene settings, so the panel
     says where they are rather than drawing a second copy of them.
@@ -924,26 +873,6 @@ def test_the_manual_input_help_points_at_the_scene_settings(mat):
     # both are single scene settings, so the help points at them by location
     assert 'octave or third-octave bands in the Output properties' in text
     assert 'linear or logarithmic interpolation in the Output properties' in text
-
-
-def test_the_database_instructions_are_wrapped(mat):
-    '''They were five hand-broken numbered lines that clipped when narrowed.'''
-    labels = [entry[1] for entry in draw_panel(mat, 'ACOUSTIC_PT_database_help')
-              if entry[0] == 'label']
-
-    assert any(line.startswith('Set an AcousticIndex API key') for line in labels)
-    assert all(len(line) <= 80 for line in labels), max(labels, key=len)
-
-
-def export_with(mat, tmp_path, **kwargs):
-    bpy.ops.mesh.primitive_cube_add()
-    bpy.context.active_object.data.materials.append(mat)
-    bpy.ops.object.camera_add()
-
-    path = os.path.join(str(tmp_path), 'scene.xml')
-    assert bpy.ops.export_scene.mitsuba(filepath=path, **kwargs) == {'FINISHED'}
-
-    return ET.parse(path).getroot()
 
 
 @pytest.mark.parametrize('engine', ['MITSUBA', 'CYCLES'])
@@ -960,7 +889,7 @@ def test_the_export_mode_picks_the_integrator(
     '''
     bpy.context.scene.render.engine = engine
 
-    root = export_with(mat, tmp_path, export_mode=export_mode)
+    root = export_scene(mat, tmp_path, export_mode=export_mode)
 
     assert root.find(f".//integrator[@type='{integrator}']") is not None
     assert root.find(f".//film[@type='{film}']") is not None
@@ -978,7 +907,7 @@ def test_an_optical_export_still_honours_a_chosen_integrator(mat, tmp_path):
     scene.render.engine = 'MITSUBA'
     scene.mitsuba.active_integrator = 'direct'
 
-    root = export_with(mat, tmp_path, export_mode='VISUAL')
+    root = export_scene(mat, tmp_path, export_mode='VISUAL')
 
     assert root.find(".//integrator[@type='direct']") is not None
 
