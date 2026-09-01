@@ -8,9 +8,38 @@ import shutil
 import re
 from html.parser import HTMLParser
 
+# Blender's own server first, then the community mirror. The Windows CI
+# runners reach ftp.nluug.nl unreliably.
 BLENDER_MIRROR_URLS = [
-    'https://ftp.nluug.nl/pub/graphics/blender/release'
+    'https://download.blender.org/release',
+    'https://ftp.nluug.nl/pub/graphics/blender/release',
 ]
+
+# Connect and read timeouts. Without one, a mirror that accepts the connection
+# and then stalls hangs the job forever.
+REQUEST_TIMEOUT = (10, 60)
+
+REQUEST_ATTEMPTS = 3
+
+
+def fetch(url, **kwargs):
+    '''
+    GET url, retrying a few times before giving up.
+
+    Raises the last error, so the caller can decide whether to try another
+    mirror or fail.
+    '''
+    last_error = None
+    for attempt in range(1, REQUEST_ATTEMPTS + 1):
+        try:
+            response = requests.get(url, timeout=REQUEST_TIMEOUT, **kwargs)
+            response.raise_for_status()
+            return response
+        except requests.RequestException as error:
+            last_error = error
+            print(f'{url}: attempt {attempt}/{REQUEST_ATTEMPTS} failed: {error}',
+                  file=sys.stderr)
+    raise last_error
 
 def get_platform_suffix_pattern():
     if sys.platform.startswith('linux'):
@@ -76,11 +105,18 @@ def get_download_url(blender_version):
     download_folder = f'Blender{version_major}'
 
     download_url = None
-    parser = BlenderHTMLParser(version_parts)
     for url in BLENDER_MIRROR_URLS:
         download_directory = f'{url}/{download_folder}'
-        
-        page = requests.get(download_directory)
+
+        try:
+            page = fetch(download_directory)
+        except requests.RequestException:
+            continue
+
+        # A parser per mirror: HTMLParser keeps state between feeds and
+        # blender_links accumulates, so a shared one would let one mirror's
+        # listing pick the archive name appended to another mirror's URL.
+        parser = BlenderHTMLParser(version_parts)
         blender_archive_link = parser.feed(page.text)
         if blender_archive_link is not None:
             download_url = f'{download_directory}/{blender_archive_link}'
@@ -104,7 +140,7 @@ def main(args):
 
     if not os.path.exists(archive_file_name):
         print(f'Downloading Blender archive from mirror: {url}')
-        r = requests.get(url, stream=True)
+        r = fetch(url, stream=True)
         archive_file = open(archive_file_name, "wb")
         archive_file.write(r.content)
         archive_file.close()
