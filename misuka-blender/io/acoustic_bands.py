@@ -139,8 +139,8 @@ def nearest_band_index(freq, frequencies):
     return best
 
 
-# The per-band float properties tick their own "set" checkbox when edited, which
-# is what makes typing a value mark it as an anchor. Batch writes (interpolate,
+# The per-band float properties tick their own Keep box when edited, which is
+# what makes typing a value keep it. Batch writes (interpolate,
 # reset, applying a database variant) manage the checkboxes themselves and must
 # not trip that callback.
 _suppress_band_update = False
@@ -151,12 +151,12 @@ def band_updates_suppressed():
 
 
 def read_bands(mat, props, indices):
-    '''Read the band values of one family at `indices`.'''
+    '''Read the band values of one quantity at `indices`.'''
     return [getattr(mat, props[i]) for i in indices]
 
 
 def write_bands(mat, props, values):
-    '''Write a whole family back, skipping the per-band "set" callback.'''
+    '''Write a whole quantity back, skipping the per-band Keep callback.'''
     global _suppress_band_update
 
     _suppress_band_update = True
