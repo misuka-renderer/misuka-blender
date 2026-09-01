@@ -259,6 +259,13 @@ class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
     def execute(self, context):
 
         mat = context.material
+
+        # Set here and cleared only once a material is actually loaded, so
+        # every early return below leaves it set without having to remember.
+        # A failed lookup keeps the previous data, which is still applicable;
+        # this is only so the panel stops calling it a confirmed match.
+        mat["_acoustic_lookup_failed"] = True
+
         addon_name = __name__.split(".")[0]
         addon = context.preferences.addons.get(addon_name)
 
@@ -316,6 +323,10 @@ class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
         #show feedback for UI ---
         mat["_acoustic_loaded_label"] = data.get("label", "")
         mat["_acoustic_loaded_manufacturer"] = data.get("manufacturer", "")
+        # What was actually looked up, so the panel can tell the user when the
+        # material has been renamed since and the entry below is for the old name.
+        mat["_acoustic_loaded_query"] = search_query
+        mat["_acoustic_lookup_failed"] = False
 
         self.report({'INFO'}, f"{len(variants)} variants loaded")
         return {'FINISHED'}
@@ -659,12 +670,24 @@ class ACOUSTIC_PT_database(AcousticPanel, bpy.types.Panel):
 
         label = mat.get("_acoustic_loaded_label")
         manufacturer = mat.get("_acoustic_loaded_manufacturer")
+        query = mat.get("_acoustic_loaded_query")
 
         if label:
             box = col.box()
 
             row = box.row()
-            row.label(text="Matched Database Entry", icon='CHECKMARK')
+
+            # The entry below is whatever was last loaded successfully, and it
+            # stays valid for the name it was looked up under. Say so rather
+            # than let a checkmark imply it matches the material's name now.
+            # A .blend saved before the query was recorded has neither key and
+            # reads as a plain match, which is how it has always looked.
+            if mat.get("_acoustic_lookup_failed"):
+                row.label(text="Last lookup failed", icon='ERROR')
+            elif query and query != mat.name.strip():
+                row.label(text=f'Loaded for "{query}"', icon='INFO')
+            else:
+                row.label(text="Matched Database Entry", icon='CHECKMARK')
 
             # Product names and manufacturers are arbitrary length and would
             # otherwise be clipped at the panel edge.
