@@ -262,8 +262,7 @@ class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
 
         # Set here and cleared only once a material is actually loaded, so
         # every early return below leaves it set without having to remember.
-        # A failed lookup keeps the previous data, which is still applicable;
-        # this is only so the panel stops calling it a confirmed match.
+        # A failed lookup keeps the previous data, which is still applicable.
         mat["_acoustic_lookup_failed"] = True
 
         addon_name = __name__.split(".")[0]
@@ -292,13 +291,11 @@ class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
             self.report({'ERROR'}, str(error))
             return {'CANCELLED'}
 
-        # --- extract measurement variants ---
         measurements = data.get("measurements", {})
 
         abs_variants = measurements.get("absorption_iso_354", [])
         scat_variants = measurements.get("scatter_iso_17497_1", [])
 
-        # tag type so we can distinguish later
         for v in abs_variants:
             v["_type"] = "absorption"
 
@@ -311,7 +308,6 @@ class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
             self.report({'WARNING'}, "No measurement data available.")
             return {'CANCELLED'}
 
-        # store variants
         mat["_acoustic_variants_cache"] = variants
 
         # Clear the selection rather than land on a variant nobody chose. The
@@ -319,7 +315,6 @@ class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
         # stale one would point at a variant this entry does not have.
         mat.acoustic_variant_enum = NO_VARIANT
 
-        #show feedback for UI ---
         mat["_acoustic_loaded_label"] = data.get("label", "")
         mat["_acoustic_loaded_manufacturer"] = data.get("manufacturer", "")
         # What was actually looked up, so the panel can tell the user when the
@@ -676,11 +671,10 @@ class ACOUSTIC_PT_database(AcousticPanel, bpy.types.Panel):
 
             row = box.row()
 
-            # The entry below is whatever was last loaded successfully, and it
-            # stays valid for the name it was looked up under. Say so rather
-            # than let a checkmark imply it matches the material's name now.
-            # A .blend saved before the query was recorded has neither key and
-            # reads as a plain match, which is how it has always looked.
+            # The entry stays valid for the name it was looked up under, so
+            # say which name that was rather than let a checkmark imply it
+            # matches the material's current one. A .blend saved before the
+            # query was recorded has neither key and reads as a plain match.
             if mat.get("_acoustic_lookup_failed"):
                 row.label(text="Last lookup failed", icon='ERROR')
             elif query and query != mat.name.strip():
