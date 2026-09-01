@@ -361,7 +361,9 @@ class StubLayout:
     def column(self, **kwargs):
         return StubLayout(self.drawn)
 
-    row = box = column
+    # split(factor=...) is another way of asking for a nested layout, and a
+    # stub layout has no widths to divide up.
+    row = box = split = column
 
     def separator(self, **kwargs):
         pass
