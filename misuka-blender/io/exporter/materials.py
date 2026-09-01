@@ -2,15 +2,7 @@ import bpy
 import numpy as np
 from mathutils import Matrix
 from .export_context import Files
-from ..acoustic_bands import (
-    ABS_PROPS,
-    ABSORPTION_DEFAULT,
-    OCTAVES,
-    SCAT_PROPS,
-    SCATTERING_DEFAULT,
-    interpolate_bands,
-    read_bands,
-)
+from ..acoustic_bands import ABS_PROPS, SCAT_PROPS, active_bands, read_bands
 
 import json
 import os
@@ -280,47 +272,18 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
 
     if export_ctx.acoustic_mode:
 
-        manual_absorption_values = read_bands(material, ABS_PROPS)
-        manual_scattering_values = read_bands(material, SCAT_PROPS)
-
-        absorption_dict = {}
-
-        #collect manual values
-        for f, v in zip(OCTAVES, manual_absorption_values):
-            if v != ABSORPTION_DEFAULT:
-                absorption_dict[f] = v
-
-        #check if ALL values are default
-        all_default = all(v == ABSORPTION_DEFAULT for v in manual_absorption_values)
-
-        if not all_default:
-            absorption_values = interpolate_bands(absorption_dict, OCTAVES)
-
-        else:
-            absorption_values = [ABSORPTION_DEFAULT] * len(OCTAVES)
-
-        scattering_dict = {}
-
-        for f, v in zip(OCTAVES, manual_scattering_values):
-            if v != SCATTERING_DEFAULT:
-                scattering_dict[f] = v
-
-        scattering_all_default = all(
-            v == SCATTERING_DEFAULT for v in manual_scattering_values)
-
-        if not scattering_all_default:
-            scattering_values = interpolate_bands(
-                scattering_dict, OCTAVES, SCATTERING_DEFAULT)
-        else:
-            scattering_values = [SCATTERING_DEFAULT] * len(OCTAVES)
+        # The panel's values are exported as they stand. Interpolation is an
+        # explicit button press there, so nothing is inferred here. The scene's
+        # band resolution decides which of the stored bands are written.
+        frequencies, indices = active_bands(export_ctx.acoustic_band_resolution)
 
         absorption_pairs = [
             (f, round(v, 3))
-            for f, v in zip(OCTAVES, absorption_values)
+            for f, v in zip(frequencies, read_bands(material, ABS_PROPS, indices))
         ]
         scattering_pairs = [
             (f, round(v, 3))
-            for f, v in zip(OCTAVES, scattering_values)
+            for f, v in zip(frequencies, read_bands(material, SCAT_PROPS, indices))
         ]
 
         params = {
