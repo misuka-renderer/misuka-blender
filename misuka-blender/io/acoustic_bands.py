@@ -12,13 +12,15 @@ here instead, so adding or removing a band is a one-line change.
 ABSORPTION_DEFAULT = 0.5
 SCATTERING_DEFAULT = 0.25
 
-# ISO octave band centre frequencies.
-OCTAVES = (63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
+# ISO octave band centre frequencies. The 31.5 Hz band is included because room
+# acoustics is judged well below 63 Hz.
+OCTAVES = (31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
 
-# ISO 266 preferred third-octave centre frequencies, 50 Hz to 20 kHz, three per
+# ISO 266 preferred third-octave centre frequencies, 25 Hz to 20 kHz, three per
 # octave band. Materials are still authored per octave; this is the finer grid
 # the acoustic film can be asked to simulate on.
 THIRD_OCTAVES = (
+    25, 31.5, 40,
     50, 63, 80,
     100, 125, 160,
     200, 250, 315,
@@ -30,15 +32,26 @@ THIRD_OCTAVES = (
     12500, 16000, 20000,
 )
 
-ABS_PROPS = tuple(f'acoustic_abs_{f}' for f in OCTAVES)
-SCAT_PROPS = tuple(f'acoustic_scat_{f}' for f in OCTAVES)
+
+def band_suffix(freq):
+    '''
+    The part of a per-band property name that says which band it is.
+
+    31.5 Hz is the one preferred centre that is not a whole number, and a dot
+    cannot appear in an RNA path, so it becomes `31_5`.
+    '''
+    return str(freq).replace('.', '_')
+
+
+ABS_PROPS = tuple(f'acoustic_abs_{band_suffix(f)}' for f in OCTAVES)
+SCAT_PROPS = tuple(f'acoustic_scat_{band_suffix(f)}' for f in OCTAVES)
 
 # Choices for the scene-wide band resolution, which drives the tape film's
 # frequency list and therefore what actually gets simulated.
 BAND_RESOLUTION_ITEMS = (
-    ('OCTAVE', "Octave Bands", "Simulate the 9 octave centres, 63 Hz to 16 kHz"),
+    ('OCTAVE', "Octave Bands", "Simulate the 10 octave centres, 31.5 Hz to 16 kHz"),
     ('THIRD_OCTAVE', "Third Octave Bands",
-     "Simulate all 27 third-octave centres, 50 Hz to 20 kHz"),
+     "Simulate all 30 third-octave centres, 25 Hz to 20 kHz"),
 )
 
 
@@ -75,17 +88,20 @@ def octave_lookup(oct_data, target_freqs, fallback):
     Read octave-band measurements onto `target_freqs`, clamping at both ends.
 
     Measurement data comes from JSON, so its keys are strings. Comparing raw
-    ints against them silently matches nothing.
+    numbers against them silently matches nothing, and the clamped ends are read
+    back through the original key rather than a rebuilt one, since str(31.5) is
+    "31.5" but str(float("63")) is "63.0".
     '''
-    freqs = sorted(int(k) for k in oct_data.keys())
+    keys = sorted(oct_data.keys(), key=float)
+    freqs = [float(k) for k in keys]
 
     def value_at(f):
         if str(f) in oct_data:
             return oct_data[str(f)]
         if f < freqs[0]:
-            return oct_data[str(freqs[0])]
+            return oct_data[keys[0]]
         if f > freqs[-1]:
-            return oct_data[str(freqs[-1])]
+            return oct_data[keys[-1]]
         return fallback
 
     return [value_at(f) for f in target_freqs]
