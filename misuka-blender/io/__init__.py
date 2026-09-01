@@ -101,13 +101,11 @@ DEFAULT_PANEL_WIDTH = 320
 # Rough width of one character, used only when the font cannot be measured.
 FALLBACK_CHARACTER_WIDTH = 6.0
 
-# What the region's width is not available to the text, in pixels at UI scale 1:
-# the panel's own left and right margins, the padding of the box the paragraphs
-# are drawn in, the label's inset inside that, and the properties editor's
-# scrollbar. Blender gives no way to ask a layout how wide it ended up, so this
-# is measured against the region and has to be assumed. Erring large costs an
-# early line break; erring small makes Blender truncate the last word with an
-# ellipsis, so it is deliberately generous.
+# What the region's width is not available to the text: panel margins, box
+# padding, the label's inset and the scrollbar. Blender gives no way to ask a
+# layout how wide it ended up, so this has to be assumed. Erring large costs an
+# early line break, erring small makes Blender truncate with an ellipsis, so it
+# is deliberately generous.
 TEXT_INSET = 58
 
 
@@ -660,7 +658,6 @@ class ACOUSTIC_PT_database(AcousticPanel, bpy.types.Panel):
         col.label(text="Variant Selection")
         col.prop(mat, "acoustic_variant_enum", text="")
 
-        # IMPORTANT: force invoke() instead of execute()
         col.operator_context = 'INVOKE_DEFAULT'
 
         row = col.row()
@@ -716,11 +713,9 @@ class ACOUSTIC_PT_coefficients(AcousticPanel, bpy.types.Panel):
         # a value can be dragged down an aligned column to set several bands in
         # one go.
         #
-        # split() rather than scale_x, because scale_x multiplies a column's
-        # natural width. That width comes from the column's content, so the
-        # frequency column stayed at the width of its labels however wide the
-        # panel grew, and the coefficient fields took everything else. A split
-        # factor is the share of the row itself.
+        # split() rather than scale_x: scale_x multiplies a column's natural
+        # width, which comes from its content, so the frequency column would
+        # never grow with the panel. A split factor is a share of the row.
         table = self.layout.row()
         outer = table.split(factor=FREQ_COLUMN_FRACTION)
 
@@ -739,10 +734,8 @@ class ACOUSTIC_PT_coefficients(AcousticPanel, bpy.types.Panel):
 
         freq_column.label(text="")
         for quantity, keep_column, value_column in quantity_columns:
-            # Left aligned, which is the default, so a header and the widgets
-            # under it share the column's left edge. Centering sizes each
-            # widget from its own content, which puts a centered label and a
-            # centered checkbox on different axes.
+            # Left aligned, the default: centering sizes each widget from its
+            # own content, putting a label and a checkbox on different axes.
             keep_column.label(text="Keep")
             value_column.label(text=quantity.label)
 
