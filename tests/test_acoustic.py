@@ -522,10 +522,17 @@ def test_panel_help_text_is_wrapped_to_the_panel(mat):
     assert all(len(line) <= 80 for line in labels), max(labels, key=len)
 
 
-def load_variant(mat, variant):
-    '''Prime the material as if the database operator had just fetched this.'''
-    mat['_acoustic_variants_cache'] = [variant]
-    mat.acoustic_variant_enum = 'NONE'
+def load_variant(mat, *variants, select=0):
+    '''
+    Prime the material as if the database operator had just fetched these.
+
+    The dropdown builds its entries from `context.material`, so assigning to it
+    needs the same override the operators do.
+    '''
+    mat['_acoustic_variants_cache'] = list(variants)
+
+    with bpy.context.temp_override(material=mat):
+        mat.acoustic_variant_enum = str(select)
 
 
 def test_apply_variant_keeps_third_octave_data_at_full_resolution(mat):
@@ -603,6 +610,68 @@ def test_apply_variant_snaps_off_nominal_frequencies(mat):
 
     marked = {THIRD_OCTAVES[i] for i, on in enumerate(mat.acoustic_abs_band_set) if on}
     assert marked == {3150, 6300}
+
+
+def test_apply_variant_uses_the_variant_the_dropdown_names(mat):
+    '''
+    The dropdown used to offer an "Auto Selection" that picked the most
+    absorbent variant, so the applied numbers need not be the listed ones.
+    '''
+    load_variant(
+        mat,
+        {'_type': 'absorption', 'alpha_s_octave': {'1000': 0.9}},
+        {'_type': 'absorption', 'alpha_s_octave': {'1000': 0.3}},
+        select=1,
+    )
+
+    assert run(bpy.ops.acoustic.apply_variant, mat) == {'FINISHED'}
+
+    values = dict(zip(OCTAVES, octave_values(mat, ABS_PROPS)))
+    assert values[1000] == pytest.approx(0.3)
+
+
+def test_variant_dropdown_offers_the_variants_and_nothing_picked(mat):
+    '''
+    Blender does not expose a dynamic enum's items to Python, so the entries
+    are probed by what the property accepts.
+    '''
+    def accepts(value):
+        try:
+            with bpy.context.temp_override(material=mat):
+                mat.acoustic_variant_enum = value
+        except TypeError:
+            return False
+        return True
+
+    load_variant(
+        mat,
+        {'_type': 'absorption', 'label': 'A'},
+        {'_type': 'scattering', 'label': 'B'},
+    )
+
+    assert accepts('0') and accepts('1')
+    assert not accepts('2')
+
+    # the leading entry is "nothing picked", where the "Auto Selection" that
+    # applied a variant of its own used to sit
+    assert accepts(io_module.NO_VARIANT)
+    assert io_module.select_variant(mat) is None
+
+
+def test_apply_variant_needs_a_variant_to_be_picked(mat):
+    '''A fresh database lookup leaves the dropdown on the "nothing picked" entry.'''
+    load_variant(
+        mat,
+        {'_type': 'absorption', 'alpha_s_octave': {'1000': 0.9}},
+        select=io_module.NO_VARIANT,
+    )
+
+    # reporting ERROR surfaces as a RuntimeError through the Python API
+    with pytest.raises(RuntimeError, match='Select a variant'):
+        run(bpy.ops.acoustic.apply_variant, mat)
+
+    assert all(getattr(mat, p) == DEFAULT for p in ABS_PROPS)
+    assert not any(mat.acoustic_abs_band_set)
 
 
 def test_apply_variant_without_usable_data_is_rejected(mat):
