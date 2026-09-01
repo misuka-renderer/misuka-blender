@@ -190,6 +190,9 @@ def draw_paragraphs(layout, context, *paragraphs):
 class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
     bl_idname = "acoustic.load_from_api"
     bl_label = "Load Acoustic Data"
+    bl_description = ("Search AcousticIndex for the material's name and fetch "
+                      "the top match, with all its measured variants. A name "
+                      "that is a product id is fetched directly")
 
     def execute(self, context):
 
@@ -325,6 +328,8 @@ def select_variant(mat):
 class ACOUSTIC_OT_apply_variant(AcousticOperator, bpy.types.Operator):
     bl_idname = "acoustic.apply_variant"
     bl_label = "Apply Variant"
+    bl_description = ("Write the selected variant's measured absorption and scattering coefficients into "
+                      "the table, ticking the bands it covers")
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
@@ -491,8 +496,9 @@ def register_acoustic_properties():
     bpy.types.Material.acoustic_specular_lobe_width = FloatProperty(
         name="Specular Lobe Width",
         description=(
-            "Angular width of the specular reflection lobe, in radians. Small "
-            "values reflect like a mirror, larger ones spread the reflection out"
+            "Angular width of the specular reflection lobe. Small "
+            "values reflect like a mirror, larger ones spread the reflection out. "
+            "See the misuka documentation for more details."
         ),
         default=0.001,
         min=0.001,
@@ -612,10 +618,13 @@ class ACOUSTIC_PT_database_help(AcousticPanel, bpy.types.Panel):
         draw_paragraphs(
             self.layout, context,
             "Set an AcousticIndex API key in the add-on preferences, then "
-            "name this material after a database entry or paste its id.",
-            "Load from Database fetches every measured variant of it. Pick "
-            "one and Apply Variant writes its coefficients into the table "
-            "below, ticking the bands where it contains values.",
+            "name this material after a database entry, or paste its product "
+            "id as the name.",
+            "Load from Database searches for that name and takes the top "
+            "match, or fetches the id directly, with all its measured "
+            "variants. Pick one and Apply Variant writes its coefficients "
+            "into the table below, ticking the bands where it contains "
+            "values.",
         )
 
 
@@ -816,6 +825,8 @@ class ACOUSTIC_OT_interpolate_base(AcousticOperator, bpy.types.Operator):
 class ACOUSTIC_OT_interpolate_abs(ACOUSTIC_OT_interpolate_base):
     bl_idname = "acoustic.interpolate_abs"
     bl_label = "Change Absorption Values"
+    bl_description = ("Overwrite every absorption band that is not ticked, by "
+                      "interpolating between the ticked ones. Select linear or logarithmic interpolation in Output properties")
 
     quantity = QUANTITIES[0]
 
@@ -823,6 +834,8 @@ class ACOUSTIC_OT_interpolate_abs(ACOUSTIC_OT_interpolate_base):
 class ACOUSTIC_OT_interpolate_scat(ACOUSTIC_OT_interpolate_base):
     bl_idname = "acoustic.interpolate_scat"
     bl_label = "Change Scattering Values"
+    bl_description = ("Overwrite every scattering band that is not ticked, by "
+                      "interpolating between the ticked ones. Select linear or logarithmic interpolation in Output properties")
 
     quantity = QUANTITIES[1]
 
@@ -848,6 +861,8 @@ class ACOUSTIC_OT_reset_base(AcousticOperator, bpy.types.Operator):
 class ACOUSTIC_OT_reset_abs(ACOUSTIC_OT_reset_base):
     bl_idname = "acoustic.reset_abs"
     bl_label = "Reset Absorption"
+    bl_description = (f"Set every absorption band back to {ACOUSTIC_DEFAULT} "
+                      "and untick them all")
 
     quantity = QUANTITIES[0]
 
@@ -855,6 +870,8 @@ class ACOUSTIC_OT_reset_abs(ACOUSTIC_OT_reset_base):
 class ACOUSTIC_OT_reset_scat(ACOUSTIC_OT_reset_base):
     bl_idname = "acoustic.reset_scat"
     bl_label = "Reset Scattering"
+    bl_description = (f"Set every scattering band back to {ACOUSTIC_DEFAULT} "
+                      "and untick them all")
 
     quantity = QUANTITIES[1]
 
@@ -862,6 +879,7 @@ class ACOUSTIC_OT_reset_scat(ACOUSTIC_OT_reset_base):
 class ACOUSTIC_OT_reset_specular_lobe_width(AcousticOperator, bpy.types.Operator):
     bl_idname = "acoustic.reset_specular_lobe_width"
     bl_label = "Reset Specular Lobe Width"
+    bl_description = "Set the specular lobe width back to its default"
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)

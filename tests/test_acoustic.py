@@ -910,3 +910,34 @@ def test_an_optical_export_still_honours_a_chosen_integrator(mat, tmp_path):
     root = export_with(mat, tmp_path, export_mode='VISUAL')
 
     assert root.find(".//integrator[@type='direct']") is not None
+
+
+ACOUSTIC_OPERATORS = (
+    'load_from_api',
+    'apply_variant',
+    'interpolate_abs',
+    'interpolate_scat',
+    'reset_abs',
+    'reset_scat',
+    'reset_specular_lobe_width',
+)
+
+
+def test_every_operator_has_a_tooltip():
+    '''
+    Blender reads bl_description, falling back to the class docstring. Python
+    does not inherit __doc__, so documenting a base class left every subclass
+    showing "(undocumented operator)".
+    '''
+    for name in ACOUSTIC_OPERATORS:
+        description = getattr(bpy.ops.acoustic, name).get_rna_type().description
+
+        assert description, name
+        assert 'undocumented' not in description.lower(), (name, description)
+
+
+def test_the_reset_tooltips_quote_the_shared_default():
+    '''So they cannot drift from the value the buttons actually write.'''
+    for name in ('reset_abs', 'reset_scat'):
+        description = getattr(bpy.ops.acoustic, name).get_rna_type().description
+        assert str(DEFAULT) in description, (name, description)
