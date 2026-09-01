@@ -82,10 +82,12 @@ class AcousticOperator:
     def poll(cls, context):
         return getattr(context, "material", None) is not None
 
-# Width of the per-band "Keep" checkbox column relative to a value column.
-# Wide enough for the header word, narrow enough that the tick still reads as
-# belonging to the value beside it.
-KEEP_COLUMN_SCALE = 0.4
+
+# Share of the coefficient table the frequency column takes, and the share of
+# each quantity's half that its Keep checkbox takes. Blender splits a row by
+# fraction, so these are shares of the panel, not pixel widths.
+FREQ_COLUMN_FRACTION = 0.20
+KEEP_COLUMN_FRACTION = 0.20
 
 # Vertical scale for stacked text rows. A label occupies a full widget row, so
 # unscaled paragraphs are spaced like buttons rather than like prose.
@@ -699,7 +701,7 @@ class ACOUSTIC_PT_coefficients(AcousticPanel, bpy.types.Panel):
 
     def draw(self, context):
         '''
-        Draw both coefficient families side by side, one row per band.
+        Draw both coefficient quantities side by side, one row per band.
 
         Two columns rather than two stacked tables: 30 bands twice over is a lot
         of scrolling, and absorption and scattering are usually read together.
@@ -707,27 +709,38 @@ class ACOUSTIC_PT_coefficients(AcousticPanel, bpy.types.Panel):
         mat = context.material
         third_octave = scene_resolution(context.scene) == 'THIRD_OCTAVE'
 
-        box = self.layout.box()
-        columns = box.row()
-
         # One column per cell rather than one row per band: separate columns
-        # stay aligned row for row on their own, and each gets its own header.
-        # The checkbox columns are narrowed so "Keep" sits over the tick rather
-        # than claiming an even share of the width.
-        freq_column = columns.column(align=True)
+        # stay aligned row for row on their own, each gets its own header, and
+        # a value can be dragged down an aligned column to set several bands in
+        # one go.
+        #
+        # split() rather than scale_x, because scale_x multiplies a column's
+        # natural width. That width comes from the column's content, so the
+        # frequency column stayed at the width of its labels however wide the
+        # panel grew, and the coefficient fields took everything else. A split
+        # factor is the share of the row itself.
+        table = self.layout.row()
+        outer = table.split(factor=FREQ_COLUMN_FRACTION)
+
+        freq_column = outer.column(align=True)
+        # The two quantities divide up what the frequency column leaves.
+        pair = outer.split(factor=0.5)
 
         quantity_columns = []
         for quantity in QUANTITIES:
-            family = columns.row(align=True)
+            family = pair.split(factor=KEEP_COLUMN_FRACTION)
 
             keep_column = family.column(align=True)
-            keep_column.scale_x = KEEP_COLUMN_SCALE
+            value_column = family.column(align=True)
 
-            quantity_columns.append(
-                (quantity, keep_column, family.column(align=True)))
+            quantity_columns.append((quantity, keep_column, value_column))
 
         freq_column.label(text="")
         for quantity, keep_column, value_column in quantity_columns:
+            # Left aligned, which is the default, so a header and the widgets
+            # under it share the column's left edge. Centering sizes each
+            # widget from its own content, which puts a centered label and a
+            # centered checkbox on different axes.
             keep_column.label(text="Keep")
             value_column.label(text=quantity.label)
 
