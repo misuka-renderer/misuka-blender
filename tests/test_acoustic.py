@@ -1068,46 +1068,35 @@ def database_heading(material):
     return labels[0]
 
 
-def test_the_panel_reports_a_failed_lookup(mat):
+@pytest.mark.parametrize('query, failed, rename, expected', [
+    (None, True, None, ('Last lookup failed', 'ERROR')),
+    ('Heavy Carpet', False, 'Ceiling Tile',
+     ('Loaded for "Heavy Carpet"', 'INFO')),
+    (None, False, None, ('Matched Database Entry', 'CHECKMARK')),
+    # a failed lookup outranks a rename
+    ('Heavy Carpet', True, 'Ceiling Tile', ('Last lookup failed', 'ERROR')),
+])
+def test_the_panel_says_what_the_entry_below_is(mat, query, failed, rename,
+                                                expected):
+    """
+    An entry stays valid for the name it was looked up under, not for the
+    material's current name.
+    """
     mat['_acoustic_loaded_label'] = 'Carpet'
-    mat['_acoustic_loaded_query'] = mat.name
-    mat['_acoustic_lookup_failed'] = True
+    mat['_acoustic_loaded_query'] = query or mat.name
+    mat['_acoustic_lookup_failed'] = failed
 
-    assert database_heading(mat) == ('Last lookup failed', 'ERROR')
+    if rename:
+        mat.name = rename
+
+    assert database_heading(mat) == expected
 
 
-def test_the_panel_names_the_query_when_the_material_was_renamed(mat):
-    '''The entry is still valid, but for the name it was looked up under.'''
+def test_an_entry_saved_before_the_query_was_recorded_reads_as_matched(mat):
+    """Such a .blend carries neither key and must not be flagged."""
     mat['_acoustic_loaded_label'] = 'Carpet'
-    mat['_acoustic_loaded_query'] = 'Heavy Carpet'
-    mat['_acoustic_lookup_failed'] = False
-    mat.name = 'Ceiling Tile'
-
-    assert database_heading(mat) == ('Loaded for "Heavy Carpet"', 'INFO')
-
-
-def test_an_entry_that_matches_the_material_name_reads_as_matched(mat):
-    mat['_acoustic_loaded_label'] = 'Carpet'
-    mat['_acoustic_loaded_query'] = mat.name
-    mat['_acoustic_lookup_failed'] = False
 
     assert database_heading(mat) == ('Matched Database Entry', 'CHECKMARK')
-
-    # A .blend saved before the query was recorded carries neither key, and
-    # must keep reading the way it always has rather than be flagged.
-    del mat['_acoustic_loaded_query']
-    del mat['_acoustic_lookup_failed']
-
-    assert database_heading(mat) == ('Matched Database Entry', 'CHECKMARK')
-
-
-def test_a_failed_lookup_outranks_a_rename(mat):
-    mat['_acoustic_loaded_label'] = 'Carpet'
-    mat['_acoustic_loaded_query'] = 'Heavy Carpet'
-    mat['_acoustic_lookup_failed'] = True
-    mat.name = 'Ceiling Tile'
-
-    assert database_heading(mat) == ('Last lookup failed', 'ERROR')
 
 
 @pytest.fixture
