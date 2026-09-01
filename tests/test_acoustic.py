@@ -60,22 +60,22 @@ def run(operator, material):
         return operator()
 
 
-def test_defaults_are_shared_and_nothing_is_marked_set(mat):
-    '''Both families start at the same neutral value with no band claimed.'''
+def test_defaults_are_shared_and_nothing_is_kept(mat):
+    '''Both quantities start at the same neutral value with no band claimed.'''
     for props in (ABS_PROPS, SCAT_PROPS):
         assert all(getattr(mat, p) == DEFAULT for p in props)
 
-    assert not any(mat.acoustic_abs_band_set)
-    assert not any(mat.acoustic_scat_band_set)
+    assert not any(mat.acoustic_abs_keep)
+    assert not any(mat.acoustic_scat_keep)
     assert bpy.context.scene.mitsuba.acoustic_band_resolution == 'OCTAVE'
 
 
-def test_editing_a_value_marks_only_that_band(mat):
+def test_editing_a_value_keeps_only_that_band(mat):
     setattr(mat, abs_prop(4000), 0.9)
 
-    marked = [i for i, on in enumerate(mat.acoustic_abs_band_set) if on]
-    assert marked == [THIRD_OCTAVES.index(4000)]
-    assert not any(mat.acoustic_scat_band_set)
+    kept = [i for i, on in enumerate(mat.acoustic_abs_keep) if on]
+    assert kept == [THIRD_OCTAVES.index(4000)]
+    assert not any(mat.acoustic_scat_keep)
 
 
 def test_interpolate_fills_between_and_clamps_outside(mat):
@@ -170,7 +170,7 @@ def test_interpolate_without_anchors_is_cancelled(mat):
     assert all(getattr(mat, p) == DEFAULT for p in ABS_PROPS)
 
 
-def test_interpolate_leaves_the_other_family_alone(mat):
+def test_interpolate_leaves_the_other_quantity_alone(mat):
     setattr(mat, abs_prop(1000), 0.8)
 
     assert run(bpy.ops.acoustic.interpolate_abs, mat) == {'FINISHED'}
@@ -217,7 +217,7 @@ def test_third_octave_mode_interpolates_all_bands(mat):
     assert values[hi + 1:] == pytest.approx([0.8] * (len(THIRD_OCTAVES) - hi - 1))
 
 
-def test_reset_restores_defaults_and_clears_marks(mat):
+def test_reset_restores_defaults_and_clears_keeps(mat):
     set_resolution('THIRD_OCTAVE')
     setattr(mat, abs_prop(1000), 0.9)
     setattr(mat, abs_prop(50), 0.1)
@@ -225,7 +225,7 @@ def test_reset_restores_defaults_and_clears_marks(mat):
     assert run(bpy.ops.acoustic.reset_abs, mat) == {'FINISHED'}
 
     assert all(getattr(mat, p) == DEFAULT for p in ABS_PROPS)
-    assert not any(mat.acoustic_abs_band_set)
+    assert not any(mat.acoustic_abs_keep)
     # the scene's resolution is not a material setting for reset to undo
     assert bpy.context.scene.mitsuba.acoustic_band_resolution == 'THIRD_OCTAVE'
 
@@ -478,11 +478,11 @@ def test_panel_draws_every_band(mat, resolution):
     assert 'acoustic_interpolation' not in props
 
     # every band row carries its anchor checkbox
-    for flag in ('acoustic_abs_band_set', 'acoustic_scat_band_set'):
+    for flag in ('acoustic_abs_keep', 'acoustic_scat_keep'):
         indices = sorted(e[2] for e in drawn if e[0] == 'prop' and e[1] == flag)
         assert indices == list(range(len(THIRD_OCTAVES)))
 
-    # every family is headed by its name and a "Keep" column for the ticks
+    # every quantity is headed by its name and a "Keep" column for the ticks
     labels = [entry[1] for entry in drawn if entry[0] == 'label']
     assert labels.count('Keep') == 2
     assert 'Absorption' in labels and 'Scattering' in labels
@@ -538,14 +538,14 @@ def test_apply_variant_keeps_third_octave_data_at_full_resolution(mat):
 
     assert run(bpy.ops.acoustic.apply_variant, mat) == {'FINISHED'}
 
-    assert all(mat.acoustic_abs_band_set), 'every measured band should be marked'
+    assert all(mat.acoustic_abs_keep), 'every measured band should be kept'
 
     for index, freq in enumerate(THIRD_OCTAVES):
         assert getattr(mat, ABS_PROPS[index]) == pytest.approx(measured[str(freq)])
 
 
-def test_apply_variant_marks_only_the_measured_bands(mat):
-    '''Sparse data is filled in, but only the real measurements are marked.'''
+def test_apply_variant_keeps_only_the_measured_bands(mat):
+    '''Sparse data is filled in, but only the real measurements are kept.'''
     load_variant(mat, {
         '_type': 'absorption',
         'alpha_s_octave': {'250': 0.2, '1000': 0.6, '4000': 0.9},
@@ -553,8 +553,8 @@ def test_apply_variant_marks_only_the_measured_bands(mat):
 
     assert run(bpy.ops.acoustic.apply_variant, mat) == {'FINISHED'}
 
-    marked = {THIRD_OCTAVES[i] for i, on in enumerate(mat.acoustic_abs_band_set) if on}
-    assert marked == {250, 1000, 4000}
+    kept = {THIRD_OCTAVES[i] for i, on in enumerate(mat.acoustic_abs_keep) if on}
+    assert kept == {250, 1000, 4000}
 
     values = dict(zip(OCTAVES, octave_values(mat, ABS_PROPS)))
     assert values[250] == pytest.approx(0.2)
@@ -604,8 +604,8 @@ def test_apply_variant_snaps_off_nominal_frequencies(mat):
 
     assert run(bpy.ops.acoustic.apply_variant, mat) == {'FINISHED'}
 
-    marked = {THIRD_OCTAVES[i] for i, on in enumerate(mat.acoustic_abs_band_set) if on}
-    assert marked == {3150, 6300}
+    kept = {THIRD_OCTAVES[i] for i, on in enumerate(mat.acoustic_abs_keep) if on}
+    assert kept == {3150, 6300}
 
 
 def test_apply_variant_uses_the_variant_the_dropdown_names(mat):
@@ -667,7 +667,7 @@ def test_apply_variant_needs_a_variant_to_be_picked(mat):
         run(bpy.ops.acoustic.apply_variant, mat)
 
     assert all(getattr(mat, p) == DEFAULT for p in ABS_PROPS)
-    assert not any(mat.acoustic_abs_band_set)
+    assert not any(mat.acoustic_abs_keep)
 
 
 def test_apply_variant_without_usable_data_is_rejected(mat):
@@ -847,7 +847,7 @@ def test_every_acoustic_property_carries_a_description():
 
     for props, names in (
         (material_props, ABS_PROPS + SCAT_PROPS + (
-            'acoustic_abs_band_set', 'acoustic_scat_band_set',
+            'acoustic_abs_keep', 'acoustic_scat_keep',
             'acoustic_specular_lobe_width')),
         (scene_props, (
             'acoustic_band_resolution', 'acoustic_interpolation',

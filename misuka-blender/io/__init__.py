@@ -57,19 +57,19 @@ import json
 NO_VARIANT = "NONE"
 
 Quantity = namedtuple("Quantity", (
-    "label", "props", "flag_prop", "variant_type",
+    "label", "props", "keep_prop", "variant_type",
     "third_octave_key", "octave_key", "interpolate_op", "reset_op",
 ))
 
 # Absorption and scattering run in parallel everywhere: each has its own band
-# properties, its own "set" flags, its own operators and its own keys in an
+# properties, its own Keep flags, its own operators and its own keys in an
 # AcousticIndex variant. Saying that once is what stops the two drifting apart,
 # which they already did once in apply_variant.
 QUANTITIES = (
-    Quantity("Absorption", ABS_PROPS, "acoustic_abs_band_set", "absorption",
+    Quantity("Absorption", ABS_PROPS, "acoustic_abs_keep", "absorption",
              "alpha_s_third_octave", "alpha_s_octave",
              "acoustic.interpolate_abs", "acoustic.reset_abs"),
-    Quantity("Scattering", SCAT_PROPS, "acoustic_scat_band_set", "scattering",
+    Quantity("Scattering", SCAT_PROPS, "acoustic_scat_keep", "scattering",
              "scatter_third_octave", "scatter_octave",
              "acoustic.interpolate_scat", "acoustic.reset_scat"),
 )
@@ -389,7 +389,7 @@ class ACOUSTIC_OT_apply_variant(AcousticOperator, bpy.types.Operator):
             self.report({'ERROR'}, f"No {quantity.variant_type} data")
             return {'CANCELLED'}
 
-        # Mark only the bands that were actually measured, so the panel keeps
+        # Keep only the bands that were actually measured, so the panel keeps
         # showing which numbers came from the lab and which we filled in.
         anchors = {}
         unmatched = 0
@@ -417,7 +417,7 @@ class ACOUSTIC_OT_apply_variant(AcousticOperator, bpy.types.Operator):
         )
         write_bands(mat, quantity.props, values)
 
-        setattr(mat, quantity.flag_prop,
+        setattr(mat, quantity.keep_prop,
                 [f in anchors for f in THIRD_OCTAVES])
 
         if third_oct and scene_resolution(context.scene) != 'THIRD_OCTAVE':
@@ -437,18 +437,18 @@ class ACOUSTIC_OT_apply_variant(AcousticOperator, bpy.types.Operator):
         return {'FINISHED'}
 
 
-def make_band_update(flag_prop, index):
+def make_band_update(keep_prop, index):
     '''
-    Build the update callback that ticks a band's "set" checkbox when its value
-    is edited, so typing a number is enough to mark it as an anchor.
+    Build the update callback that ticks a band's Keep box when its value is
+    edited, so typing a number is enough to keep it.
     '''
     def update(self, context):
         if band_updates_suppressed():
             return
-        flags = list(getattr(self, flag_prop))
+        flags = list(getattr(self, keep_prop))
         if not flags[index]:
             flags[index] = True
-            setattr(self, flag_prop, flags)
+            setattr(self, keep_prop, flags)
 
     return update
 
@@ -466,7 +466,7 @@ def register_acoustic_properties():
             ),
             default=ACOUSTIC_DEFAULT,
             min=0, max=2, soft_max=1.0,
-            update=make_band_update("acoustic_abs_band_set", index),
+            update=make_band_update("acoustic_abs_keep", index),
         ))
 
         setattr(bpy.types.Material, SCAT_PROPS[index], FloatProperty(
@@ -477,24 +477,24 @@ def register_acoustic_properties():
             ),
             default=ACOUSTIC_DEFAULT,
             min=0, max=1,
-            update=make_band_update("acoustic_scat_band_set", index),
+            update=make_band_update("acoustic_scat_keep", index),
         ))
 
-    band_set_description = (
+    keep_description = (
         "Bands whose value you set yourself, or that a database variant "
         "measured. Interpolate keeps these and overwrites the rest"
     )
 
-    bpy.types.Material.acoustic_abs_band_set = BoolVectorProperty(
-        name="Absorption Bands Set",
-        description=band_set_description,
+    bpy.types.Material.acoustic_abs_keep = BoolVectorProperty(
+        name="Absorption Bands Kept",
+        description=keep_description,
         size=len(THIRD_OCTAVES),
         default=(False,) * len(THIRD_OCTAVES),
     )
 
-    bpy.types.Material.acoustic_scat_band_set = BoolVectorProperty(
-        name="Scattering Bands Set",
-        description=band_set_description,
+    bpy.types.Material.acoustic_scat_keep = BoolVectorProperty(
+        name="Scattering Bands Kept",
+        description=keep_description,
         size=len(THIRD_OCTAVES),
         default=(False,) * len(THIRD_OCTAVES),
     )
@@ -570,8 +570,8 @@ def unregister_acoustic_properties():
         delattr(bpy.types.Material, name)
 
     for name in (
-        "acoustic_abs_band_set",
-        "acoustic_scat_band_set",
+        "acoustic_abs_keep",
+        "acoustic_scat_keep",
         "acoustic_specular_lobe_width",
         "acoustic_variant_enum",
     ):
@@ -601,6 +601,8 @@ class ACOUSTIC_PT_material(AcousticPanel, bpy.types.Panel):
         pass
 
 
+# Panel-local documentation, on borrowed time until the docs land: see
+# misuka-renderer/misuka-blender#14.
 class ACOUSTIC_PT_database_help(AcousticPanel, bpy.types.Panel):
 
     bl_idname = "ACOUSTIC_PT_database_help"
@@ -756,7 +758,7 @@ class ACOUSTIC_PT_coefficients(AcousticPanel, bpy.types.Panel):
             for quantity, keep_column, value_column in quantity_columns:
                 row = keep_column.row(align=True)
                 row.enabled = enabled
-                row.prop(mat, quantity.flag_prop, index=index, text="")
+                row.prop(mat, quantity.keep_prop, index=index, text="")
 
                 row = value_column.row(align=True)
                 row.enabled = enabled
@@ -790,11 +792,11 @@ class ACOUSTIC_PT_specular(AcousticPanel, bpy.types.Panel):
 
 class ACOUSTIC_OT_interpolate_base(AcousticOperator, bpy.types.Operator):
     '''
-    Fill every unticked band of one family from the ticked ones.
+    Fill every unkept band of one quantity from the kept ones.
 
-    The anchors come from the material's own "band set" checkboxes rather than
-    from a comparison against the default value, so a band can be anchored at
-    any value, the default included.
+    The anchors come from the material's own Keep boxes rather than from a
+    comparison against the default value, so a band can be kept at any value,
+    the default included.
     '''
 
     quantity = None
@@ -805,7 +807,7 @@ class ACOUSTIC_OT_interpolate_base(AcousticOperator, bpy.types.Operator):
     def execute(self, context):
 
         mat = context.material
-        flags = getattr(mat, self.quantity.flag_prop)
+        flags = getattr(mat, self.quantity.keep_prop)
 
         anchors = {
             freq: getattr(mat, self.quantity.props[index])
@@ -846,7 +848,7 @@ class ACOUSTIC_OT_interpolate_scat(ACOUSTIC_OT_interpolate_base):
 
 
 class ACOUSTIC_OT_reset_base(AcousticOperator, bpy.types.Operator):
-    '''Return every band of one family to the default and untick them all.'''
+    '''Return every band of one quantity to the default and untick them all.'''
 
     quantity = None
 
@@ -858,7 +860,7 @@ class ACOUSTIC_OT_reset_base(AcousticOperator, bpy.types.Operator):
         mat = context.material
 
         write_bands(mat, self.quantity.props, [ACOUSTIC_DEFAULT] * len(self.quantity.props))
-        setattr(mat, self.quantity.flag_prop, [False] * len(self.quantity.props))
+        setattr(mat, self.quantity.keep_prop, [False] * len(self.quantity.props))
 
         return {'FINISHED'}
 
