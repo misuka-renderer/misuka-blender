@@ -11,18 +11,51 @@ class SetupPlugin:
         self.bl_addon_dir  = bpy.utils.user_resource('SCRIPTS', path='addons', create=True)
         bpy.utils.refresh_script_paths()
         self.bl_mi_addon_dir = os.path.join(self.bl_addon_dir, 'misuka-blender')
+        # pytest_unconfigure() still runs when pytest_configure() raises.
+        self.remove_link = False
 
-    def pytest_configure(self, config):
-        if os.path.exists(self.bl_mi_addon_dir):
-            os.remove(self.bl_mi_addon_dir)
-        
-        # Create a symlink from the addon to the Blender script folder
+    def _create_link(self):
         if sys.platform == 'win32':
             import _winapi
             _winapi.CreateJunction(str(self.mi_addon_dir), str(self.bl_mi_addon_dir))
         else:
             os.symlink(self.mi_addon_dir, self.bl_mi_addon_dir, target_is_directory=True)
-        
+
+    def _remove_link(self):
+        # A junction is a directory: rmdir removes it, os.remove does not.
+        if sys.platform == 'win32':
+            os.rmdir(self.bl_mi_addon_dir)
+        else:
+            os.unlink(self.bl_mi_addon_dir)
+
+    def pytest_configure(self, config):
+        # os.path.exists() follows a link, so one whose target has moved reads
+        # as absent and os.symlink() then fails with FileExistsError.
+        # os.readlink() reads Windows directory junctions too, since 3.8.
+        try:
+            target = os.path.realpath(os.readlink(self.bl_mi_addon_dir))
+        except OSError:
+            target = None
+
+        if target == os.path.realpath(self.mi_addon_dir):
+            # Already linked at this checkout, most likely by a developer who
+            # works against it. Reuse it and leave it in teardown, so running
+            # the tests does not uninstall the add-on from their Blender.
+            self.remove_link = False
+        elif target is None and os.path.lexists(self.bl_mi_addon_dir):
+            # A real add-on install. Deleting it is not ours to do.
+            raise RuntimeError(
+                f'{self.bl_mi_addon_dir} exists and is not a link. '
+                'Move or delete the installed add-on, then run the tests again.'
+            )
+        else:
+            # Nothing there, or some other link, possibly stale from a run that
+            # crashed before teardown. A link is safe to replace.
+            if target is not None:
+                self._remove_link()
+            self._create_link()
+            self.remove_link = True
+
         if bpy.ops.preferences.addon_enable(module='misuka-blender') != {'FINISHED'}:
             raise RuntimeError('Cannot enable misuka-blender addon')
 
@@ -33,9 +66,19 @@ class SetupPlugin:
         print('[teardown] disabling addon', flush=True)
         bpy.ops.preferences.addon_disable(module='misuka-blender')
         print('[teardown] addon disabled', flush=True)
-        # Remove the symlink
-        os.remove(self.bl_mi_addon_dir)
-        print('[teardown] symlink removed', flush=True)
+
+        if not self.remove_link:
+            print('[teardown] symlink was already there, left in place', flush=True)
+            return
+
+        # An exception here propagates out of pytest.main(), is caught below
+        # and turns a fully passing run red, so report it and carry on.
+        try:
+            self._remove_link()
+        except OSError as e:
+            print(f'[teardown] could not remove symlink: {e}', flush=True)
+        else:
+            print('[teardown] symlink removed', flush=True)
 
     def pytest_runtest_setup(self, item):
         bpy.ops.wm.read_homefile(use_empty=True)
