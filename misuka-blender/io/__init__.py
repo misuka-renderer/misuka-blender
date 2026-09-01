@@ -311,9 +311,8 @@ class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
             self.report({'WARNING'}, "No measurement data available.")
             return {'CANCELLED'}
 
-        # store variants + raw data
+        # store variants
         mat["_acoustic_variants_cache"] = variants
-        mat["_acoustic_raw_data"] = data
 
         # Clear the selection rather than land on a variant nobody chose. The
         # dropdown also holds an index into the cache we just replaced, so a
