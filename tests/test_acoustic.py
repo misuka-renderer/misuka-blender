@@ -369,8 +369,8 @@ class StubLayout:
     def separator(self, **kwargs):
         pass
 
-    def label(self, text='', **kwargs):
-        self.drawn.append(('label', text))
+    def label(self, text='', icon='NONE', **kwargs):
+        self.drawn.append(('label', text, icon))
 
     def operator(self, idname, text='', **kwargs):
         self.drawn.append(('operator', idname, text))
@@ -501,7 +501,10 @@ def test_panel_draws_every_band(mat, resolution):
 
 def test_panel_quotes_the_shared_default_rather_than_hardcoding_it(mat):
     drawn = draw_panel(mat)
-    text = ' '.join(entry[-1] for entry in drawn if entry[0] in ('label', 'operator'))
+    # A label records ('label', text, icon) and an operator ('operator', idname,
+    # text), so the text sits at a different index in each.
+    text = ' '.join(entry[1] if entry[0] == 'label' else entry[2]
+                    for entry in drawn if entry[0] in ('label', 'operator'))
 
     # the Reset buttons name the default, built from the constant
     assert str(DEFAULT) in text
@@ -1049,3 +1052,109 @@ def test_a_bad_key_is_not_reported_as_a_missing_material(fake_api):
         io_module.fetch_material('bad key', 'Carpet')
 
     assert len(api.urls) == 1, 'should not have tried the search'
+
+
+def database_heading(material):
+    '''
+    The heading of the matched-entry box, as (text, icon).
+
+    It is the first label the database panel draws: the Load button is an
+    operator, and everything after the heading is the entry itself.
+    '''
+    labels = [(entry[1], entry[2])
+              for entry in draw_panel(material, 'ACOUSTIC_PT_database')
+              if entry[0] == 'label']
+
+    return labels[0]
+
+
+def test_the_panel_reports_a_failed_lookup(mat):
+    mat['_acoustic_loaded_label'] = 'Carpet'
+    mat['_acoustic_loaded_query'] = mat.name
+    mat['_acoustic_lookup_failed'] = True
+
+    assert database_heading(mat) == ('Last lookup failed', 'ERROR')
+
+
+def test_the_panel_names_the_query_when_the_material_was_renamed(mat):
+    '''The entry is still valid, but for the name it was looked up under.'''
+    mat['_acoustic_loaded_label'] = 'Carpet'
+    mat['_acoustic_loaded_query'] = 'Heavy Carpet'
+    mat['_acoustic_lookup_failed'] = False
+    mat.name = 'Ceiling Tile'
+
+    assert database_heading(mat) == ('Loaded for "Heavy Carpet"', 'INFO')
+
+
+def test_an_entry_that_matches_the_material_name_reads_as_matched(mat):
+    mat['_acoustic_loaded_label'] = 'Carpet'
+    mat['_acoustic_loaded_query'] = mat.name
+    mat['_acoustic_lookup_failed'] = False
+
+    assert database_heading(mat) == ('Matched Database Entry', 'CHECKMARK')
+
+    # A .blend saved before the query was recorded carries neither key, and
+    # must keep reading the way it always has rather than be flagged.
+    del mat['_acoustic_loaded_query']
+    del mat['_acoustic_lookup_failed']
+
+    assert database_heading(mat) == ('Matched Database Entry', 'CHECKMARK')
+
+
+def test_a_failed_lookup_outranks_a_rename(mat):
+    mat['_acoustic_loaded_label'] = 'Carpet'
+    mat['_acoustic_loaded_query'] = 'Heavy Carpet'
+    mat['_acoustic_lookup_failed'] = True
+    mat.name = 'Ceiling Tile'
+
+    assert database_heading(mat) == ('Last lookup failed', 'ERROR')
+
+
+@pytest.fixture
+def api_key():
+    '''The operator reads the key from addon preferences, not the environment.'''
+    prefs = bpy.context.preferences.addons['misuka-blender'].preferences
+    previous = prefs.acousticindex_api_key
+    prefs.acousticindex_api_key = 'test-key'
+    yield
+    prefs.acousticindex_api_key = previous
+
+
+MEASURED = {
+    'label': 'Carpet',
+    'manufacturer': 'Acme',
+    'measurements': {'absorption_iso_354': [{'alpha_s_octave': {'250': 0.2}}]},
+}
+
+
+def test_a_successful_lookup_records_the_query_it_matched(mat, fake_api, api_key):
+    fake_api(FakeAPI(ids={'found-id': MEASURED}, search='found-id'))
+    mat.name = 'Heavy Carpet'
+
+    assert run(bpy.ops.acoustic.load_from_api, mat) == {'FINISHED'}
+
+    assert mat['_acoustic_loaded_query'] == 'Heavy Carpet'
+    assert not mat['_acoustic_lookup_failed']
+
+
+def test_a_failed_lookup_leaves_the_previous_entry_in_place(mat, fake_api, api_key):
+    '''
+    The cached variants stay applicable, so they are kept. Only the panel's
+    claim about them changes, which is what the flag is for.
+    '''
+    fake_api(FakeAPI(ids={'found-id': MEASURED}, search='found-id'))
+    mat.name = 'Heavy Carpet'
+    assert run(bpy.ops.acoustic.load_from_api, mat) == {'FINISHED'}
+
+    # nothing matches the new name
+    fake_api(FakeAPI())
+    mat.name = 'Ceiling Tile'
+
+    # reporting ERROR surfaces as a RuntimeError through the Python API
+    with pytest.raises(RuntimeError, match='No AcousticIndex material'):
+        run(bpy.ops.acoustic.load_from_api, mat)
+
+    assert mat['_acoustic_lookup_failed']
+    assert mat['_acoustic_loaded_label'] == 'Carpet'
+    assert mat['_acoustic_loaded_query'] == 'Heavy Carpet'
+    assert len(mat['_acoustic_variants_cache']) == 1
