@@ -255,7 +255,7 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
             oct_data = variant.get("alpha_s_octave")
 
             if third_oct:
-                third_oct_clean = {int(k): v for k, v in third_oct.items()}
+                third_oct_clean = {float(k): v for k, v in third_oct.items()}
                 oct_vals = interpolate_bands(third_oct_clean, OCTAVES)
 
             elif oct_data:
@@ -276,7 +276,7 @@ class ACOUSTIC_OT_apply_variant(bpy.types.Operator):
             s_oct = variant.get("scatter_octave")
 
             if s_terz:
-                s_terz_clean = {int(k): v for k, v in s_terz.items()}
+                s_terz_clean = {float(k): v for k, v in s_terz.items()}
                 s_vals = interpolate_bands(s_terz_clean, OCTAVES, SCATTERING_DEFAULT)
 
             elif s_oct:

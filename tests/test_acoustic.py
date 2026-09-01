@@ -139,14 +139,38 @@ def film_setting(root, kind, name):
 ])
 def test_film_frequencies_follow_the_band_resolution(mat, tmp_path, resolution, expected):
     '''
-    The tape film was pinned to a single 500 Hz band, so eight of the nine
+    The tape film was pinned to a single 500 Hz band, so nine of the ten
     per-material coefficients never reached the simulation.
     '''
     bpy.context.scene.mitsuba.acoustic_band_resolution = resolution
 
     written = film_setting(export_scene(mat, tmp_path), 'string', 'frequencies')
 
-    assert [int(f) for f in written.split(',')] == list(expected)
+    assert [float(f) for f in written.split(',')] == list(expected)
+
+
+def test_the_band_table_covers_31_5_hz():
+    '''
+    Room acoustics is judged below 63 Hz, so the table reaches down an octave
+    further than the nine bands it started with.
+    '''
+    assert len(bands.OCTAVES) == 10
+    assert len(bands.THIRD_OCTAVES) == 30
+
+    assert bands.OCTAVES[0] == 31.5
+    assert bands.THIRD_OCTAVES[:3] == (25, 31.5, 40)
+
+    # every octave centre is a third-octave centre, one octave apart
+    assert set(bands.OCTAVES) <= set(bands.THIRD_OCTAVES)
+    assert bands.OCTAVES == bands.THIRD_OCTAVES[1::3]
+
+
+def test_the_31_5_hz_band_names_a_property_that_can_be_addressed(mat):
+    '''A dot cannot appear in an RNA path, so the property is acoustic_abs_31_5.'''
+    assert bands.ABS_PROPS[0] == 'acoustic_abs_31_5'
+    assert bands.SCAT_PROPS[0] == 'acoustic_scat_31_5'
+
+    mat.path_resolve(bands.ABS_PROPS[0])
 
 
 def test_time_bins_come_from_the_length_and_sampling_rate(mat, tmp_path):
