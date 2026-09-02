@@ -69,6 +69,7 @@ class ExportContext:
         self.exported_mats = ExportedMaterialsCache()
         self.export_ids = False # Export Object IDs in the XML file
         self.exported_ids = set()
+        self.renamed_ids = {} # Names a '.' forced us to rewrite, for the log
         # All the args defined below are set in the Converter
         self.directory = ''
         self.axis_mat = Matrix() # Coordinate shift
@@ -87,6 +88,42 @@ class ExportContext:
         self.acoustic_max_time = 2.0
         self.acoustic_sample_count = 2 ** 18
 
+
+    def sanitize_id(self, name):
+        '''
+        Make one name safe to use as a scene key.
+
+        misuka reserves '.' as a delimiter in object paths and rejects a key
+        containing one, but Blender names every duplicate Light.001, so the
+        dot is replaced rather than treated as the user's mistake. The parser
+        error suggests '_' itself.
+        '''
+        if not isinstance(name, str) or '.' not in name:
+            return name
+
+        clean = name.replace('.', '_')
+
+        # Say it once per name, not once per element that references it.
+        if name not in self.renamed_ids:
+            self.renamed_ids[name] = clean
+            self.log(
+                "Name '%s' contains a '.', which misuka reserves as a path "
+                "delimiter. Exporting it as '%s'." % (name, clean),
+                'WARN'
+            )
+
+        return clean
+
+    def sanitize_refs(self, value):
+        '''Sanitize every id nested anywhere inside an element.'''
+        if isinstance(value, dict):
+            return {
+                key: self.sanitize_id(item) if key == 'id' else self.sanitize_refs(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [self.sanitize_refs(item) for item in value]
+        return value
 
     def data_add(self, mts_dict, name=''):
         '''
@@ -107,17 +144,20 @@ class ExportContext:
             except KeyError:
                 name = 'elm__%i' % self.counter
 
+        name = self.sanitize_id(name)
+        mts_dict = self.sanitize_refs(mts_dict)
+
         self.scene_data.update([(name, mts_dict)])
         self.counter += 1
 
         return True
 
     def data_get(self, name):
-        return self.scene_data.get(name)
+        return self.scene_data.get(self.sanitize_id(name))
 
-    def has_emitter(self):
+    def emitter_names(self):
         '''
-        Whether anything in the scene emits.
+        The name of everything in the scene that emits.
 
         A source is either an emitter plugin of its own, such as the `point`
         a visual export writes, or a shape carrying one, which is what both an
@@ -126,15 +166,14 @@ class ExportContext:
         emitter_types = {'point', 'spot', 'directional', 'constant', 'envmap',
                          'area', 'projector'}
 
-        for element in self.scene_data.values():
+        names = []
+        for name, element in self.scene_data.items():
             if not isinstance(element, dict):
                 continue
-            if 'emitter' in element:
-                return True
-            if element.get('type') in emitter_types:
-                return True
+            if 'emitter' in element or element.get('type') in emitter_types:
+                names.append(name)
 
-        return False
+        return names
 
     def log(self, message, level='INFO'):
         '''
