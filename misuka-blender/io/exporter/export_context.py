@@ -85,6 +85,7 @@ class ExportContext:
         self.acoustic_band_resolution = 'OCTAVE'
         self.acoustic_time_bins = 2000
         self.acoustic_max_time = 2.0
+        self.acoustic_sample_count = 2 ** 18
 
 
     def data_add(self, mts_dict, name=''):

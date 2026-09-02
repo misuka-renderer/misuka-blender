@@ -48,7 +48,7 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
         #TODO: check that distance units are consistent everywhere (e.g. mm everywhere)
         #TODO enable focus thin lens / cam.dof
 
-    
+
     init_rot = Matrix.Rotation(np.pi, 4, 'Y')
     params['to_world'] = export_ctx.transform_matrix(b_camera.matrix_world @ init_rot)
 
@@ -57,6 +57,9 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
     else:
         sampler = {'type' : 'independent'}
         sampler['sample_count'] = b_scene.cycles.samples
+
+    if acoustic_mode:
+        sampler['sample_count'] = export_ctx.acoustic_sample_count
 
     params['sampler'] = sampler
 

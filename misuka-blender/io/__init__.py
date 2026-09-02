@@ -1038,6 +1038,7 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         self.converter.export_ctx.acoustic_band_resolution = mts_settings.acoustic_band_resolution
         self.converter.export_ctx.acoustic_time_bins = acoustic_bands.time_bins(mts_settings)
         self.converter.export_ctx.acoustic_max_time = mts_settings.acoustic_max_time
+        self.converter.export_ctx.acoustic_sample_count = mts_settings.acoustic_sample_count
 
         self.converter.use_selection = self.use_selection
 

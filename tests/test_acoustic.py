@@ -17,6 +17,7 @@ import pytest
 
 io_module = importlib.import_module('misuka-blender.io')
 bands = importlib.import_module('misuka-blender.io.acoustic_bands')
+engine_props = importlib.import_module('misuka-blender.engine.properties')
 
 ABS_PROPS = bands.ABS_PROPS
 SCAT_PROPS = bands.SCAT_PROPS
@@ -317,6 +318,40 @@ def test_film_frequencies_follow_the_band_resolution(mat, tmp_path, resolution, 
     written = film.find("string[@name='frequencies']").get('value')
 
     assert [float(f) for f in written.split(',')] == list(expected)
+
+
+def scene_spp(root):
+    '''
+    Samples the sensor's sampler ends up with, one per frequency band. The
+    XML writer hoists the sensor sample count into a `spp` default, so the
+    sampler itself can carry a `$spp` reference instead of a number.
+    '''
+    sampler = root.find(".//sensor/sampler")
+    assert sampler is not None, 'no sampler in the exported scene'
+
+    value = sampler.find("integer[@name='sample_count']").get('value')
+    if value.startswith('$'):
+        value = root.find(f"default[@name='{value[1:]}']").get('value')
+
+    return int(value)
+
+
+def test_acoustic_export_defaults_to_262144_samples(mat, tmp_path):
+    '''
+    An acoustic run needs far more samples than an image, and the render
+    engine's sample count used to leak into the acoustic scene.
+    '''
+    root = export_scene(mat, tmp_path)
+
+    assert scene_spp(root) == 2 ** 18
+
+
+def test_the_sample_count_setting_reaches_the_exported_scene(mat, tmp_path):
+    bpy.context.scene.mitsuba.acoustic_sample_count = 64
+
+    root = export_scene(mat, tmp_path)
+
+    assert scene_spp(root) == 64
 
 
 def test_the_band_table_covers_31_5_hz(mat):
@@ -733,9 +768,38 @@ def test_film_settings_are_stored_on_the_scene(mat):
     operator_props = bpy.ops.export_scene.mitsuba.get_rna_type().properties
 
     for name in ('acoustic_band_resolution', 'acoustic_max_time',
-                 'acoustic_sampling_rate'):
+                 'acoustic_sampling_rate', 'acoustic_sample_count'):
         assert hasattr(bpy.context.scene.mitsuba, name), name
         assert name not in operator_props, name
+
+
+def draw_integrator_panel():
+    '''Names of the properties the Integrator panel draws, in order.'''
+    drawn = []
+    panel = engine_props.MITSUBA_RENDER_PT_integrator
+    stub = type('Stub', (), {'draw': panel.draw})()
+    stub.layout = StubLayout(drawn)
+    stub.draw(StubContext(None))
+
+    return [name for kind, name, _ in drawn if kind == 'prop']
+
+
+def test_the_sample_count_shows_only_for_the_acoustic_integrator():
+    '''
+    It is a sampler setting in Mitsuba, so it cannot come from
+    integrators.json without being written into the integrator element. The
+    panel draws it beside the settings it trades off against instead.
+    '''
+    settings = bpy.context.scene.mitsuba
+
+    try:
+        settings.active_integrator = 'acoustic_path'
+        assert 'acoustic_sample_count' in draw_integrator_panel()
+
+        settings.active_integrator = 'path'
+        assert 'acoustic_sample_count' not in draw_integrator_panel()
+    finally:
+        settings.active_integrator = 'acoustic_path'
 
 
 def integrator_setting(root, kind, name):
@@ -856,14 +920,15 @@ def test_every_acoustic_property_carries_a_description():
             'acoustic_specular_lobe_width')),
         (scene_props, (
             'acoustic_band_resolution', 'acoustic_interpolation',
-            'acoustic_max_time', 'acoustic_sampling_rate')),
+            'acoustic_max_time', 'acoustic_sampling_rate',
+            'acoustic_sample_count')),
     ):
         for name in names:
             assert name in props, name
             assert props[name].description.strip(), f'{name} has no tooltip'
             checked += 1
 
-    assert checked == 2 * len(bands.THIRD_OCTAVES) + 7
+    assert checked == 2 * len(bands.THIRD_OCTAVES) + 8
 
 
 def test_the_help_points_at_the_scene_settings(mat):

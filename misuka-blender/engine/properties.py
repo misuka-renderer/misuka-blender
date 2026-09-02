@@ -332,6 +332,17 @@ class MitsubaRenderSettings(PropertyGroup):
         default = 'LOG'
     )
 
+    acoustic_sample_count : IntProperty(
+        name = "Samples",
+        description = "Rays traced per frequency band. An acoustic run needs far more of them than an image does. Mitsuba traces an even square number of them most efficiently",
+        default = 2 ** 18,
+        min = 1,
+        # A Blender integer is a signed 32-bit one, so this is the real ceiling.
+        # The slider stops well short of it, since nothing sensible goes there.
+        max = 2 ** 31 - 1,
+        soft_max = 2 ** 28
+    )
+
     acoustic_max_time : FloatProperty(
         name = "Max Time",
         description = "How long a tail the impulse response captures, in seconds. Longer costs proportionally more time bins",
@@ -437,6 +448,12 @@ class MITSUBA_RENDER_PT_integrator(bpy.types.Panel):
         mts_settings = context.scene.mitsuba
         layout.prop(mts_settings, "active_integrator", text="Integrator")
         getattr(mts_settings.available_integrators, mts_settings.active_integrator).draw(layout)
+
+        # The sample count is a sampler setting in Mitsuba, so it cannot live in
+        # integrators.json without being written into the integrator element.
+        # It still belongs beside the settings it trades off against.
+        if mts_settings.active_integrator == 'acoustic_path':
+            layout.prop(mts_settings, "acoustic_sample_count")
 
 class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
     '''
