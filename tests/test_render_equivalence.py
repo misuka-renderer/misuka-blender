@@ -21,9 +21,14 @@ import bpy
 import numpy as np
 import pytest
 
+from fixtures import skip_on_windows
+
 
 RESOLUTION = 64
 SAMPLES = 32
+
+# Every test here renders the exported scene, which means instantiating it.
+pytestmark = skip_on_windows
 
 
 @pytest.fixture
