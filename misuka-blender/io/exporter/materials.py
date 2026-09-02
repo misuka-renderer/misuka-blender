@@ -509,9 +509,10 @@ def b_material_to_dict(export_ctx, b_mat):
 
     if b_mat.use_nodes:
         try:
-            output_node_id = 'Material Output'
-            if output_node_id in b_mat.node_tree.nodes:
-                output_node = b_mat.node_tree.nodes[output_node_id]
+            # 'ALL' is the target-agnostic output node, the one the misuka
+            # panels draw. Looking it up by name broke on a renamed node.
+            output_node = b_mat.node_tree.get_output_node('ALL')
+            if output_node is not None:
                 surface_node = output_node.inputs["Surface"].links[0].from_node
                 mat_params = cycles_material_to_dict(export_ctx, surface_node, b_mat)
             else:
@@ -588,11 +589,10 @@ def convert_world(export_ctx, world, ignore_background):
         return
 
     if world.use_nodes and world.node_tree is not None:
-        output_node_id = 'World Output'
-        if output_node_id not in world.node_tree.nodes:
+        output_node = world.node_tree.get_output_node('ALL')
+        if output_node is None:
             export_ctx.log('Failed to export world: Cannot find world output node.', 'WARN')
             return
-        output_node = world.node_tree.nodes[output_node_id]
         if not output_node.inputs["Surface"].is_linked:
             return
         surface_node = output_node.inputs["Surface"].links[0].from_node

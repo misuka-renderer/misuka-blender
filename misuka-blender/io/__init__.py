@@ -604,9 +604,14 @@ class AcousticPanel:
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "material"
+    COMPAT_ENGINES = {'MITSUBA'}
 
     @classmethod
     def poll(cls, context):
+        # An acoustic export needs the misuka engine, so its settings belong
+        # there and nowhere else.
+        if context.engine not in cls.COMPAT_ENGINES:
+            return False
         return getattr(context, "material", None) is not None
 
 

@@ -54,21 +54,21 @@ class SceneConverter:
 
         # --- Integrator setup ---
         if acoustic_mode:
-            # Force the acoustic integrator whatever the render engine is.
-            # The engine only decides where its other settings come from.
-            if b_scene.render.engine == 'MITSUBA':
-                integrator = getattr(
-                    b_scene.mitsuba.available_integrators,
-                    "acoustic_path"
-                ).to_dict()
-            else:
-                # No misuka settings to read, so mirror the defaults declared
-                # for acoustic_path in engine/integrators.json.
-                integrator = {
-                    'type': 'acoustic_path',
-                    'max_depth': -1,
-                    'max_energy_loss': 300.0,
-                }
+            # The acoustic settings live on the misuka engine, so an acoustic
+            # export needs it selected. Say so rather than writing a scene from
+            # settings the user cannot see.
+            if b_scene.render.engine != 'MITSUBA':
+                raise RuntimeError(
+                    "An Acoustic export needs the misuka render engine. Set "
+                    "Render Properties > Render Engine to misuka, or choose "
+                    "the Visual export mode."
+                )
+
+            # Force the acoustic integrator whatever the Integrator panel says.
+            integrator = getattr(
+                b_scene.mitsuba.available_integrators,
+                "acoustic_path"
+            ).to_dict()
 
             # Required for acoustic integrator
             integrator['max_time'] = self.export_ctx.acoustic_max_time

@@ -460,8 +460,8 @@ class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
     Acoustic counterpart to Blender's Format panel.
 
     Image resolution and the acoustic band and time resolution are the same kind
-    of setting, so they belong next to each other. This panel is not gated on the
-    render engine: acoustic export works from Cycles as well as misuka.
+    of setting, so they belong next to each other. An acoustic export needs the
+    misuka engine, so this panel is gated on it like the rest of the acoustic UI.
     '''
 
     bl_idname = "MITSUBA_OUTPUT_PT_acoustic_film"
@@ -469,6 +469,11 @@ class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = 'output'
+    COMPAT_ENGINES = {'MITSUBA'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.engine in cls.COMPAT_ENGINES
 
     def draw(self, context):
         layout = self.layout
@@ -505,6 +510,12 @@ class MITSUBA_CAMERA_PT_sampler(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = 'render'
+    COMPAT_ENGINES = {'MITSUBA'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.engine in cls.COMPAT_ENGINES
+
     def draw(self, context):
         layout = self.layout
         if hasattr(context.scene.camera, 'data'):
@@ -518,6 +529,12 @@ class MITSUBA_CAMERA_PT_rfilter(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = 'render'
+    COMPAT_ENGINES = {'MITSUBA'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.engine in cls.COMPAT_ENGINES
+
     def draw(self, context):
         layout = self.layout
         if hasattr(context.scene.camera, 'data'):
@@ -538,6 +555,8 @@ def draw_device(self, context):
         col.prop(mts_settings, "variant")
 
 def register():
+    from . import panels
+    panels.register()
     bpy.types.RENDER_PT_context.append(draw_device)
     bpy.utils.register_class(MitsubaRenderSettings)
     bpy.utils.register_class(MitsubaCameraSettings)
@@ -547,6 +566,8 @@ def register():
     bpy.utils.register_class(MITSUBA_CAMERA_PT_rfilter)
 
 def unregister():
+    from . import panels
+    panels.unregister()
     bpy.types.RENDER_PT_context.remove(draw_device)
     bpy.utils.unregister_class(MitsubaRenderSettings)
     bpy.utils.unregister_class(MitsubaCameraSettings)
