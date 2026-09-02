@@ -97,7 +97,9 @@ class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
                 col, context,
                 "Radius is only used in an Acoustic export, to build a "
                 "spherical emitter. A Visual export ignores it and writes a "
-                "source with no size."
+                "source with no size.",
+                "For a source that behaves the same in both modes, give a "
+                "sphere mesh an Emission material instead."
             )
         elif light.type == 'AREA':
             col.prop(light, "shape")
