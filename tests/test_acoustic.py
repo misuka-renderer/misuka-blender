@@ -256,11 +256,28 @@ def read_spectrum(bsdf, name):
     ]
 
 
+def add_point_light(power, radius):
+    bpy.ops.object.light_add(type='POINT')
+    light = bpy.context.active_object
+    light.data.energy = power
+    light.data.shadow_soft_size = radius
+    return light
+
+
 def export_scene(mat, tmp_path, export_mode='ACOUSTIC', **kwargs):
-    '''Export a single cube carrying `mat` and return the parsed scene root.'''
+    '''
+    Export a single cube carrying `mat` and return the parsed scene root.
+
+    An acoustic export needs a source, so add a point light unless the test
+    already placed one of its own.
+    '''
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
+
+    has_light = any(ob.type == 'LIGHT' for ob in bpy.data.objects)
+    if export_mode == 'ACOUSTIC' and not has_light:
+        add_point_light(100.0, 0.5)
 
     path = os.path.join(str(tmp_path), 'scene.xml')
 
@@ -353,14 +370,6 @@ def test_the_sample_count_setting_reaches_the_exported_scene(mat, tmp_path):
     root = export_scene(mat, tmp_path)
 
     assert scene_spp(root) == 64
-
-
-def add_point_light(power, radius):
-    bpy.ops.object.light_add(type='POINT')
-    light = bpy.context.active_object
-    light.data.energy = power
-    light.data.shadow_soft_size = radius
-    return light
 
 
 def source_sphere(root):
@@ -1263,3 +1272,74 @@ def test_a_failed_lookup_leaves_the_previous_entry_in_place(mat, fake_api, api_k
     assert mat['_acoustic_loaded_label'] == 'Carpet'
     assert mat['_acoustic_loaded_query'] == 'Heavy Carpet'
     assert len(mat['_acoustic_variants_cache']) == 1
+
+
+@pytest.mark.parametrize('light_type', ['SUN', 'SPOT', 'AREA'])
+def test_an_acoustic_export_skips_non_point_lights(mat, tmp_path, light_type):
+    '''
+    Only convert_point_light() builds the sphere an acoustic source needs. The
+    others wrote radiance tinted by the light color, which means nothing here.
+    '''
+    add_point_light(100.0, 0.5)
+    bpy.ops.object.light_add(type=light_type)
+
+    root = export_scene(mat, tmp_path)
+
+    assert root.find(".//emitter[@type='directional']") is None
+    assert root.find(".//emitter[@type='spot']") is None
+    assert root.find(".//shape[@type='rectangle']") is None
+    # the point light is still there
+    assert root.find(".//shape[@type='sphere']") is not None
+
+
+@pytest.mark.parametrize('light_type', ['SUN', 'SPOT', 'AREA'])
+def test_a_visual_export_still_writes_every_light_type(mat, tmp_path, light_type):
+    bpy.ops.object.light_add(type=light_type)
+
+    root = export_scene(mat, tmp_path, export_mode='VISUAL')
+
+    expected = {
+        'SUN': ".//emitter[@type='directional']",
+        'SPOT': ".//emitter[@type='spot']",
+        'AREA': ".//shape[@type='rectangle']",
+    }[light_type]
+    assert root.find(expected) is not None
+
+
+def test_an_acoustic_export_without_a_source_is_refused(mat, tmp_path):
+    '''A scene with nothing to emit used to export silently.'''
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    with pytest.raises(RuntimeError, match='no emitter'):
+        bpy.ops.export_scene.mitsuba(filepath=path, export_mode='ACOUSTIC')
+
+
+def test_an_emission_mesh_counts_as_a_source(mat, tmp_path):
+    '''
+    The Emitter panel points at this as the way to get an emitter that behaves
+    the same in both modes, so it has to satisfy the source check.
+    '''
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5)
+    emissive = bpy.data.materials.new('Emitter')
+    emissive.use_nodes = True
+    tree = emissive.node_tree
+    for node in list(tree.nodes):
+        if node.type != 'OUTPUT_MATERIAL':
+            tree.nodes.remove(node)
+    emission = tree.nodes.new('ShaderNodeEmission')
+    tree.links.new(emission.outputs[0],
+                   tree.get_output_node('ALL').inputs['Surface'])
+    bpy.context.active_object.data.materials.append(emissive)
+
+    bpy.ops.object.camera_add()
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+    assert root.find(".//emitter[@type='area']") is not None

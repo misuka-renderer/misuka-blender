@@ -149,6 +149,12 @@ class SceneConverter:
             else:
                 self.export_ctx.log("Object: %s of type '%s' is not supported!" % (evaluated_obj.name_full, object_type), 'WARN')
 
+        if acoustic_mode and not self.export_ctx.has_emitter():
+            raise RuntimeError(
+                "This acoustic scene has no emitter. Add a point light, or "
+                "give a mesh an Emission material, and export again."
+            )
+
     def dict_to_xml(self):
         from misuka import parser, variant
         config = parser.ParserConfig(variant())
