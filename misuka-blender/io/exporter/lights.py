@@ -83,8 +83,6 @@ def convert_point_light(b_light, export_ctx):
     # misuka Acoustic Mode
     # ======================================
 
-    energy = b_light.data.energy / (4*np.pi)
-
     transform = export_ctx.transform_matrix(b_light.matrix_world)
     position = list(transform.translation())
 
@@ -92,6 +90,11 @@ def convert_point_light(b_light, export_ctx):
     radius = b_light.data.shadow_soft_size
     if radius <= 0:
         radius = 0.1  #Fallback
+
+    # An area emitter of radiance L on a sphere of radius r emits
+    # pi * 4 * pi * r^2 * L in total, so this makes the source emit the
+    # light's Power whatever the radius, the same as Blender does.
+    radiance = b_light.data.energy / (4 * np.pi**2 * radius**2)
 
     return {
         'type': 'sphere',
@@ -101,7 +104,7 @@ def convert_point_light(b_light, export_ctx):
             'type': 'area',
             'radiance': {
                 'type': 'uniform',
-                'value': float(energy)
+                'value': float(radiance)
             }
         },
         #emitter as source and not reflecting
