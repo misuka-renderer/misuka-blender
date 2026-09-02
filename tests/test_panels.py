@@ -301,14 +301,21 @@ def test_the_panels_read_the_same_output_node_as_the_exporter():
 
 # --- Acoustic settings live on the misuka engine ----------------------------
 
-ACOUSTIC_PANELS = (
-    'ACOUSTIC_PT_material',
-    'ACOUSTIC_PT_database_help',
-    'ACOUSTIC_PT_database',
-    'ACOUSTIC_PT_coefficients_help',
-    'ACOUSTIC_PT_coefficients',
-    'ACOUSTIC_PT_specular',
-)
+def acoustic_panels():
+    '''
+    Every acoustic panel the add-on registers.
+
+    Discovered rather than listed, so a panel added or retired later is still
+    covered. The two help panels are already on their way out once the docs
+    land, see misuka-renderer/misuka-blender#14.
+    '''
+    found = [
+        getattr(io_module, name)
+        for name in dir(io_module)
+        if name.startswith('ACOUSTIC_PT_')
+    ]
+    assert found, 'no acoustic panels found'
+    return found
 
 MISUKA_PANELS = (
     'MITSUBA_RENDER_PT_integrator',
@@ -322,8 +329,8 @@ MISUKA_PANELS = (
 def test_acoustic_material_panels_are_misuka_only(engine, other):
     mat = bpy.data.materials.new('TestMaterial')
     try:
-        for name in ACOUSTIC_PANELS:
-            panel = getattr(io_module, name)
+        for panel in acoustic_panels():
+            name = panel.__name__
 
             engine('MITSUBA')
             assert panel.poll(StubContext(material=mat)), name
