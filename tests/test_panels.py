@@ -178,6 +178,22 @@ def test_only_a_point_light_claims_the_color_is_dropped(engine, make_light):
     assert 'Color is only used' not in notes(make_light('AREA'))
 
 
+@pytest.mark.parametrize('light_type', ['SPOT', 'SUN', 'AREA'])
+def test_a_non_point_light_says_an_acoustic_export_skips_it(
+        engine, make_light, light_type):
+    '''Matches what export_light() actually does with them.'''
+    engine('MITSUBA')
+
+    drawn = []
+    stub = type('Stub', (), {'draw': panels.MITSUBA_LIGHT_PT_light.draw})()
+    stub.layout = StubLayout(drawn)
+    stub.draw(StubContext(light=make_light(light_type)))
+
+    text = ' '.join(t for kind, t in drawn if kind == 'label')
+    assert 'only supports point lights' in text
+    assert 'skipped' in text
+
+
 def test_a_spot_light_shows_beam_shape(engine, make_light):
     spot = make_light('SPOT')
     engine('MITSUBA')

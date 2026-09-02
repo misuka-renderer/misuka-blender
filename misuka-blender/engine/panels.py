@@ -60,6 +60,42 @@ def node_view(layout, id_data, input_name):
     return True
 
 
+def export_notes(light):
+    '''
+    What each export mode does with this light.
+
+    Only a point light becomes an acoustic source, a sphere carrying an area
+    emitter, so the other types say plainly that an Acoustic export skips them.
+    '''
+    if light.type == 'POINT':
+        return [
+            "Color is only used in a Visual export. An Acoustic export builds "
+            "a uniform emission spectrum from Power alone.",
+            "The radius is only used in an Acoustic export, to build a "
+            "spherical emitter. A Visual export ignores it and writes an "
+            "emitter with no size.",
+            "For an emitter that behaves the same in both modes, give a "
+            "sphere mesh an Emission material instead.",
+        ]
+
+    notes = [
+        "An Acoustic export only supports point lights, so this light is "
+        "skipped. A Visual export uses it normally.",
+    ]
+
+    if light.type == 'SPOT':
+        notes.append(
+            "The radius does nothing here. A Visual export writes a spot "
+            "emitter with no size."
+        )
+
+    notes.append(
+        "For an emitter an Acoustic export can use, switch this light to "
+        "Point, or give a sphere mesh an Emission material."
+    )
+    return notes
+
+
 class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
     '''
     Replaces DATA_PT_EEVEE_light, and DATA_PT_light along with it, since that
@@ -89,30 +125,6 @@ class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
 
         if light.type in {'POINT', 'SPOT'}:
             col.prop(light, "shadow_soft_size", text="Radius")
-
-            # Which export mode is running is a setting on the export operator,
-            # so no panel can read it. Name both cases instead. label() does
-            # not wrap, so this goes through the same helper as the acoustic
-            # material help.
-            notes = [
-                "The radius is only used in an Acoustic export, to build a "
-                "spherical emitter. A Visual export ignores it and writes an "
-                "emitter with no size.",
-                "For an emitter that behaves the same in both modes, give a "
-                "sphere mesh an Emission material instead.",
-            ]
-
-            # Only convert_point_light() drops the color in Acoustic mode. The
-            # spot, sun and area converters still write a tinted RGB value, so
-            # this cannot be said for them yet.
-            if light.type == 'POINT':
-                notes.insert(0,
-                    "Color is only used in a Visual export. An Acoustic "
-                    "export builds a uniform emission spectrum from Power "
-                    "alone."
-                )
-
-            draw_paragraphs(col, context, *notes)
         elif light.type == 'AREA':
             col.prop(light, "shape")
 
@@ -125,6 +137,13 @@ class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
 
         # A SUN light exports as `directional`, which has no angular size, so
         # there is nothing beyond color and energy to show.
+
+        # Which export mode is running is a setting on the export operator, so
+        # no panel can read it. Name both cases instead. label() does not wrap,
+        # so the notes go through the same helper as the acoustic material
+        # help.
+        col.separator()
+        draw_paragraphs(col, context, *export_notes(light))
 
 
 class MITSUBA_LIGHT_PT_beam_shape(MitsubaPanel, bpy.types.Panel):
