@@ -82,7 +82,8 @@ jobs:
           echo "Untested territory - use a tagged release for anything that matters."
           echo
           echo "Commit: ${{ github.sha }}"
-          echo "Built: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          # %Z resolves to CET or CEST, so the line stays right across the switch.
+          echo "Built: $(TZ=Europe/Berlin date '+%Y-%m-%d %H:%M %Z')"
         } > nightly_body.md
 
     - name: Refresh the nightly prerelease
