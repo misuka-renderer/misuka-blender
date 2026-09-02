@@ -19,6 +19,7 @@ import pytest
 io_module = importlib.import_module('misuka-blender.io')
 bands = importlib.import_module('misuka-blender.io.acoustic_bands')
 engine_props = importlib.import_module('misuka-blender.engine.properties')
+docs_module = importlib.import_module('misuka-blender.docs')
 
 ABS_PROPS = bands.ABS_PROPS
 SCAT_PROPS = bands.SCAT_PROPS
@@ -442,6 +443,23 @@ def test_the_band_table_covers_31_5_hz(mat):
     mat.path_resolve(prop)
 
 
+class StubOperatorProps:
+    '''
+    Stand-in for what `UILayout.operator()` returns.
+
+    Blender hands back the operator's properties so the caller can set them,
+    which is how the HELP buttons carry their URL. Recording the assignment is
+    what lets a test read that URL back.
+    '''
+
+    def __init__(self, drawn, idname):
+        object.__setattr__(self, '_drawn', drawn)
+        object.__setattr__(self, '_idname', idname)
+
+    def __setattr__(self, name, value):
+        self._drawn.append(('operator_prop', self._idname, name, value))
+
+
 class StubLayout:
     '''
     Minimal stand-in for Blender's UILayout.
@@ -473,7 +491,7 @@ class StubLayout:
 
     def operator(self, idname, text='', **kwargs):
         self.drawn.append(('operator', idname, text))
-        return StubLayout(self.drawn)
+        return StubOperatorProps(self.drawn, idname)
 
     def prop(self, data, name, index=-1, **kwargs):
         value = getattr(data, name)
@@ -492,9 +510,7 @@ class StubContext:
 
 ACOUSTIC_PANELS = (
     'ACOUSTIC_PT_material',
-    'ACOUSTIC_PT_database_help',
     'ACOUSTIC_PT_database',
-    'ACOUSTIC_PT_coefficients_help',
     'ACOUSTIC_PT_coefficients',
     'ACOUSTIC_PT_specular',
 )
@@ -511,9 +527,17 @@ def draw_panel(mat, only=None):
 
     for name in (only,) if only else ACOUSTIC_PANELS:
         panel = getattr(io_module, name)
+        context = StubContext(mat)
+
+        # The HELP buttons live in the header, so it has to be drawn too.
+        if hasattr(panel, 'draw_header'):
+            header = type('Stub', (), {'draw_header': panel.draw_header})()
+            header.layout = StubLayout(drawn)
+            header.draw_header(context)
+
         stub = type('Stub', (), {'draw': panel.draw})()
         stub.layout = StubLayout(drawn)
-        stub.draw(StubContext(mat))
+        stub.draw(context)
 
     return drawn
 
@@ -527,36 +551,19 @@ def test_the_sections_are_real_subpanels(mat):
                for name in ACOUSTIC_PANELS
                if hasattr(getattr(io_module, name), 'bl_parent_id')}
 
-    # Blender draws a panel's own content before its subpanels, so a help block
-    # nested in its section could only ever sit below it. They are siblings
-    # registered just ahead of the section they introduce instead.
     assert parents == {
-        'ACOUSTIC_PT_database_help': 'ACOUSTIC_PT_material',
         'ACOUSTIC_PT_database': 'ACOUSTIC_PT_material',
-        'ACOUSTIC_PT_coefficients_help': 'ACOUSTIC_PT_material',
         'ACOUSTIC_PT_coefficients': 'ACOUSTIC_PT_material',
         'ACOUSTIC_PT_specular': 'ACOUSTIC_PT_material',
     }
 
-    # and each help block is registered before the section it introduces
-    order = list(io_module.classes)
-    for help_panel, section in (
-        ('ACOUSTIC_PT_database_help', 'ACOUSTIC_PT_database'),
-        ('ACOUSTIC_PT_coefficients_help', 'ACOUSTIC_PT_coefficients'),
-    ):
-        assert order.index(getattr(io_module, help_panel)) < \
-            order.index(getattr(io_module, section)), help_panel
 
-
-def test_the_help_subpanels_start_closed(mat):
-    '''They explain the section they sit in, so they are in the way once read.'''
-    closed = {'DEFAULT_CLOSED'}
-
-    assert io_module.ACOUSTIC_PT_database_help.bl_options == closed
-    assert io_module.ACOUSTIC_PT_coefficients_help.bl_options == closed
-
-    # the sections themselves start open
-    for name in ('ACOUSTIC_PT_database', 'ACOUSTIC_PT_coefficients'):
+def test_the_sections_start_open(mat):
+    '''
+    Every section carries settings the user came for, so none of them is
+    collapsed by default.
+    '''
+    for name in ACOUSTIC_PANELS:
         options = getattr(getattr(io_module, name), 'bl_options', set())
         assert 'DEFAULT_CLOSED' not in options, name
 
@@ -607,19 +614,6 @@ def test_panel_quotes_the_shared_default_rather_than_hardcoding_it(mat):
 
     # the Reset buttons name the default, built from the constant
     assert str(DEFAULT) in text
-
-
-@pytest.mark.parametrize('panel, opening', [
-    ('ACOUSTIC_PT_coefficients_help', 'Values are exported'),
-    ('ACOUSTIC_PT_database_help', 'Set an Acoustic Index API key'),
-])
-def test_the_help_text_is_wrapped_to_the_panel(mat, panel, opening):
-    '''Blender labels do not wrap, so the help text is broken up by hand.'''
-    labels = [entry[1] for entry in draw_panel(mat, panel) if entry[0] == 'label']
-
-    assert any(line.startswith(opening) for line in labels), labels
-    # wrapped, not one long line, and no line long enough to be clipped
-    assert all(len(line) <= 80 for line in labels), max(labels, key=len)
 
 
 def load_variant(mat, *variants, select=0):
@@ -995,18 +989,25 @@ def test_every_acoustic_property_carries_a_description():
     assert checked == 2 * len(bands.THIRD_OCTAVES) + 8
 
 
-def test_the_help_points_at_the_scene_settings(mat):
+def test_every_section_links_to_its_documentation(mat):
     '''
-    Band Resolution and Interpolation are single scene settings, so the panel
-    says where they are rather than drawing a second copy of them.
+    Each section explains itself through a HELP button rather than a block of
+    panel-local prose, so the explanation can be longer than a panel fits.
     '''
-    text = ' '.join(entry[1] for entry in
-                    draw_panel(mat, 'ACOUSTIC_PT_coefficients_help')
-                    if entry[0] == 'label')
+    drawn = draw_panel(mat)
 
-    # both are single scene settings, so the help points at them by location
-    assert 'octave or third-octave bands in the Output properties' in text
-    assert 'linear or logarithmic interpolation in the Output properties' in text
+    urls = {value for kind, idname, name, value in
+            (entry for entry in drawn if entry[0] == 'operator_prop')
+            if idname == 'wm.url_open' and name == 'url'}
+
+    assert urls == {
+        docs_module.DOCS_URL + 'guide/acousticindex.html',
+        docs_module.DOCS_URL + 'guide/acoustic-materials.html',
+        docs_module.DOCS_URL + 'guide/acoustic-materials.html#specular-reflection',
+    }
+
+    # every link is absolute, so it resolves from Blender's own browser call
+    assert all(url.startswith('https://') for url in urls)
 
 
 @pytest.mark.parametrize('engine, export_mode, integrator, film', [

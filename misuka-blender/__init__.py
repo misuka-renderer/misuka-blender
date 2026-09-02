@@ -6,7 +6,10 @@ bl_info = {
     'category': 'Render',
     'location': 'File menu, render engine menu',
     'description': 'misuka integration for Blender',
-    'wiki_url': 'https://github.com/misuka-renderer/misuka-blender',
+    # Blender's Documentation button. Kept as a literal because Blender
+    # parses bl_info instead of importing it; DOCS_URL in docs.py is the
+    # same URL for everything that can import.
+    'wiki_url': 'https://misuka-blender.readthedocs.io/latest/',
     'tracker_url': 'https://github.com/misuka-renderer/misuka-blender/issues/new/choose',
     #'warning': 'alpha',
 }
@@ -22,6 +25,7 @@ import subprocess
 
 from . import io, engine
 from .io import draw_paragraphs
+from .docs import draw_help_button
 
 DEPS_MITSUBA_VERSION = '0.1.0'
 
@@ -483,6 +487,8 @@ class MitsubaPreferences(AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
+
+        draw_help_button(layout, "installation.html")
 
         row = layout.row()
         icon = 'ERROR'

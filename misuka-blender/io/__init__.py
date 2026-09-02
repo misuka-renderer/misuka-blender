@@ -29,6 +29,7 @@ from . import bl_utils
 from . import acoustic_bands
 from . import importer
 from . import exporter
+from ..docs import draw_help_button
 from .acoustic_bands import (
         ABS_PROPS,
         ACOUSTIC_DEFAULT,
@@ -629,33 +630,14 @@ class ACOUSTIC_PT_material(AcousticPanel, bpy.types.Panel):
         pass
 
 
-# Panel-local documentation, on borrowed time until the docs land: see
-# misuka-renderer/misuka-blender#14.
-class ACOUSTIC_PT_database_help(AcousticPanel, bpy.types.Panel):
-
-    bl_idname = "ACOUSTIC_PT_database_help"
-    bl_parent_id = "ACOUSTIC_PT_material"
-    bl_label = "Database: How to use"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        draw_paragraphs(
-            self.layout, context,
-            "Set an Acoustic Index API key in the add-on preferences, then "
-            "name this material after a database entry, or paste its product "
-            "id as the name.",
-            "Load from Database looks the name up as an id first, then as "
-            "a name, and fetches the match with all its measured variants. "
-            "Pick one and Apply Variant writes its coefficients into the "
-            "table below, ticking the bands where it contains values.",
-        )
-
-
 class ACOUSTIC_PT_database(AcousticPanel, bpy.types.Panel):
 
     bl_idname = "ACOUSTIC_PT_database"
     bl_parent_id = "ACOUSTIC_PT_material"
     bl_label = "Acoustic Index Database"
+
+    def draw_header(self, context):
+        draw_help_button(self.layout, "guide/acousticindex.html")
 
     def draw(self, context):
 
@@ -708,35 +690,14 @@ class ACOUSTIC_PT_database(AcousticPanel, bpy.types.Panel):
         )
 
 
-class ACOUSTIC_PT_coefficients_help(AcousticPanel, bpy.types.Panel):
-
-    bl_idname = "ACOUSTIC_PT_coefficients_help"
-    bl_parent_id = "ACOUSTIC_PT_material"
-    bl_label = "Coefficients: How to use"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        # Only what is not already covered by a tooltip or visible in the table
-        # itself. The band values, the Keep ticks and the two dropdowns all
-        # carry their own descriptions.
-        draw_paragraphs(
-            self.layout, context,
-            "Values are exported exactly as shown. Select octave or "
-            "third-octave bands in the Output properties.",
-            "Tick 'Keep' to mark values you want to keep. Editing a value "
-            "ticks it for you.",
-            "'Interpolate' overwrites every unticked value by interpolating "
-            "between the ticked ones. Select linear or logarithmic "
-            "interpolation in the Output properties. Values outside the "
-            "ticked range take the value of the nearest ticked value.",
-        )
-
-
 class ACOUSTIC_PT_coefficients(AcousticPanel, bpy.types.Panel):
 
     bl_idname = "ACOUSTIC_PT_coefficients"
     bl_parent_id = "ACOUSTIC_PT_material"
     bl_label = "Coefficients"
+
+    def draw_header(self, context):
+        draw_help_button(self.layout, "guide/acoustic-materials.html")
 
     def draw(self, context):
         '''
@@ -811,6 +772,11 @@ class ACOUSTIC_PT_specular(AcousticPanel, bpy.types.Panel):
     bl_idname = "ACOUSTIC_PT_specular"
     bl_parent_id = "ACOUSTIC_PT_material"
     bl_label = "Specular Reflection"
+
+    def draw_header(self, context):
+        draw_help_button(
+            self.layout,
+            "guide/acoustic-materials.html#specular-reflection")
 
     def draw(self, context):
         col = self.layout.column()
@@ -1085,9 +1051,7 @@ classes = (
     ImportMistuba,
     ExportMitsuba,
     ACOUSTIC_PT_material,
-    ACOUSTIC_PT_database_help,
     ACOUSTIC_PT_database,
-    ACOUSTIC_PT_coefficients_help,
     ACOUSTIC_PT_coefficients,
     ACOUSTIC_PT_specular,
     ACOUSTIC_OT_reset_abs,

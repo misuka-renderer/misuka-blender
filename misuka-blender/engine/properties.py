@@ -13,6 +13,7 @@ import os
 from os.path import basename, dirname
 
 from ..io import acoustic_bands
+from ..docs import draw_help_button
 
 import json
 # Read plugin data from JSON files
@@ -475,6 +476,9 @@ class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         return context.engine in cls.COMPAT_ENGINES
+
+    def draw_header(self, context):
+        draw_help_button(self.layout, "guide/scene-settings.html")
 
     def draw(self, context):
         layout = self.layout
