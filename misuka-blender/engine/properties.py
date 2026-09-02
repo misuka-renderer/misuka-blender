@@ -465,7 +465,7 @@ class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
     '''
 
     bl_idname = "MITSUBA_OUTPUT_PT_acoustic_film"
-    bl_label = "misuka Acoustic Format"
+    bl_label = "Acoustic Format"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = 'output'
