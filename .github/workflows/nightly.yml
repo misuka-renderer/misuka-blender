@@ -1,0 +1,102 @@
+# Nightly build of master: runs the full matrix, then refreshes a single
+# rolling `nightly` prerelease so testers always have one download link.
+#
+# This is separate from release.yml on purpose. Tagged releases stay manual
+# (workflow_dispatch there); nothing here creates or touches a v* tag.
+name: Nightly
+
+on:
+  schedule:
+    # 03:00 UTC. GitHub runs scheduled workflows late when the queue is busy.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  # Quiet days cost nothing: skip the 8-cell matrix when master has not moved.
+  # Manual runs always go ahead.
+  guard:
+    name: "Check for new commits"
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Look for commits in the last 24 hours
+      id: check
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "Manual run - building regardless of commit activity."
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        elif [ -n "$(git log -1 --since='24 hours ago' --format=%H)" ]; then
+          echo "master moved since yesterday - building."
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "No new commits on master - skipping tonight's build."
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        fi
+
+  # Gate the nightly on every combination, same as release.yml does.
+  tests:
+    needs: [guard]
+    if: needs.guard.outputs.changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        blender-version: ["3.6", "4.2", "4.5", "5.2"]
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      os: ${{ matrix.os }}
+      blender-version: ${{ matrix.blender-version }}
+
+  package:
+    name: "Package Nightly"
+    needs: [tests]
+    runs-on: "ubuntu-latest"
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v7
+
+    - name: Setup Python
+      uses: "actions/setup-python@v7"
+      with:
+        # setup-python v2 defaulted to 3.x; v7 dropped the default and falls back
+        # to the system interpreter, which is externally managed on Ubuntu.
+        python-version: "3.x"
+
+    - name: Create package
+      run: python release/package.py
+
+    - name: Write release body
+      run: |
+        {
+          echo "Automated build of \`master\`, refreshed whenever master changes."
+          echo "Untested territory - use a tagged release for anything that matters."
+          echo
+          echo "Commit: ${{ github.sha }}"
+          echo "Built: $(date -u '+%Y-%m-%d %H:%M UTC')"
+        } > nightly_body.md
+
+    - name: Refresh the nightly prerelease
+      uses: ncipollo/release-action@v1
+      with:
+        tag: nightly
+        commit: ${{ github.sha }}
+        artifacts: "misuka-blender.zip"
+        artifactErrorsFailBuild: true
+        bodyFile: "nightly_body.md"
+        name: "misuka Blender nightly"
+        prerelease: true
+        # Move the existing `nightly` tag and replace its assets in place, and
+        # keep the newest v* tag as the release GitHub shows as "Latest".
+        allowUpdates: true
+        removeArtifacts: true
+        makeLatest: false
