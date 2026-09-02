@@ -10,6 +10,12 @@ import os
 RoughnessMode = {'GGX': 'ggx', 'BECKMANN': 'beckmann', 'ASHIKHMIN_SHIRLEY':'beckmann', 'MULTI_GGX':'ggx'}
 #TODO: update when other distributions are supported
 
+# Colorspaces whose pixels are already linear, with sRGB primaries. misuka must
+# not gamma decode those a second time. Blender renames them between versions:
+# 'Linear' became 'Linear Rec.709' in 4.0, and a name we don't know here is read
+# as sRGB, which is what made linear textures export too dark.
+LINEAR_COLORSPACES = ['Non-Color', 'Raw', 'Linear', 'Linear Rec.709', 'Linear BT.709']
+
 def export_texture_node(export_ctx, tex_node):
     params = {
         'type':'bitmap'
@@ -17,58 +23,110 @@ def export_texture_node(export_ctx, tex_node):
     #get the relative path to the copied texture from the full path to the original texture
     params['filename'] = export_ctx.export_texture(tex_node.image)
     #TODO: texture transform (mapping node)
-    if tex_node.image.colorspace_settings.name in ['Non-Color', 'Raw', 'Linear']:
+    colorspace = tex_node.image.colorspace_settings.name
+    if colorspace in LINEAR_COLORSPACES:
         #non color data, tell mitsuba not to apply gamma conversion to it
         params['raw'] = True
-    elif tex_node.image.colorspace_settings.name != 'sRGB':
-        export_ctx.log("misuka only supports sRGB textures for color data.", 'WARN')
+    elif colorspace != 'sRGB':
+        export_ctx.log("misuka only supports sRGB and linear textures for color data. Reading '%s' in '%s' as sRGB." % (tex_node.image.name, colorspace), 'WARN')
 
     return params
+
+def export_checker_node(export_ctx, checker_node):
+    '''
+    Blender's Checker Texture as misuka's checkerboard.
+
+    The two do not checker the same space: Blender uses the 3D texture
+    coordinates, which default to Generated, and misuka uses the UV
+    coordinates. On a UV mapped surface they line up, elsewhere the pattern is
+    an approximation of Blender's.
+    '''
+    from misuka import ScalarTransform4f
+
+    scale = checker_node.inputs['Scale'].default_value
+
+    if checker_node.inputs['Vector'].is_linked:
+        export_ctx.log("Checker texture '%s' has a linked Vector input. misuka checkers the UV coordinates, so the mapping is ignored." % checker_node.name, 'WARN')
+
+    if checker_node.inputs['Scale'].is_linked:
+        export_ctx.log("Checker texture '%s' has a linked Scale input. Exporting the fallback value %g instead." % (checker_node.name, scale), 'WARN')
+
+    color0 = convert_color_texture_node(export_ctx, checker_node.inputs['Color1'])
+    color1 = convert_color_texture_node(export_ctx, checker_node.inputs['Color2'])
+
+    if scale == 0.0:
+        # Squares of infinite size: Blender paints the whole surface in Color1.
+        return color0
+
+    return {
+        'type': 'checkerboard',
+        'color0': color0,
+        'color1': color1,
+        # A misuka checkerboard has two squares per unit of UV, a Blender one
+        # has `scale`, so half the scale gives squares of the same size.
+        'to_uv': ScalarTransform4f().scale([scale / 2.0, scale / 2.0, 1.0]),
+    }
+
+def export_rgb_node(export_ctx, rgb_node):
+    return export_ctx.spectrum(rgb_node.color)
+
+def export_vertex_color_node(export_ctx, vertex_color_node):
+    return {
+        'type': 'mesh_attribute',
+        'name': 'vertex_%s' % vertex_color_node.layer_name
+    }
+
+# The Blender nodes misuka has a texture for. Everything else falls back to the
+# socket's own value.
+color_node_converters = {
+    'TEX_IMAGE': export_texture_node,
+    'TEX_CHECKER': export_checker_node,
+    'RGB': export_rgb_node,
+    'VERTEX_COLOR': export_vertex_color_node,
+}
+
+def unsupported_input(export_ctx, socket, node, fallback):
+    '''
+    Report a node we cannot export and keep the material.
+
+    Dropping back to the socket's own value costs one input. Raising here used
+    to cost the whole material, which the caller then replaced with the magenta
+    dummy, so a single unsupported texture turned an entire object pink.
+    '''
+    export_ctx.log(
+        "Node type %s is not supported for the '%s' input of '%s'. "
+        "Exporting the fallback value instead." % (node.type, socket.name, socket.node.name), 'WARN')
+    return fallback
 
 def convert_float_texture_node(export_ctx, socket):
-    params = None
+    #roughness values in blender are remapped with a square root
+    if 'Roughness' in socket.name:
+        fallback = pow(socket.default_value, 2)
+    else:
+        fallback = socket.default_value
 
     if socket.is_linked:
         node = socket.links[0].from_node
 
         if node.type == "TEX_IMAGE":
-            params = export_texture_node(export_ctx, node)
-        else:
-            raise NotImplementedError( "Node type %s is not supported. Only texture nodes are supported for float inputs" % node.type)
+            return export_texture_node(export_ctx, node)
 
-    else:
-        #roughness values in blender are remapped with a square root
-        if 'Roughness' in socket.name:
-            params = pow(socket.default_value, 2)
-        else:
-            params = socket.default_value
+        return unsupported_input(export_ctx, socket, node, fallback)
 
-    return params
+    return fallback
 
 def convert_color_texture_node(export_ctx, socket):
-    params = None
-
     if socket.is_linked:
         node = socket.links[0].from_node
 
-        if node.type == "TEX_IMAGE":
-            params = export_texture_node(export_ctx, node)
+        converter = color_node_converters.get(node.type)
+        if converter is not None:
+            return converter(export_ctx, node)
 
-        elif node.type == "RGB":
-            #input rgb node
-            params = export_ctx.spectrum(node.color)
-        elif node.type == "VERTEX_COLOR":
-            params = {
-                'type': 'mesh_attribute',
-                'name': 'vertex_%s' % node.layer_name
-            }
-        else:
-            raise NotImplementedError("Node type %s is not supported. Only texture & RGB nodes are supported for color inputs" % node.type)
+        return unsupported_input(
+            export_ctx, socket, node, export_ctx.spectrum(socket.default_value))
 
-    else:
-        params = export_ctx.spectrum(socket.default_value)
-
-    return params
+    return export_ctx.spectrum(socket.default_value)
 
 def two_sided_bsdf(bsdf):
     params = {
