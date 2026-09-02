@@ -12,6 +12,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 import bpy
+import numpy as np
 import pytest
 
 
@@ -352,6 +353,56 @@ def test_the_sample_count_setting_reaches_the_exported_scene(mat, tmp_path):
     root = export_scene(mat, tmp_path)
 
     assert scene_spp(root) == 64
+
+
+def add_point_light(power, radius):
+    bpy.ops.object.light_add(type='POINT')
+    light = bpy.context.active_object
+    light.data.energy = power
+    light.data.shadow_soft_size = radius
+    return light
+
+
+def source_sphere(root):
+    shape = root.find(".//shape[@type='sphere']")
+    assert shape is not None, 'no source sphere in the exported scene'
+
+    radius = float(shape.find("float[@name='radius']").get('value'))
+    emitter = shape.find("emitter[@type='area']")
+    texture = emitter.find("texture[@name='radiance']")
+    assert texture is not None, f'no radiance on {ET.tostring(emitter)}'
+    radiance = float(texture.find("float[@name='value']").get('value'))
+
+    return radius, radiance
+
+
+@pytest.mark.parametrize('radius', [0.25, 0.5, 1.0])
+def test_the_source_emits_the_lights_power_whatever_the_radius(
+        mat, tmp_path, radius):
+    '''
+    Blender keeps a point light's Power fixed when you change its Radius. The
+    acoustic source used to write the point intensity as a radiance, so its
+    power grew with the radius squared.
+    '''
+    power = 100.0
+    add_point_light(power, radius)
+
+    exported_radius, radiance = source_sphere(export_scene(mat, tmp_path))
+
+    assert exported_radius == pytest.approx(radius)
+
+    # an area emitter on a sphere emits pi * area * radiance
+    total = np.pi * 4 * np.pi * exported_radius ** 2 * radiance
+    assert total == pytest.approx(power)
+
+
+def test_a_zero_radius_source_falls_back_to_ten_centimeters(mat, tmp_path):
+    add_point_light(100.0, 0.0)
+
+    radius, radiance = source_sphere(export_scene(mat, tmp_path))
+
+    assert radius == pytest.approx(0.1)
+    assert np.pi * 4 * np.pi * radius ** 2 * radiance == pytest.approx(100.0)
 
 
 def test_the_band_table_covers_31_5_hz(mat):
