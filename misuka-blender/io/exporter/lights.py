@@ -148,9 +148,27 @@ light_converters = {
     'SPOT': convert_spot_light
 }
 
+# An acoustic source is a sphere carrying an area emitter, which only
+# convert_point_light() builds. The other converters write radiance tinted by
+# the light's color and shaped by its geometry, neither of which means anything
+# in an acoustic scene, so they are skipped rather than exported wrong.
+ACOUSTIC_LIGHT_TYPES = {'POINT'}
+
+
 def export_light(light_instance, export_ctx):
 
     b_light = light_instance.object
+
+    if export_ctx.acoustic_mode and b_light.data.type not in ACOUSTIC_LIGHT_TYPES:
+        export_ctx.log(
+            "Light '%s' is a %s light. An acoustic export only supports point "
+            "lights, so it is skipped. Use a point light, or give a mesh an "
+            "Emission material to emit from its surface."
+            % (b_light.name_full, b_light.data.type.title()),
+            'WARN'
+        )
+        return
+
     try:
         params = light_converters[b_light.data.type](b_light, export_ctx)
         if export_ctx.export_ids:

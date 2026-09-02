@@ -115,6 +115,27 @@ class ExportContext:
     def data_get(self, name):
         return self.scene_data.get(name)
 
+    def has_emitter(self):
+        '''
+        Whether anything in the scene emits.
+
+        A source is either an emitter plugin of its own, such as the `point`
+        a visual export writes, or a shape carrying one, which is what both an
+        acoustic point light and an Emission material produce.
+        '''
+        emitter_types = {'point', 'spot', 'directional', 'constant', 'envmap',
+                         'area', 'projector'}
+
+        for element in self.scene_data.values():
+            if not isinstance(element, dict):
+                continue
+            if 'emitter' in element:
+                return True
+            if element.get('type') in emitter_types:
+                return True
+
+        return False
+
     def log(self, message, level='INFO'):
         '''
         Log something using mitsuba's logging API
