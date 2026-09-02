@@ -268,9 +268,13 @@ def export_scene(mat, tmp_path, export_mode='ACOUSTIC', **kwargs):
     '''
     Export a single cube carrying `mat` and return the parsed scene root.
 
-    An acoustic export needs a source, so add a point light unless the test
-    already placed one of its own.
+    An Acoustic export needs the misuka engine, since that is where the
+    acoustic settings live, and something to emit. Select the engine and add a
+    point light unless the test set them up itself.
     '''
+    if export_mode == 'ACOUSTIC' and bpy.context.scene.render.engine != 'MITSUBA':
+        bpy.context.scene.render.engine = 'MITSUBA'
+
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
@@ -1005,17 +1009,16 @@ def test_the_help_points_at_the_scene_settings(mat):
     assert 'linear or logarithmic interpolation in the Output properties' in text
 
 
-@pytest.mark.parametrize('engine', ['MITSUBA', 'CYCLES'])
-@pytest.mark.parametrize('export_mode, integrator, film', [
-    ('ACOUSTIC', 'acoustic_path', 'tape'),
-    ('VISUAL', 'path', 'hdrfilm'),
+@pytest.mark.parametrize('engine, export_mode, integrator, film', [
+    ('MITSUBA', 'ACOUSTIC', 'acoustic_path', 'tape'),
+    ('MITSUBA', 'VISUAL', 'path', 'hdrfilm'),
+    ('CYCLES', 'VISUAL', 'path', 'hdrfilm'),
 ])
 def test_the_export_mode_picks_the_integrator(
         mat, tmp_path, engine, export_mode, integrator, film):
     '''
     An acoustic export gets the acoustic integrator and an optical one gets a
-    visual tracer, whatever the render engine is and whatever the Integrator
-    panel happens to be showing.
+    visual tracer, whatever the Integrator panel happens to be showing.
     '''
     bpy.context.scene.render.engine = engine
 
@@ -1308,6 +1311,7 @@ def test_a_visual_export_still_writes_every_light_type(mat, tmp_path, light_type
 
 def test_an_acoustic_export_without_a_source_is_refused(mat, tmp_path):
     '''A scene with nothing to emit used to export silently.'''
+    bpy.context.scene.render.engine = 'MITSUBA'
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
@@ -1323,6 +1327,7 @@ def test_an_emission_mesh_counts_as_a_source(mat, tmp_path):
     The Emitter panel points at this as the way to get an emitter that behaves
     the same in both modes, so it has to satisfy the source check.
     '''
+    bpy.context.scene.render.engine = 'MITSUBA'
     bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5)
     emissive = bpy.data.materials.new('Emitter')
     emissive.use_nodes = True
@@ -1371,6 +1376,7 @@ def test_a_dot_in_a_name_is_replaced(mat, tmp_path, export_mode):
     Blender names every duplicate Light.001. The export used to fail outright.
     '''
     mat.name = 'Wall.001'
+    bpy.context.scene.render.engine = 'MITSUBA'
 
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
@@ -1392,3 +1398,20 @@ def test_a_dot_in_a_name_is_replaced(mat, tmp_path, export_mode):
     refs = {ref.get('id') for ref in root.iter('ref')}
     assert 'mat-Wall_001' in refs
     assert not any('.' in ref for ref in refs)
+
+
+def test_an_acoustic_export_needs_the_misuka_engine(mat, tmp_path):
+    '''
+    The acoustic settings are gated on the misuka engine, so exporting from
+    another one would write a scene from values the user cannot see. It used to
+    fall back to hardcoded defaults instead.
+    '''
+    bpy.context.scene.render.engine = 'CYCLES'
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    with pytest.raises(RuntimeError, match='misuka render engine'):
+        bpy.ops.export_scene.mitsuba(filepath=path, export_mode='ACOUSTIC')
