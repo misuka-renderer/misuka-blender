@@ -11,6 +11,8 @@ between 4.2 and 5.2.
 
 import bpy
 
+from ..io import draw_paragraphs
+
 
 class MitsubaPanel:
     '''Shared setup for the misuka Properties panels.'''
@@ -88,9 +90,15 @@ class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
         if light.type in {'POINT', 'SPOT'}:
             col.prop(light, "shadow_soft_size", text="Radius")
             # Which export mode is running is a setting on the export operator,
-            # so no panel can read it. Name both cases instead.
-            col.label(text="Source radius in an Acoustic export.")
-            col.label(text="Ignored in a Visual export.")
+            # so no panel can read it. Name both cases instead. label() does
+            # not wrap, so this goes through the same helper as the acoustic
+            # material help.
+            draw_paragraphs(
+                col, context,
+                "Radius is only used in an Acoustic export, to build a "
+                "spherical emitter. A Visual export ignores it and writes a "
+                "source with no size."
+            )
         elif light.type == 'AREA':
             col.prop(light, "shape")
 
