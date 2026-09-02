@@ -177,6 +177,86 @@ def test_a_checker_texture_carries_a_nested_texture(mat, tmp_path):
     assert texture(exported, 'color0').get('type') == 'bitmap'
 
 
+def test_a_roughness_map_does_not_break_the_glossy_bsdf(mat, tmp_path):
+    '''A texture is a dict, and `roughness > 0` used to raise a TypeError on it
+    that aborted the whole export, file and all.'''
+    glossy = surface(mat, 'ShaderNodeBsdfGlossy')
+    image(mat, glossy.inputs['Roughness'], tmp_path, 'Non-Color')
+
+    exported = exported_bsdf(mat, tmp_path)
+
+    assert exported.get('type') == 'roughconductor'
+    assert texture(exported, 'alpha').get('type') == 'bitmap'
+
+
+def test_the_principled_roughness_is_not_squared(mat, tmp_path):
+    '''
+    misuka's principled squares the roughness itself, its roughconductor does
+    not. Squaring it for both made every principled highlight far sharper than
+    Blender's.
+    '''
+    principled = surface(mat, 'ShaderNodeBsdfPrincipled')
+    principled.inputs['Roughness'].default_value = 0.5
+
+    assert number(exported_bsdf(mat, tmp_path), 'roughness') == pytest.approx(0.5, abs=1e-6)
+
+
+def test_a_glossy_roughness_is_squared_into_alpha(mat, tmp_path):
+    '''The counterpart: roughconductor takes the microfacet alpha.'''
+    glossy = surface(mat, 'ShaderNodeBsdfGlossy')
+    glossy.inputs['Roughness'].default_value = 0.5
+
+    assert number(exported_bsdf(mat, tmp_path), 'alpha') == pytest.approx(0.25, abs=1e-6)
+
+
+@pytest.mark.skipif(bpy.app.version < (4, 0, 0),
+                    reason='the tint inputs are floats before Blender 4.0')
+@pytest.mark.parametrize('tint, expected', [
+    ((1.0, 1.0, 1.0, 1.0), 0.0),   # Blender's default: a white highlight
+    ((0.5, 0.5, 0.5, 1.0), 0.0),   # gray is still untinted, only darker
+    ((1.0, 0.0, 0.0, 1.0), 1.0),   # as tinted as it gets
+])
+def test_a_white_specular_tint_is_no_tint(mat, tmp_path, tint, expected):
+    '''
+    Blender 4.0 made Specular Tint a color, white meaning untinted. misuka
+    wants a number, 1 meaning fully tinted, so white used to arrive as a full
+    tint and pulled the base color into every highlight.
+    '''
+    principled = surface(mat, 'ShaderNodeBsdfPrincipled')
+    principled.inputs['Specular Tint'].default_value = tint
+
+    exported = exported_bsdf(mat, tmp_path)
+
+    assert number(exported, 'spec_tint') == pytest.approx(expected, abs=1e-6)
+
+
+def test_the_coat_roughness_becomes_gloss(mat, tmp_path):
+    '''Blender counts coat roughness, misuka counts gloss, the other way up.'''
+    principled = surface(mat, 'ShaderNodeBsdfPrincipled')
+    principled.inputs['Coat Roughness' if bpy.app.version >= (4, 0, 0)
+                      else 'Clearcoat Roughness'].default_value = 0.05
+
+    exported = exported_bsdf(mat, tmp_path)
+
+    assert number(exported, 'clearcoat_gloss') == pytest.approx(0.95, abs=1e-6)
+
+
+def test_a_mix_shader_carries_a_textured_factor(mat, tmp_path):
+    '''misuka's blendbsdf takes a texture, so a painted mask need not be lost.'''
+    mix = surface(mat, 'ShaderNodeMixShader')
+    nodes = mat.node_tree.nodes
+    for socket, node_type in ((mix.inputs[1], 'ShaderNodeBsdfDiffuse'),
+                              (mix.inputs[2], 'ShaderNodeBsdfGlossy')):
+        node = nodes.new(node_type)
+        mat.node_tree.links.new(node.outputs[0], socket)
+    image(mat, mix.inputs['Fac'], tmp_path, 'Non-Color')
+
+    exported = exported_bsdf(mat, tmp_path)
+
+    assert exported.get('type') == 'blendbsdf'
+    assert texture(exported, 'weight').get('type') == 'bitmap'
+
+
 @pytest.mark.parametrize('colorspace', ['Linear Rec.709', 'Non-Color'])
 def test_a_linear_texture_is_not_decoded_as_srgb(mat, tmp_path, colorspace):
     '''

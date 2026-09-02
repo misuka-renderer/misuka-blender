@@ -98,9 +98,9 @@ def unsupported_input(export_ctx, socket, node, fallback):
         "Exporting the fallback value instead." % (node.type, socket.name, socket.node.name), 'WARN')
     return fallback
 
-def convert_float_texture_node(export_ctx, socket):
+def convert_float_texture_node(export_ctx, socket, as_alpha=True):
     #roughness values in blender are remapped with a square root
-    if 'Roughness' in socket.name:
+    if as_alpha and 'Roughness' in socket.name:
         fallback = pow(socket.default_value, 2)
     else:
         fallback = socket.default_value
@@ -114,6 +114,49 @@ def convert_float_texture_node(export_ctx, socket):
         return unsupported_input(export_ctx, socket, node, fallback)
 
     return fallback
+
+def convert_tint_socket(export_ctx, socket):
+    '''
+    Blender 4's Specular Tint and Sheen Tint, as misuka's tint amounts.
+
+    Blender 4.0 turned both into colors, where white means an untinted white
+    highlight. misuka keeps them as a number from 0 to 1, where 0 is a white
+    highlight and 1 takes the base color. Handing the color straight over made
+    white read as a full tint, so every non metallic material took its base
+    color into the highlight. How saturated the color is answers "how much
+    tint", which is what misuka is asking. misuka has no way to say the
+    highlight is a different color again, or darker, so that part is dropped.
+    '''
+    if socket.is_linked:
+        return unsupported_input(
+            export_ctx, socket, socket.links[0].from_node, 0.0)
+
+    color = socket.default_value[:3]
+    brightest = max(color)
+
+    if brightest <= 0.0:
+        return 0.0
+
+    return (brightest - min(color)) / brightest
+
+def convert_gloss_socket(export_ctx, socket):
+    '''
+    Blender's Coat Roughness, as misuka's clearcoat_gloss.
+
+    They count in opposite directions: 0 roughness is a mirror finish, and so
+    is 1 gloss. Blender's coat starts at 0.03 roughness, a near mirror, which
+    went over as 0.03 gloss and gave the coat the roughest finish misuka has.
+    '''
+    roughness = convert_float_texture_node(export_ctx, socket, as_alpha=False)
+
+    if isinstance(roughness, dict):
+        roughness = socket.default_value
+        export_ctx.log(
+            "A coat roughness map cannot be turned into misuka's gloss, which "
+            "counts the other way. Exporting the fallback value %g instead."
+            % roughness, 'WARN')
+
+    return 1.0 - roughness
 
 def convert_color_texture_node(export_ctx, socket):
     if socket.is_linked:
@@ -167,7 +210,9 @@ def convert_glossy_materials_cycles(export_ctx, current_node):
 
     roughness = convert_float_texture_node(export_ctx, current_node.inputs['Roughness'])
 
-    if roughness > 0:
+    # A texture is a dict, which cannot be compared with a number. Whatever it
+    # holds, a roughness map means the surface is rough.
+    if isinstance(roughness, dict) or roughness > 0:
         params.update({
             'type': 'roughconductor',
             'alpha': roughness,
@@ -302,7 +347,9 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
 
     elif mat_I.type != 'EMISSION' and mat_II.type != 'EMISSION':
 
-        weight = current_node.inputs['Fac'].default_value#TODO: texture weight
+        # misuka's blendbsdf takes a texture as its weight, so a mask painted
+        # into Fac carries over instead of being dropped for its fallback value.
+        weight = convert_float_texture_node(export_ctx, current_node.inputs['Fac'])
 
         params = {
             'type': 'blendbsdf',
@@ -371,21 +418,24 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
     base_color = convert_color_texture_node(export_ctx, current_node.inputs['Base Color'])
     specular = current_node.inputs[specular_key].default_value
     if bpy.app.version >= (4, 0, 0):
-        specular_tint = convert_color_texture_node(export_ctx, current_node.inputs['Specular Tint'])
+        specular_tint = convert_tint_socket(export_ctx, current_node.inputs['Specular Tint'])
     else:
         specular_tint = convert_float_texture_node(export_ctx, current_node.inputs['Specular Tint'])
     specular_trans = convert_float_texture_node(export_ctx, current_node.inputs[transmission_key])
     ior = current_node.inputs['IOR'].default_value
-    roughness = convert_float_texture_node(export_ctx, current_node.inputs['Roughness'])
+    # misuka's principled squares the roughness itself, the way Blender does,
+    # so this one goes over as it stands. Squaring it here as well made every
+    # principled highlight far sharper than the one Blender shows.
+    roughness = convert_float_texture_node(export_ctx, current_node.inputs['Roughness'], as_alpha=False)
     metallic = convert_float_texture_node(export_ctx, current_node.inputs['Metallic'])
     anisotropic = convert_float_texture_node(export_ctx, current_node.inputs['Anisotropic'])
     sheen = convert_float_texture_node(export_ctx, current_node.inputs[sheen_key])
     if bpy.app.version >= (4, 0, 0):
-        sheen_tint = convert_color_texture_node(export_ctx, current_node.inputs['Sheen Tint'])
+        sheen_tint = convert_tint_socket(export_ctx, current_node.inputs['Sheen Tint'])
     else:
         sheen_tint = convert_float_texture_node(export_ctx, current_node.inputs['Sheen Tint'])
     clearcoat = convert_float_texture_node(export_ctx, current_node.inputs[clearcoat_key])
-    clearcoat_roughness = convert_float_texture_node(export_ctx, current_node.inputs[clearcoat_roughness_key])
+    clearcoat_gloss = convert_gloss_socket(export_ctx, current_node.inputs[clearcoat_roughness_key])
 
     params.update({
         'type': 'principled',
@@ -398,7 +448,7 @@ def convert_principled_materials_cycles(export_ctx, current_node, material):
         'sheen': sheen,
         'sheen_tint': sheen_tint,
         'clearcoat': clearcoat,
-        'clearcoat_gloss': clearcoat_roughness
+        'clearcoat_gloss': clearcoat_gloss
     })
 
     # NOTE: Blender uses the 'specular' value for dielectric/metallic reflections and the
