@@ -471,6 +471,7 @@ class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
     bl_context = 'output'
     COMPAT_ENGINES = {'MITSUBA'}
 
+
     @classmethod
     def poll(cls, context):
         return context.engine in cls.COMPAT_ENGINES

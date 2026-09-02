@@ -619,6 +619,9 @@ class ACOUSTIC_PT_material(AcousticPanel, bpy.types.Panel):
 
     bl_idname = "ACOUSTIC_PT_material"
     bl_label = "Acoustic Material"
+    # Under the material selector, above the Surface node tree, since the
+    # acoustic coefficients are what this add-on is for.
+    bl_order = 1
 
     def draw(self, context):
         # Everything lives in the subpanels below, which is what gives them
