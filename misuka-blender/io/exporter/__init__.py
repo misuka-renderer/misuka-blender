@@ -149,11 +149,25 @@ class SceneConverter:
             else:
                 self.export_ctx.log("Object: %s of type '%s' is not supported!" % (evaluated_obj.name_full, object_type), 'WARN')
 
-        if acoustic_mode and not self.export_ctx.has_emitter():
-            raise RuntimeError(
-                "This acoustic scene has no emitter. Add a point light, or "
-                "give a mesh an Emission material, and export again."
-            )
+        if acoustic_mode:
+            emitters = self.export_ctx.emitter_names()
+
+            if not emitters:
+                raise RuntimeError(
+                    "This acoustic scene has no emitter. Add a point light, "
+                    "or give a mesh an Emission material, and export again."
+                )
+
+            # An impulse response runs from one source to one receiver. Several
+            # emitters would sum into a single response without saying so, so
+            # the choice is left to the user rather than made for them.
+            if len(emitters) > 1:
+                raise RuntimeError(
+                    "This acoustic scene has %d emitters (%s), and an impulse "
+                    "response runs from one source. Leave one of them, and "
+                    "hide or remove the rest."
+                    % (len(emitters), ', '.join(sorted(emitters)))
+                )
 
     def dict_to_xml(self):
         from misuka import parser, variant

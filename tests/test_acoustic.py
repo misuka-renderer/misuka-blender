@@ -1343,3 +1343,52 @@ def test_an_emission_mesh_counts_as_a_source(mat, tmp_path):
 
     root = ET.parse(path).getroot()
     assert root.find(".//emitter[@type='area']") is not None
+
+
+def test_an_acoustic_export_refuses_more_than_one_emitter(mat, tmp_path):
+    '''
+    An impulse response runs from one source to one receiver. Several emitters
+    would sum into a single response without saying so.
+    '''
+    add_point_light(100.0, 0.5)
+    add_point_light(100.0, 0.5)
+
+    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    with pytest.raises(RuntimeError, match='2 emitters'):
+        bpy.ops.export_scene.mitsuba(filepath=path, export_mode='ACOUSTIC')
+
+
+@pytest.mark.parametrize('export_mode', ['ACOUSTIC', 'VISUAL'])
+def test_a_dot_in_a_name_is_replaced(mat, tmp_path, export_mode):
+    '''
+    misuka reserves '.' as a path delimiter and rejects a key holding one, but
+    Blender names every duplicate Light.001. The export used to fail outright.
+    '''
+    mat.name = 'Wall.001'
+
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.mesh.primitive_cube_add(location=(3, 0, 0))
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+    add_point_light(100.0, 0.5)
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode=export_mode, export_ids=True) == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+
+    bsdf = root.find(".//bsdf[@id='mat-Wall_001']")
+    assert bsdf is not None, 'the material id still carries a dot'
+
+    # every reference has to point at the name it was stored under
+    refs = {ref.get('id') for ref in root.iter('ref')}
+    assert 'mat-Wall_001' in refs
+    assert not any('.' in ref for ref in refs)
