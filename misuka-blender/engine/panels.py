@@ -183,6 +183,10 @@ class MITSUBA_MATERIAL_PT_context(MitsubaPanel, bpy.types.Panel):
     bl_label = ""
     bl_context = "material"
     bl_options = {'HIDE_HEADER'}
+    # The material selector, so it sits above every other material panel.
+    # io.register() runs before engine.register(), so without an explicit
+    # order the acoustic panels would come first on a tie at 0.
+    bl_order = 0
 
     @classmethod
     def poll(cls, context):
@@ -255,6 +259,7 @@ class MITSUBA_MATERIAL_PT_surface(MitsubaPanel, bpy.types.Panel):
     bl_idname = "MITSUBA_MATERIAL_PT_surface"
     bl_label = "Surface"
     bl_context = "material"
+    bl_order = 2
 
     @classmethod
     def poll(cls, context):

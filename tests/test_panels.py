@@ -431,3 +431,24 @@ def test_every_exporter_read_property_has_a_panel(engine, name, reads):
     panel = getattr(bpy.types, name, None)
     assert panel is not None, f'{name} is not registered, so {reads} is unreachable'
     assert visible_under_misuka(panel), name
+
+
+def order_of(panel):
+    '''Blender defaults an unset bl_order to 0.'''
+    return getattr(panel, 'bl_order', 0)
+
+
+def test_the_material_selector_stays_above_the_acoustic_panels():
+    '''
+    io.register() runs before engine.register(), so on a tie at bl_order 0 the
+    acoustic panels would sit above the material selector and bury the New
+    button. Only positive orders help: the RNA clamps a negative one to 0.
+    '''
+    assert order_of(panels.MITSUBA_MATERIAL_PT_context) < \
+        order_of(io_module.ACOUSTIC_PT_material)
+    assert order_of(io_module.ACOUSTIC_PT_material) < \
+        order_of(panels.MITSUBA_MATERIAL_PT_surface)
+
+    # and all of them stay above Blender's, which sit at 10 and higher
+    assert order_of(panels.MITSUBA_MATERIAL_PT_surface) < \
+        order_of(bpy.types.MATERIAL_PT_viewport)
