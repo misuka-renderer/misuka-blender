@@ -67,7 +67,7 @@ class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
     '''
 
     bl_idname = "MITSUBA_LIGHT_PT_light"
-    bl_label = "Light"
+    bl_label = "Light / Emitter"
     bl_context = "data"
 
     @classmethod
@@ -89,18 +89,30 @@ class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
 
         if light.type in {'POINT', 'SPOT'}:
             col.prop(light, "shadow_soft_size", text="Radius")
+
             # Which export mode is running is a setting on the export operator,
             # so no panel can read it. Name both cases instead. label() does
             # not wrap, so this goes through the same helper as the acoustic
             # material help.
-            draw_paragraphs(
-                col, context,
-                "Radius is only used in an Acoustic export, to build a "
-                "spherical emitter. A Visual export ignores it and writes a "
-                "source with no size.",
-                "For a source that behaves the same in both modes, give a "
-                "sphere mesh an Emission material instead."
-            )
+            notes = [
+                "The radius is only used in an Acoustic export, to build a "
+                "spherical emitter. A Visual export ignores it and writes an "
+                "emitter with no size.",
+                "For an emitter that behaves the same in both modes, give a "
+                "sphere mesh an Emission material instead.",
+            ]
+
+            # Only convert_point_light() drops the color in Acoustic mode. The
+            # spot, sun and area converters still write a tinted RGB value, so
+            # this cannot be said for them yet.
+            if light.type == 'POINT':
+                notes.insert(0,
+                    "Color is only used in a Visual export. An Acoustic "
+                    "export builds a uniform emission spectrum from Power "
+                    "alone."
+                )
+
+            draw_paragraphs(col, context, *notes)
         elif light.type == 'AREA':
             col.prop(light, "shape")
 

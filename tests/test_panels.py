@@ -158,6 +158,26 @@ def test_the_radius_row_names_both_export_modes(engine, make_light):
     assert 'Visual' in labels
 
 
+def test_only_a_point_light_claims_the_color_is_dropped(engine, make_light):
+    '''
+    convert_point_light() is the only converter with an acoustic branch. The
+    spot, sun and area ones still write energy * color, so the note would be
+    wrong on them.
+    '''
+    engine('MITSUBA')
+
+    def notes(light):
+        drawn = []
+        stub = type('Stub', (), {'draw': panels.MITSUBA_LIGHT_PT_light.draw})()
+        stub.layout = StubLayout(drawn)
+        stub.draw(StubContext(light=light))
+        return ' '.join(text for kind, text in drawn if kind == 'label')
+
+    assert 'Color is only used' in notes(make_light('POINT'))
+    assert 'Color is only used' not in notes(make_light('SPOT'))
+    assert 'Color is only used' not in notes(make_light('AREA'))
+
+
 def test_a_spot_light_shows_beam_shape(engine, make_light):
     spot = make_light('SPOT')
     engine('MITSUBA')
@@ -186,7 +206,7 @@ def test_exactly_one_panel_is_titled_light(engine):
         for cls in bpy.types.Panel.__subclasses__()
         if getattr(cls, 'bl_space_type', '') == 'PROPERTIES'
         and getattr(cls, 'bl_context', '') == 'data'
-        and getattr(cls, 'bl_label', '') == 'Light'
+        and getattr(cls, 'bl_label', '').startswith('Light')
         and 'MITSUBA' in getattr(cls, 'COMPAT_ENGINES', set())
     ]
     assert titled == ['MITSUBA_LIGHT_PT_light']
