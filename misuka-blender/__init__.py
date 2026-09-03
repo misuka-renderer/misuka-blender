@@ -21,6 +21,7 @@ import sys
 import subprocess
 
 from . import io, engine
+from .io import draw_paragraphs
 
 DEPS_MITSUBA_VERSION = '0.1.0'
 
@@ -396,6 +397,18 @@ def update_mitsuba_custom_version(self, context):
     self.has_valid_mitsuba_custom_version = \
         release_version(self.mitsuba_custom_version) == release_version(DEPS_MITSUBA_VERSION)
 
+# misuka is licensed separately from this add-on, and its license restricts
+# use rather than only redistribution. The notice sits beside the install
+# buttons because pressing one is the moment a user takes misuka on.
+MISUKA_LICENSE_URL = 'https://polyformproject.org/licenses/noncommercial/1.0.0'
+MISUKA_LICENSE_NOTICE = (
+    'misuka is licensed under PolyForm Noncommercial 1.0.0. Because this '
+    'add-on imports misuka, it is effectively restricted to noncommercial '
+    'use as well. Commercial use needs an agreement with the misuka '
+    'maintainers.'
+)
+
+
 class MitsubaPreferences(AddonPreferences):
     bl_idname = __name__
 
@@ -488,6 +501,13 @@ class MitsubaPreferences(AddonPreferences):
         row.operator(MITSUBA_OT_install_pip_dependencies.bl_idname, text=operator_text)
         row.operator(MITSUBA_OT_upgrade_pip_dependencies.bl_idname, text='Upgrade dependencies')
         row.operator(MITSUBA_OT_uninstall_pip_dependencies.bl_idname, text='Uninstall dependencies')
+
+        box = layout.box()
+        box.label(text='misuka License', icon='INFO')
+        draw_paragraphs(box, context, MISUKA_LICENSE_NOTICE)
+        box.operator(
+            'wm.url_open', text='Read the license', icon='URL',
+        ).url = MISUKA_LICENSE_URL
 
         box = layout.box()
         box.label(text='Advanced Settings')
