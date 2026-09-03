@@ -20,7 +20,7 @@
                 "label": "Max Energy Loss",
                 "description": "Stop tracing a path once its energy has dropped this far, in dB, below the energy it started with.",
                 "type": "float",
-                "default": 300.0
+                "default": 90.0
             }
         }
     },

@@ -902,15 +902,15 @@ def test_max_energy_loss_is_declared_and_exported(mat, tmp_path):
         declared = json.load(handle)['acoustic_path']['parameters']
 
     assert declared['max_energy_loss']['type'] == 'float'
-    assert declared['max_energy_loss']['default'] == 300.0
+    assert declared['max_energy_loss']['default'] == 90.0
 
     settings = bpy.context.scene.mitsuba.available_integrators.acoustic_path
-    assert settings.max_energy_loss == 300.0
-    assert settings.to_dict()['max_energy_loss'] == 300.0
+    assert settings.max_energy_loss == 90.0
+    assert settings.to_dict()['max_energy_loss'] == 90.0
 
     root = export_scene(mat, tmp_path)
 
-    assert float(integrator_setting(root, 'float', 'max_energy_loss')) == 300.0
+    assert float(integrator_setting(root, 'float', 'max_energy_loss')) == 90.0
 
 
 def test_the_engine_defaults_to_the_acoustic_integrator():
