@@ -240,7 +240,7 @@ def fetch_material(api_key, query):
     items = results.get("items", [])
 
     if not items:
-        raise AcousticIndexError("No AcousticIndex material found.")
+        raise AcousticIndexError("No Acoustic Index material found.")
 
     try:
         return request_json(f"{ACOUSTICINDEX_API}/materials/{items[0]['id']}",
@@ -252,7 +252,7 @@ def fetch_material(api_key, query):
 class ACOUSTIC_OT_load_from_api(AcousticOperator, bpy.types.Operator):
     bl_idname = "acoustic.load_from_api"
     bl_label = "Load Acoustic Data"
-    bl_description = ("Look the material's name up on AcousticIndex as a "
+    bl_description = ("Look the material's name up on Acoustic Index as a "
                       "product id, then as a name, and fetch the match with "
                       "all its measured variants")
 
@@ -641,7 +641,7 @@ class ACOUSTIC_PT_database_help(AcousticPanel, bpy.types.Panel):
     def draw(self, context):
         draw_paragraphs(
             self.layout, context,
-            "Set an AcousticIndex API key in the add-on preferences, then "
+            "Set an Acoustic Index API key in the add-on preferences, then "
             "name this material after a database entry, or paste its product "
             "id as the name.",
             "Load from Database looks the name up as an id first, then as "
@@ -655,7 +655,7 @@ class ACOUSTIC_PT_database(AcousticPanel, bpy.types.Panel):
 
     bl_idname = "ACOUSTIC_PT_database"
     bl_parent_id = "ACOUSTIC_PT_material"
-    bl_label = "AcousticIndex Database"
+    bl_label = "Acoustic Index Database"
 
     def draw(self, context):
 

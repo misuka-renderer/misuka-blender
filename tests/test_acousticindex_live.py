@@ -67,7 +67,7 @@ def test_an_unknown_query_reports_no_material():
     German product names, and it found two. Hex digits are a word in no
     language, so nothing real can match this.
     '''
-    with pytest.raises(io_module.AcousticIndexError, match='No AcousticIndex material'):
+    with pytest.raises(io_module.AcousticIndexError, match='No Acoustic Index material'):
         io_module.fetch_material(API_KEY, 'zz' + uuid.uuid4().hex)
 
 

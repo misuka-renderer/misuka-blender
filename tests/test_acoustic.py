@@ -611,7 +611,7 @@ def test_panel_quotes_the_shared_default_rather_than_hardcoding_it(mat):
 
 @pytest.mark.parametrize('panel, opening', [
     ('ACOUSTIC_PT_coefficients_help', 'Values are exported'),
-    ('ACOUSTIC_PT_database_help', 'Set an AcousticIndex API key'),
+    ('ACOUSTIC_PT_database_help', 'Set an Acoustic Index API key'),
 ])
 def test_the_help_text_is_wrapped_to_the_panel(mat, panel, opening):
     '''Blender labels do not wrap, so the help text is broken up by hand.'''
@@ -1163,7 +1163,7 @@ def test_a_long_hyphenated_product_name_is_still_found(fake_api):
 def test_an_unknown_name_reports_rather_than_guessing(fake_api):
     fake_api(FakeAPI())
 
-    with pytest.raises(io_module.AcousticIndexError, match='No AcousticIndex material'):
+    with pytest.raises(io_module.AcousticIndexError, match='No Acoustic Index material'):
         io_module.fetch_material('key', 'nothing like this')
 
 
@@ -1268,7 +1268,7 @@ def test_a_failed_lookup_leaves_the_previous_entry_in_place(mat, fake_api, api_k
     mat.name = 'Ceiling Tile'
 
     # reporting ERROR surfaces as a RuntimeError through the Python API
-    with pytest.raises(RuntimeError, match='No AcousticIndex material'):
+    with pytest.raises(RuntimeError, match='No Acoustic Index material'):
         run(bpy.ops.acoustic.load_from_api, mat)
 
     assert mat['_acoustic_lookup_failed']
