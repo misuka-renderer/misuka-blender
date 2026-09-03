@@ -400,7 +400,7 @@ class MitsubaPreferences(AddonPreferences):
     bl_idname = __name__
 
     acousticindex_api_key: StringProperty(
-        name="AcousticIndex API Key",
+        name="acousticindex.com API Key",
         subtype='PASSWORD'
     )
 
@@ -497,7 +497,7 @@ class MitsubaPreferences(AddonPreferences):
 
         # --- AcousticIndex API ---
         box = layout.box()
-        box.label(text="AcousticIndex Database")
+        box.label(text="Acoustic Index Database")
         box.prop(self, "acousticindex_api_key")
 
 classes = (
