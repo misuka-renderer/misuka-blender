@@ -18,6 +18,9 @@ venv/
 # Build / Artifacts
 *.zip
 
+# Docs
+docs/_build/
+
 # Test output
 tests/**/out
 
