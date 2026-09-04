@@ -1,0 +1,53 @@
+<scene version="0.1.0">
+    <default name="spp" value="262144"/>
+
+    <integrator type="acoustic_path" name="integrator">
+        <integer name="max_depth" value="-1"/>
+        <boolean name="hide_emitters" value="false"/>
+        <float name="max_energy_loss" value="90"/>
+        <float name="max_time" value="2"/>
+    </integrator>
+
+    <bsdf type="twosided" id="mat-Material" name="mat-Material">
+        <bsdf type="acousticbsdf" name="bsdf">
+            <spectrum name="absorption" value="31.5:0.10000000000000001, 63:0.10000000000000001, 125:0.10000000000000001, 250:0.26000000000000001, 500:0.41999999999999998, 1000:0.57999999999999996, 2000:0.73999999999999999, 4000:0.90000000000000002, 8000:0.90000000000000002, 16000:0.90000000000000002"/>
+            <spectrum name="scattering" value="31.5:0.01, 63:0.01, 125:0.055, 250:0.10000000000000001, 500:0.29999999999999999, 1000:0.5, 2000:0.69999999999999996, 4000:0.90000000000000002, 8000:0.90000000000000002, 16000:0.90000000000000002"/>
+            <float name="specular_lobe_width" value="0.0010000000474974513"/>
+        </bsdf>
+    </bsdf>
+
+    <shape type="ply" name="Cube">
+        <string name="filename" value="meshes/Cube.ply"/>
+        <boolean name="face_normals" value="true"/>
+        <ref name="bsdf" id="mat-Material"/>
+    </shape>
+
+    <shape type="sphere" name="emit-Light">
+        <vector name="center" x="0" y="0" z="0"/>
+        <float name="radius" value="0.5"/>
+
+        <emitter type="area" name="emitter">
+            <texture type="uniform" name="radiance">
+                <float name="value" value="50.660591821168886"/>
+            </texture>
+        </emitter>
+        <bsdf type="null" name="bsdf"/>
+    </shape>
+
+    <sensor type="microphone" name="Camera">
+        <transform name="to_world">
+            <lookat origin="7.358891487121582, -6.9257907867431641, 4.9583091735839844" target="6.7073333263397217, -6.3116203546524048, 4.513037770986557" up="-0.32401347160339355, 0.30542084574699402, 0.89539563655853271"/>
+        </transform>
+
+        <sampler type="independent" name="sampler">
+            <integer name="sample_count" value="$spp"/>
+            <integer name="seed" value="0"/>
+        </sampler>
+
+        <film type="tape" name="film">
+            <integer name="time_bins" value="2000"/>
+            <string name="frequencies" value="31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000"/>
+            <rfilter type="box" name="rfilter"/>
+        </film>
+    </sensor>
+</scene>

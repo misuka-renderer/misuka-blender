@@ -1,0 +1,69 @@
+<scene version="0.1.0">
+    <default name="spp" value="32"/>
+    <default name="resx" value="1920"/>
+    <default name="resy" value="1080"/>
+
+    <integrator type="path" name="elm__0">
+        <integer name="max_depth" value="-1"/>
+        <integer name="rr_depth" value="5"/>
+        <boolean name="hide_emitters" value="false"/>
+    </integrator>
+
+    <bsdf type="twosided" id="mat-Material" name="mat-Material">
+        <bsdf type="principled" name="bsdf">
+            <texture type="checkerboard" name="base_color">
+                <rgb name="color0" value="0.80000001192092896 0.80000001192092896 0.80000001192092896"/>
+                <rgb name="color1" value="0.20000000298023224 0.20000000298023224 0.20000000298023224"/>
+
+                <transform name="to_uv">
+                    <scale x="25" y="25"/>
+                </transform>
+            </texture>
+            <float name="spec_tint" value="0"/>
+            <float name="spec_trans" value="0"/>
+            <float name="metallic" value="0"/>
+            <float name="anisotropic" value="0"/>
+            <float name="roughness" value="0.5"/>
+            <float name="sheen" value="0"/>
+            <float name="sheen_tint" value="0"/>
+            <float name="clearcoat" value="0"/>
+            <float name="clearcoat_gloss" value="0.97000000067055225"/>
+            <float name="specular" value="0.5"/>
+        </bsdf>
+    </bsdf>
+
+    <shape type="ply" name="elm__2">
+        <string name="filename" value="meshes/Cube.ply"/>
+        <boolean name="face_normals" value="true"/>
+        <ref name="bsdf" id="mat-Material"/>
+    </shape>
+
+    <emitter type="point" name="elm__3">
+        <vector name="position" x="0" y="0" z="0"/>
+        <rgb name="intensity" value="39.788734436035156 39.788734436035156 39.788734436035156"/>
+    </emitter>
+
+    <sensor type="perspective" name="elm__4">
+        <string name="fov_axis" value="x"/>
+        <float name="fov" value="39.597751920676707"/>
+        <float name="principal_point_offset_x" value="0"/>
+        <float name="principal_point_offset_y" value="-0"/>
+        <float name="near_clip" value="0.10000000149011612"/>
+        <float name="far_clip" value="100"/>
+
+        <transform name="to_world">
+            <lookat origin="7.358891487121582, -6.9257907867431641, 4.9583091735839844" target="6.7073333263397217, -6.3116203546524048, 4.513037770986557" up="-0.32401347160339355, 0.30542084574699402, 0.89539563655853271"/>
+        </transform>
+
+        <sampler type="independent" name="sampler">
+            <integer name="sample_count" value="$spp"/>
+            <integer name="seed" value="0"/>
+        </sampler>
+
+        <film type="hdrfilm" name="film">
+            <integer name="width" value="$resx"/>
+            <integer name="height" value="$resy"/>
+            <rfilter type="box" name="rfilter"/>
+        </film>
+    </sensor>
+</scene>
