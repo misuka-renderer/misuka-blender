@@ -9,7 +9,7 @@ Add the entry here and the image directive to the page in the same change.
 Capture the Blender screenshots at Blender's default theme and default UI scale, cropped to the panel with a little margin.
 `acoustic-index-id.png` is a web page, not a Blender panel, so that rule does not apply to it.
 
-The shoebox tutorial keeps its own screenshots in `docs/tutorials/shoebox-room/`, beside the scene files and the render script that produce two of them.
+The shoebox tutorial keeps its own screenshots in `docs/tutorials/shoebox-room/`, beside the scene files and the render script that produce three of them.
 
 Set the render engine to **misuka** first, in **Properties** > **Render**.
 The Acoustic Format and Acoustic Material panels do not draw under any other engine.
