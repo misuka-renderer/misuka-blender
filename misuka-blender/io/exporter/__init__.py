@@ -44,9 +44,9 @@ class SceneConverter:
 
         # Store dependency graph
         self.export_ctx.deg = depsgraph
-        
+
         b_scene = depsgraph.scene  # TODO: what if there are multiple scenes?
-        acoustic_mode = self.export_ctx.acoustic_mode 
+        acoustic_mode = self.export_ctx.acoustic_mode
 
         # Enable useful IDs for acoustic scenes
         if acoustic_mode:
@@ -60,8 +60,7 @@ class SceneConverter:
             if b_scene.render.engine != 'MITSUBA':
                 raise RuntimeError(
                     "An Acoustic export needs the misuka render engine. Set "
-                    "Render Properties > Render Engine to misuka, or choose "
-                    "the Visual export mode."
+                    "Render Properties > Render Engine to misuka."
                 )
 
             # Force the acoustic integrator whatever the Integrator panel says.
