@@ -488,17 +488,17 @@ class MitsubaPreferences(AddonPreferences):
     def draw(self, context):
         layout = self.layout
 
-        draw_help_button(layout, "installation.html")
-
         row = layout.row()
+        status = row.row()
         icon = 'ERROR'
-        row.alert = True
+        status.alert = True
         if self.require_restart:
             self.mitsuba_dependencies_status_message = 'A restart is required to apply the changes.'
         elif self.is_mitsuba_initialized and (not self.using_mitsuba_custom_path or (self.using_mitsuba_custom_path and self.has_valid_mitsuba_custom_version)):
             icon = 'CHECKMARK'
-            row.alert = False
-        row.label(text=self.mitsuba_dependencies_status_message, icon=icon)
+            status.alert = False
+        status.label(text=self.mitsuba_dependencies_status_message, icon=icon)
+        draw_help_button(row, "installation.html")
 
         operator_text = 'Install dependencies'
         if self.has_pip_dependencies and not self.has_valid_dependencies_version:
