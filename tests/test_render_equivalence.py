@@ -129,9 +129,15 @@ def render_misuka(scene, tmp_path):
     import misuka as mi
 
     path = os.path.join(str(tmp_path), 'scene.xml')
-    with bpy.context.temp_override(scene=scene):
-        assert bpy.ops.export_scene.mitsuba(
-            filepath=path, export_mode='VISUAL') == {'FINISHED'}
+    # An export needs the misuka engine, but the Cycles render needs Cycles
+    # selected, so the scene carries Cycles and borrows misuka to export.
+    scene.render.engine = 'MITSUBA'
+    try:
+        with bpy.context.temp_override(scene=scene):
+            assert bpy.ops.export_scene.mitsuba(
+                filepath=path, export_mode='VISUAL') == {'FINISHED'}
+    finally:
+        scene.render.engine = 'CYCLES'
 
     return np.array(mi.render(mi.load_file(path), spp=SAMPLES))[:, :, :3]
 

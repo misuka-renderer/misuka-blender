@@ -269,11 +269,11 @@ def export_scene(mat, tmp_path, export_mode='ACOUSTIC', **kwargs):
     '''
     Export a single cube carrying `mat` and return the parsed scene root.
 
-    An Acoustic export needs the misuka engine, since that is where the
-    acoustic settings live, and something to emit. Select the engine and add a
-    point light unless the test set them up itself.
+    Either export mode needs the misuka engine, since that is where the
+    settings it writes live, and an Acoustic one needs something to emit.
+    Select the engine and add a point light unless the test set them up itself.
     '''
-    if export_mode == 'ACOUSTIC' and bpy.context.scene.render.engine != 'MITSUBA':
+    if bpy.context.scene.render.engine != 'MITSUBA':
         bpy.context.scene.render.engine = 'MITSUBA'
 
     bpy.ops.mesh.primitive_cube_add()
@@ -1014,7 +1014,6 @@ def test_every_section_links_to_its_documentation(mat):
 @pytest.mark.parametrize('engine, export_mode, integrator, film', [
     ('MITSUBA', 'ACOUSTIC', 'acoustic_path', 'tape'),
     ('MITSUBA', 'VISUAL', 'path', 'hdrfilm'),
-    ('CYCLES', 'VISUAL', 'path', 'hdrfilm'),
 ])
 def test_the_export_mode_picks_the_integrator(
         mat, tmp_path, engine, export_mode, integrator, film):
@@ -1402,11 +1401,12 @@ def test_a_dot_in_a_name_is_replaced(mat, tmp_path, export_mode):
     assert not any('.' in ref for ref in refs)
 
 
-def test_an_acoustic_export_needs_the_misuka_engine(mat, tmp_path):
+@pytest.mark.parametrize('export_mode', ['ACOUSTIC', 'VISUAL'])
+def test_an_export_needs_the_misuka_engine(mat, tmp_path, export_mode):
     '''
-    The acoustic settings are gated on the misuka engine, so exporting from
-    another one would write a scene from values the user cannot see. It used to
-    fall back to hardcoded defaults instead.
+    Both modes are gated on the misuka engine, so exporting from another one
+    would write a scene from values the user cannot see. Acoustic used to fall
+    back to hardcoded defaults, and Visual to Cycles' own sampler and filter.
     '''
     bpy.context.scene.render.engine = 'CYCLES'
     bpy.ops.mesh.primitive_cube_add()
@@ -1415,5 +1415,5 @@ def test_an_acoustic_export_needs_the_misuka_engine(mat, tmp_path):
 
     path = os.path.join(str(tmp_path), 'scene.xml')
 
-    with pytest.raises(RuntimeError, match='misuka render engine'):
-        bpy.ops.export_scene.mitsuba(filepath=path, export_mode='ACOUSTIC')
+    with pytest.raises(RuntimeError, match='A misuka export needs'):
+        bpy.ops.export_scene.mitsuba(filepath=path, export_mode=export_mode)

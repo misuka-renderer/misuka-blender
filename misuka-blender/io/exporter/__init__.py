@@ -52,17 +52,18 @@ class SceneConverter:
         if acoustic_mode:
             self.export_ctx.export_ids = True
 
+        # Every setting an export writes lives on the misuka engine. Under
+        # another one the exporter would substitute that engine's own settings,
+        # so the scene would not match the panels the user set up. Say so rather
+        # than writing a scene from values the user cannot see.
+        if b_scene.render.engine != 'MITSUBA':
+            raise RuntimeError(
+                "A misuka export needs the misuka render engine. Set "
+                "Render Properties > Render Engine to misuka."
+            )
+
         # --- Integrator setup ---
         if acoustic_mode:
-            # The acoustic settings live on the misuka engine, so an acoustic
-            # export needs it selected. Say so rather than writing a scene from
-            # settings the user cannot see.
-            if b_scene.render.engine != 'MITSUBA':
-                raise RuntimeError(
-                    "An Acoustic export needs the misuka render engine. Set "
-                    "Render Properties > Render Engine to misuka."
-                )
-
             # Force the acoustic integrator whatever the Integrator panel says.
             integrator = getattr(
                 b_scene.mitsuba.available_integrators,
@@ -72,7 +73,7 @@ class SceneConverter:
             # Required for acoustic integrator
             integrator['max_time'] = self.export_ctx.acoustic_max_time
 
-        elif b_scene.render.engine == 'MITSUBA':
+        else:
             active_integrator = b_scene.mitsuba.active_integrator
 
             # acoustic_path is the engine's default, since acoustic export is
@@ -90,12 +91,6 @@ class SceneConverter:
                 b_scene.mitsuba.available_integrators,
                 active_integrator
             ).to_dict()
-
-        else:
-            integrator = {
-                'type': 'path',
-                'max_depth': b_scene.cycles.max_bounces
-            }
 
         #issue request: useful naming
         if acoustic_mode:

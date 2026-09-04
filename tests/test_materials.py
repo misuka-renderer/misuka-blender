@@ -59,7 +59,14 @@ def image(mat, socket, tmp_path, colorspace):
 
 
 def export_scene(mat, tmp_path):
-    '''Export a single cube carrying `mat` and return the parsed scene root.'''
+    '''
+    Export a single cube carrying `mat` and return the parsed scene root.
+
+    Either export mode needs the misuka engine, since that is where the
+    settings it writes live.
+    '''
+    bpy.context.scene.render.engine = 'MITSUBA'
+
     for obj in list(bpy.data.objects):
         bpy.data.objects.remove(obj, do_unlink=True)
 

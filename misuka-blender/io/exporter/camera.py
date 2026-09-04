@@ -52,11 +52,13 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
     init_rot = Matrix.Rotation(np.pi, 4, 'Y')
     params['to_world'] = export_ctx.transform_matrix(b_camera.matrix_world @ init_rot)
 
-    if b_scene.render.engine == 'MITSUBA':
-        sampler = getattr(b_camera.data.mitsuba.samplers, b_camera.data.mitsuba.active_sampler).to_dict()
-    else:
-        sampler = {'type' : 'independent'}
-        sampler['sample_count'] = b_scene.cycles.samples
+    # An export needs the misuka engine, so the camera's own panels are always
+    # the ones to read. They are settings rather than evaluated data, and the
+    # depsgraph copy of them is stale until something tags the camera, so a
+    # script that sets one and exports would otherwise write the old value.
+    mts_camera = b_camera.original.data.mitsuba
+
+    sampler = getattr(mts_camera.samplers, mts_camera.active_sampler).to_dict()
 
     if acoustic_mode:
         sampler['sample_count'] = export_ctx.acoustic_sample_count
@@ -82,20 +84,10 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
         film['width'] = int(res_x * scale)
         film['height'] = int(res_y * scale)
 
-        if b_scene.render.engine == 'MITSUBA':
-            film['rfilter'] = getattr(
-                b_camera.data.mitsuba.rfilters,
-                b_camera.data.mitsuba.active_rfilter
-            ).to_dict()
-
-        elif b_scene.render.engine == 'CYCLES':
-            if b_scene.cycles.pixel_filter_type == 'GAUSSIAN':
-                film['rfilter'] = {
-                    'type': 'gaussian',
-                    'stddev': b_scene.cycles.filter_width
-                }
-            elif b_scene.cycles.pixel_filter_type == 'BOX':
-                film['rfilter'] = {'type': 'box'}
+        film['rfilter'] = getattr(
+            mts_camera.rfilters,
+            mts_camera.active_rfilter
+        ).to_dict()
 
     params['film'] = film
 
