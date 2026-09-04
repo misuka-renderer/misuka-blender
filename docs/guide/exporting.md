@@ -37,7 +37,7 @@ Every setting an export writes lives on that engine, so an export from EEVEE or 
 - **Integrator**, starting on `acoustic_path` under Acoustic and `path` under Visual.
   Neither dropdown offers the other's integrators, so a mode cannot be pointed at one it would reject.
 - **Sampler**, both starting on `independent`, each with a sample count of its own.
-  See [Samples](scene-settings.md#samples).
+  See [Sampler](scene-settings.md#sampler).
 - **Reconstruction Filter**, both starting on `gaussian` with a standard deviation of `0.25`.
 
 Both sections are set up at once, so you can see what either export would write.
@@ -83,7 +83,7 @@ Light handling is [Lights](../reference/supported-features.md#lights), and the e
 
 One value comes from outside those tables.
 The sensor's sampler carries `sample_count` from the active camera's Sampler panel for that mode, defaulting to `262144` under Acoustic and `64` under Visual.
-See [Samples](scene-settings.md#samples).
+See [Sampler](scene-settings.md#sampler).
 
 ## Exactly one emitter
 

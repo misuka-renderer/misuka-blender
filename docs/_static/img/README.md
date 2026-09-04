@@ -1,13 +1,13 @@
 # Screenshots
 
-Five screenshots are referenced by the docs.
-Each one is currently commented out in its page, marked `SCREENSHOT SLOT`.
-Drop the PNG in here with the exact filename, then uncomment the block.
+Seven screenshots are referenced by the docs, plus the misuka icon.
+Each entry below names the file, where to capture it, and which page uses it.
 
 The build runs with `-W`, so an image directive pointing at a missing file fails the build.
-That is why the slots are commented rather than left dangling.
+Add the entry here and the image directive to the page in the same change.
 
-Capture them at Blender's default theme and default UI scale, cropped to the panel with a little margin.
+Capture the Blender screenshots at Blender's default theme and default UI scale, cropped to the panel with a little margin.
+`acoustic-index-id.png` is a web page, not a Blender panel, so that rule does not apply to it.
 
 The shoebox tutorial keeps its own screenshots in `docs/tutorials/shoebox-room/`, beside the scene files and the render script that produce two of them.
 
@@ -23,13 +23,23 @@ Blank the API key field.
 
 Used by `docs/installation.md`.
 
-## `output-acoustic-film.png`
+## `engine-settings.png`
+
+**Properties** > **Render**, with **Render Engine** on **misuka**.
+
+Show: both the **Acoustic** and the **Visual** panel expanded, each with its **Integrator**, **Sampler** and **Reconstruction Filter** sub-panel open.
+Leave every value at its default, so Acoustic reads Acoustic Path Tracer with a sample count of `262144` and Visual reads Path Tracer with `64`.
+The point of the shot is that the two modes carry the same three settings side by side.
+
+Used by `docs/guide/scene-settings.md`.
+
+## `output-settings.png`
 
 **Properties** > **Output** > **Acoustic Format**.
 
 Show: **Band Resolution** on **Octave Bands**, the "10 bands, 31.5 Hz to 16 kHz" label, **Interpolation** on **Logarithmic**, **Max Time** `2.0`, **Sampling Rate** `1000`, and the "2000 time bins" label.
 
-Used by `docs/guide/scene-settings.md`.
+Used by `docs/guide/scene-settings.md` and `docs/tutorials/shoebox-room/shoebox-room.md`.
 
 ## `coefficients-panel.png`
 
@@ -45,6 +55,15 @@ Used by `docs/guide/acoustic-materials.md`.
 **Properties** > **Material** > **Acoustic Material** > **Acoustic Index Database**, after a successful **Load from Database**.
 
 Show: the **Load from Database** button, the status box with the green **Matched Database Entry** line plus the label and manufacturer, and the **Variant Selection** dropdown open so several variants and their thickness/air-gap details are readable.
+
+Used by `docs/guide/acousticindex.md`.
+
+## `acoustic-index-id.png`
+
+A product page on [Acoustic Index](https://acousticindex.com), with the developer view enabled in the account settings.
+
+Show: the product title and manufacturer, and the **ID** field in the row of buttons below them, close enough to read the ID.
+Use the same product as `database-panel.png`, so the two shots tell one story.
 
 Used by `docs/guide/acousticindex.md`.
 

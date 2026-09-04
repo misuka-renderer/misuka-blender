@@ -28,7 +28,7 @@ You can also modify the scene geometry by applying transformations, but you can 
 :::
 
 ```{image} ../_static/img/engine-settings.png
-:alt: The Acoustic Format panel in Output properties
+:alt: The Acoustic and Visual panels in Render properties
 :align: center
 :width: 60%
 ```
