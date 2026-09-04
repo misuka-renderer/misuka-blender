@@ -13,7 +13,7 @@ Every shortcut below also has a menu equivalent, named where it is used, so noth
 
 :::
 
-## 1. Make the room
+## Make the room
 
 The default startup scene already has a cube, a camera and a light.
 First, we will scale up the cube and flip its normals so it becomes the room.
@@ -43,7 +43,7 @@ On export, misuka-blender will apply the material to both sides of surfaces.
 A room this size holds the startup scene's camera and light, so you do not have to move either one.
 They are several meters apart, which is what you want.
 
-## 2. Switch the render engine to misuka
+## Switch the render engine to misuka
 
 **Properties** > **Render** > **Render Engine** > **misuka**.
 
@@ -61,7 +61,7 @@ Switching the engine does not change your scene, but the Properties editor looks
 
 You can go back to EEVEE or Cycles at any point to preview visual renderings of the room, then switch back to export.
 
-## 3. Give the emitter a size
+## Give the emitter a size
 
 Select the light and open **Object Data Properties** > **Light / Emitter**.
 Leave the type on **Point** and set **Radius** to `0.5` m.
@@ -95,7 +95,7 @@ Since the camera is pointed towards the origin in the default scene, the emitter
 :align: center
 ```
 
-## 5. Choose the band resolution
+## Choose the band resolution
 
 Open **Properties** > **Output**.
 At the bottom, below Blender's own panels, is a panel called **Acoustic Format**.
@@ -112,7 +112,7 @@ At the bottom, below Blender's own panels, is a panel called **Acoustic Format**
 
 For more information about these settings, see [Scene settings](../../guide/scene-settings.md).
 
-## 6. Give the room a material
+## Give the room a material
 
 1. Select the cube and open **Properties** > **Material**.
 2. Add a material if the cube has none.
@@ -168,7 +168,7 @@ See [Checker Texture](../../reference/plugin-mapping.md#checker-texture).
 ```
 
 (export-both-scenes)=
-## 7. Export both scenes
+## Export both scenes
 
 Export the same Blender scene twice, once in Acoustic mode and once in Visual mode.
 
@@ -192,7 +192,7 @@ See [Exporting](../../guide/exporting.md#export-mode).
 
 :::
 
-## 8. Check out the `.xml` files
+## Check out the `.xml` files
 
 The export generated two misuka scenes in the `.xml` file format.
 See the [Mitsuba documentation](https://mitsuba.readthedocs.io/en/v3.9.1/src/key_topics/scene_format.html) for more information about the scene format.
@@ -210,7 +210,7 @@ See the [Mitsuba documentation](https://mitsuba.readthedocs.io/en/v3.9.1/src/key
 Mesh data is written to binary PLY files beside the XML.
 Both scenes reference the same PLY files, so keep them together.
 
-## 9. Render the scenes in misuka
+## Render the scenes in misuka
 
 Rendering happens in Python, outside Blender.
 You need `misuka` plus [pyfar](https://pyfar.readthedocs.io/) for the acoustic plot:
@@ -278,8 +278,13 @@ plt.show()
 * - ```{image} shoebox-visual.png
     :alt: Visual render
     ```
-  - ```{image} shoebox-acoustic.png
+  - ```{image} shoebox-acoustic-light.png
     :alt: Acoustic render
+    :class: only-light
+    ```
+    ```{image} shoebox-acoustic-dark.png
+    :alt: Acoustic render
+    :class: only-dark
     ```
 ````
 Note how the point emitter is invisible in the visual rendering (it is placed right in the center of the image).
