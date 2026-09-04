@@ -282,10 +282,13 @@ plt.show()
     :alt: Acoustic render
     ```
 ````
+Note how the point emitter is invisible in the visual rendering (it is placed right in the center of the image).
+Point emitters are infinitely small, so the probability of a ray hitting them is 0.
+In visual rendering, this is intended behavior.
+In acoustic rendering, this would discard the direct sound contribution, which is not intended behavior in most cases
 
 
-
-Things worth knowing about that code:
+### Things worth knowing
 
 - `set_variant` takes several names and uses the first one available.
   The same script runs on an NVIDIA GPU (`cuda`), on Apple silicon (`metal`) and on any CPU (`llvm`), picking the fastest each machine has.
@@ -302,17 +305,8 @@ Things worth knowing about that code:
   For acoustic rendering, the `spp` needs to be set much higher.
   Because a microphone is essentially a 1x1 pixel sensor, acoustic rendering is fast with `spp` values up to 1 million and more.
   See [Samples](../../guide/scene-settings.md#samples).
-
-## Next
-
-- [Acoustic materials](../../guide/acoustic-materials.md) documents the coefficient table, the Keep boxes and both Interpolate buttons.
-- [Acoustic Index](../../guide/acousticindex.md) covers looking a material up in the database rather than typing its numbers.
-- [Scene settings](../../guide/scene-settings.md) documents the band resolution, the time axis and the sample count.
-- [Exporting](../../guide/exporting.md) documents every export option.
-
-One thing to watch when you move on to a real room.
-A material with no acoustic values set still exports, with every band at `0.5`, which is a half-absorbing, half-scattering surface.
-That is rarely what you want, so check every material before a real run.
+- A material with no acoustic values set still exports, with every band at `0.5`, which is a half-absorbing, half-scattering surface.
+  That is rarely what you want, so check every material before a real run.
 
 
 
