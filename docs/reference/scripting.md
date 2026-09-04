@@ -101,7 +101,7 @@ Default `1000.0`, minimum `1.0`.
 
 ## Camera properties
 
-Each export mode has a sampler and a reconstruction filter of its own on the camera data, one pair per [panel](../guide/scene-settings.md#samples).
+Each export mode has a sampler and a reconstruction filter of its own on the camera data, one pair per [panel](../guide/scene-settings.md#sampler).
 Both start on `independent` and `gaussian`:
 
 ```python
@@ -120,7 +120,7 @@ Both default `'independent'`.
 
 : Integer, rays per frequency band.
 Default `262144`, minimum `1`, maximum `2**32 - 1`.
-See [Samples](../guide/scene-settings.md#samples).
+See [Sampler](../guide/scene-settings.md#sampler).
 
 `visual_samplers.<name>.sample_count`
 

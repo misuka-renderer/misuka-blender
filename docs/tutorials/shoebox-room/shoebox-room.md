@@ -104,7 +104,7 @@ At the bottom, below Blender's own panels, is a panel called **Acoustic Format**
 2. Leave **Interpolation** on **Logarithmic**.
 3. Leave **Max Time** at `2.0` seconds and **Sampling Rate** at `1000` Hz.
 
-```{image} ../../_static/img/output-acoustic-film.png
+```{image} ../../_static/img/output-settings.png
 :alt: The Acoustic Format panel in Output properties
 :align: center
 :width: 60%
@@ -304,7 +304,7 @@ In acoustic rendering, this would discard the direct sound contribution, which i
   When rendering images, misuka produces adequate quality at low values, even rendering with one ray per pixel produces noisy, but usable images.
   For acoustic rendering, the `spp` needs to be set much higher.
   Because a microphone is essentially a 1x1 pixel sensor, acoustic rendering is fast with `spp` values up to 1 million and more.
-  See [Samples](../../guide/scene-settings.md#samples).
+  See [Sampler](../../guide/scene-settings.md#sampler).
 - A material with no acoustic values set still exports, with every band at `0.5`, which is a half-absorbing, half-scattering surface.
   That is rarely what you want, so check every material before a real run.
 
