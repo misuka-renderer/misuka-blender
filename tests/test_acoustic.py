@@ -327,6 +327,82 @@ def test_export_uses_the_third_octave_table_when_enabled(mat, tmp_path):
     assert [f for f, _ in read_spectrum(bsdf, 'absorption')] == list(THIRD_OCTAVES)
 
 
+def set_surface(material, *bl_idnames):
+    '''
+    Rebuild the material on these shader nodes.
+
+    The first one drives Material Output. Any further ones are created loose
+    and linked by the caller, which is what a Mix or an Add shader needs.
+    '''
+    tree = material.node_tree
+    for node in list(tree.nodes):
+        if node.type != 'OUTPUT_MATERIAL':
+            tree.nodes.remove(node)
+
+    nodes = [tree.nodes.new(name) for name in bl_idnames]
+    tree.links.new(nodes[0].outputs[0],
+                   tree.get_output_node('ALL').inputs['Surface'])
+
+    return nodes[0] if len(nodes) == 1 else nodes
+
+
+@pytest.mark.parametrize('bl_idname', [
+    'ShaderNodeBsdfPrincipled',
+    'ShaderNodeBsdfDiffuse',
+    'ShaderNodeBsdfGlossy',
+    'ShaderNodeBsdfGlass',
+])
+def test_export_reads_the_panel_whatever_the_surface_node_is(mat, tmp_path, bl_idname):
+    '''
+    The panel is on every material, so every material exports as an
+    acousticbsdf. An export used to read the panel only on a Principled BSDF
+    and wrote the visual BSDF of any other node, coefficients ignored.
+    '''
+    set_surface(mat, bl_idname)
+    setattr(mat, abs_prop(500), 0.7)
+
+    root = export_scene(mat, tmp_path)
+    bsdf = root.find(".//bsdf[@type='acousticbsdf']")
+
+    assert bsdf is not None, f'{bl_idname} did not export an acousticbsdf'
+    assert dict(read_spectrum(bsdf, 'absorption'))[500.0] == 0.7
+
+
+def test_export_reads_the_panel_through_a_mix_shader(mat, tmp_path):
+    '''
+    Mixing two BSDFs mixes nothing acoustic: both sides carry the same
+    material, so the mix collapses to that material's one acousticbsdf.
+    '''
+    mix, diffuse, glossy = set_surface(
+        mat,
+        'ShaderNodeMixShader',
+        'ShaderNodeBsdfDiffuse',
+        'ShaderNodeBsdfGlossy',
+    )
+    mat.node_tree.links.new(diffuse.outputs[0], mix.inputs[1])
+    mat.node_tree.links.new(glossy.outputs[0], mix.inputs[2])
+    setattr(mat, abs_prop(500), 0.7)
+
+    root = export_scene(mat, tmp_path)
+    bsdf = root.find(".//bsdf[@type='acousticbsdf']")
+
+    assert bsdf is not None
+    assert root.find(".//bsdf[@type='blendbsdf']") is None
+    assert dict(read_spectrum(bsdf, 'absorption'))[500.0] == 0.7
+
+
+def test_export_reads_the_panel_of_a_material_with_no_nodes(mat, tmp_path):
+    '''A material with Use Nodes off has no shader to read, but has a panel.'''
+    mat.use_nodes = False
+    setattr(mat, abs_prop(500), 0.7)
+
+    root = export_scene(mat, tmp_path)
+    bsdf = root.find(".//bsdf[@type='acousticbsdf']")
+
+    assert bsdf is not None
+    assert dict(read_spectrum(bsdf, 'absorption'))[500.0] == 0.7
+
+
 @pytest.mark.parametrize('resolution, expected', [
     ('OCTAVE', OCTAVES),
     ('THIRD_OCTAVE', THIRD_OCTAVES),

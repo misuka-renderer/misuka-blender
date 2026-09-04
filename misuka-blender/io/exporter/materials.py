@@ -373,32 +373,38 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
 
 
 #Extension for acoustic rendering
-def convert_principled_materials_cycles(export_ctx, current_node, material):
+def convert_acoustic_material(export_ctx, material):
+    '''
+    The acousticbsdf that a material's acoustic panel describes.
 
-    if export_ctx.acoustic_mode:
+    The coefficients sit on the material itself, not in its shader nodes, so
+    this does not read the node tree at all.
+    '''
+    # The panel's values are exported as they stand. Interpolation is an
+    # explicit button press there, so nothing is inferred here. The scene's
+    # band resolution decides which of the stored bands are written.
+    frequencies, indices = active_bands(export_ctx.acoustic_band_resolution)
 
-        # The panel's values are exported as they stand. Interpolation is an
-        # explicit button press there, so nothing is inferred here. The scene's
-        # band resolution decides which of the stored bands are written.
-        frequencies, indices = active_bands(export_ctx.acoustic_band_resolution)
+    absorption_pairs = [
+        (f, round(v, 3))
+        for f, v in zip(frequencies, read_bands(material, ABS_PROPS, indices))
+    ]
+    scattering_pairs = [
+        (f, round(v, 3))
+        for f, v in zip(frequencies, read_bands(material, SCAT_PROPS, indices))
+    ]
 
-        absorption_pairs = [
-            (f, round(v, 3))
-            for f, v in zip(frequencies, read_bands(material, ABS_PROPS, indices))
-        ]
-        scattering_pairs = [
-            (f, round(v, 3))
-            for f, v in zip(frequencies, read_bands(material, SCAT_PROPS, indices))
-        ]
+    params = {
+        'type': 'acousticbsdf',
+        'absorption': export_ctx.spectrum(absorption_pairs, mode='spectrum'),
+        'scattering': export_ctx.spectrum(scattering_pairs, mode='spectrum'),
+        'specular_lobe_width': material.acoustic_specular_lobe_width
+    }
 
-        params = {
-            'type': 'acousticbsdf',
-            'absorption': export_ctx.spectrum(absorption_pairs, mode='spectrum'),
-            'scattering': export_ctx.spectrum(scattering_pairs, mode='spectrum'),
-            'specular_lobe_width': material.acoustic_specular_lobe_width
-        }
+    return two_sided_bsdf(params)
 
-        return two_sided_bsdf(params)
+
+def convert_principled_materials_cycles(export_ctx, current_node):
 
     params = {}
 
@@ -481,22 +487,51 @@ cycles_converters = {
     'ADD_SHADER': convert_add_materials_cycles,
 }
 
+def emits(node):
+    '''
+    Whether this shader node puts light into the scene.
+
+    A Mix or an Add of two shaders emits if either side does.
+    '''
+    if node.type == 'EMISSION':
+        return True
+
+    if node.type in ('MIX_SHADER', 'ADD_SHADER'):
+        return any(
+            socket.is_linked and emits(socket.links[0].from_node)
+            for socket in node.inputs
+        )
+
+    return False
+
 def cycles_material_to_dict(export_ctx, node, material):
     ''' Converting one material from Blender to Mitsuba dict'''
+
+    # An acoustic export reads the coefficients off the material, so every
+    # shader that only reflects becomes the same acousticbsdf whatever node
+    # it is built on. Emission is the exception: a mesh emitter is a source
+    # in an acoustic scene, so those keep their own converter.
+    if export_ctx.acoustic_mode and not emits(node):
+        return convert_acoustic_material(export_ctx, material)
 
     if node.type not in cycles_converters:
         raise NotImplementedError(
             "Node type: %s is not supported in misuka." % node.type
         )
 
-    if node.type == 'BSDF_PRINCIPLED':
-        params = cycles_converters[node.type](export_ctx, node, material)
-    else:
-        params = cycles_converters[node.type](export_ctx, node)
+    return cycles_converters[node.type](export_ctx, node)
 
-    return params
+def get_dummy_material(export_ctx, b_mat):
+    '''
+    What to write for a material the exporter could not read.
 
-def get_dummy_material(export_ctx):
+    An acoustic scene gets that material's own coefficients, since those are
+    what an acoustic export is about and they are readable whatever the node
+    tree does. A visual scene gets the pink placeholder.
+    '''
+    if export_ctx.acoustic_mode:
+        return convert_acoustic_material(export_ctx, b_mat)
+
     return {
         'type': 'diffuse',
         'reflectance': export_ctx.spectrum([1.0, 0.0, 0.3]),
@@ -517,10 +552,14 @@ def b_material_to_dict(export_ctx, b_mat):
                 mat_params = cycles_material_to_dict(export_ctx, surface_node, b_mat)
             else:
                 export_ctx.log(f'Export of material {b_mat.name} failed: Cannot find material output node. Exporting a dummy material instead.', 'WARN')
-                mat_params = get_dummy_material(export_ctx)
+                mat_params = get_dummy_material(export_ctx, b_mat)
         except NotImplementedError as e:
             export_ctx.log(f'Export of material \'{b_mat.name}\' failed: {e.args[0]}. Exporting a dummy material instead.', 'WARN')
-            mat_params = get_dummy_material(export_ctx)
+            mat_params = get_dummy_material(export_ctx, b_mat)
+    elif export_ctx.acoustic_mode:
+        # A material with no nodes has no surface shader, but its acoustic
+        # panel still describes one.
+        mat_params = convert_acoustic_material(export_ctx, b_mat)
     else:
         mat_params = {'type':'diffuse'}
         mat_params['reflectance'] = export_ctx.spectrum(b_mat.diffuse_color)
