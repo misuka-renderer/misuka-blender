@@ -34,7 +34,7 @@ ACOUSTIC_SAMPLER_OVERRIDES = {
         'default' : 2 ** 18,
         # A Blender integer is a signed 32-bit one, so this is the real ceiling.
         # The slider stops well short of it, since nothing sensible goes there.
-        'max' : 2 ** 31 - 1,
+        'max' : 2 ** 32 - 1,
         'soft_max' : 2 ** 28,
     }
 }
