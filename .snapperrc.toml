@@ -1,0 +1,13 @@
+# snapper formats the Markdown under docs/ and README.md.
+
+# See the "Semantic line breaks" section of docs/contributing.md.
+
+# One sentence per line, however long the sentence is.
+
+max_width = 0
+
+# A sentence on its own line often passes the default 120 character advisory.
+
+# The `long` hint then fires all over the docs and buries anything real.
+
+long_threshold = 1000
