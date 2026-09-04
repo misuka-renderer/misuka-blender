@@ -137,7 +137,34 @@ def test_a_point_light_shows_color_power_and_radius(engine, make_light):
     drawn = draw(panels.MITSUBA_LIGHT_PT_light, light=point_light)
     assert 'color' in drawn
     assert 'energy' in drawn
-    assert 'shadow_soft_size' in drawn
+    assert 'mitsuba_emitter_radius' in drawn
+
+
+def test_the_radius_tooltip_does_not_promise_shadows(engine):
+    '''
+    Blender's own Radius is `shadow_soft_size`, tooltipped "Light size for ray
+    shadow sampling". misuka has no raytraced shadows and reads the value only
+    to size a spherical emitter in an Acoustic export, so the panel draws a
+    proxy whose wording matches.
+    '''
+    engine('MITSUBA')
+    for cls in (bpy.types.PointLight, bpy.types.SpotLight):
+        prop = cls.bl_rna.properties['mitsuba_emitter_radius']
+        assert prop.name == 'Radius'
+        assert 'shadow sampling' not in prop.description
+        assert 'does not affect shadows' in prop.description
+
+
+def test_the_radius_proxy_reads_and_writes_the_blender_field(engine, make_light):
+    '''The proxy stores nothing of its own, so both directions must agree.'''
+    engine('MITSUBA')
+    light = make_light('POINT')
+
+    light.mitsuba_emitter_radius = 0.5
+    assert light.shadow_soft_size == pytest.approx(0.5)
+
+    light.shadow_soft_size = 1.25
+    assert light.mitsuba_emitter_radius == pytest.approx(1.25)
 
 
 def test_the_radius_row_names_both_export_modes(engine, make_light):
@@ -417,7 +444,7 @@ def test_no_panel_is_orphaned_under_misuka():
 # One row per property the exporter reads, so a Blender rename fails loudly
 # here rather than silently blanking a panel again.
 REQUIRED_PANELS = (
-    ('MITSUBA_LIGHT_PT_light', 'color, energy, shadow_soft_size, shape, size'),
+    ('MITSUBA_LIGHT_PT_light', 'color, energy, mitsuba_emitter_radius, shape, size'),
     ('MITSUBA_LIGHT_PT_beam_shape', 'spot_size, spot_blend'),
     ('MITSUBA_MATERIAL_PT_context', 'material slots'),
     ('MITSUBA_MATERIAL_PT_surface', 'material Surface socket'),

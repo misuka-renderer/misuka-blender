@@ -10,6 +10,7 @@ between 4.2 and 5.2.
 '''
 
 import bpy
+from bpy.props import FloatProperty
 
 from ..io import draw_paragraphs
 
@@ -124,7 +125,7 @@ class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
         col.separator()
 
         if light.type in {'POINT', 'SPOT'}:
-            col.prop(light, "shadow_soft_size", text="Radius")
+            col.prop(light, "mitsuba_emitter_radius")
         elif light.type == 'AREA':
             col.prop(light, "shape")
 
@@ -301,6 +302,56 @@ class MITSUBA_WORLD_PT_surface(MitsubaPanel, bpy.types.Panel):
             layout.prop(world, "color")
 
 
+# Blender's own Radius is `shadow_soft_size`, whose tooltip reads "Light size
+# for ray shadow sampling (Raytraced shadows)". None of that is true under
+# misuka, which has no raytraced shadows and reads the value only when an
+# Acoustic export builds a spherical emitter. A tooltip cannot be overridden on
+# a built-in property, so the panel draws a proxy that reads and writes the
+# same field and carries wording that matches what the exporter does with it.
+
+POINT_RADIUS_DESCRIPTION = (
+    "Radius of the sphere an Acoustic export writes for this emitter. "
+    "It does not affect shadows, and a Visual export ignores it and writes an "
+    "emitter with no size"
+)
+
+SPOT_RADIUS_DESCRIPTION = (
+    "Unused. It does not affect shadows, an Acoustic export skips spot "
+    "emitters, and a Visual export writes a spot emitter with no size"
+)
+
+
+def _get_emitter_radius(self):
+    return self.shadow_soft_size
+
+
+def _set_emitter_radius(self, value):
+    self.shadow_soft_size = value
+
+
+def emitter_radius_property(description):
+    return FloatProperty(
+        name="Radius",
+        description=description,
+        subtype='DISTANCE',
+        unit='LENGTH',
+        min=0.0,
+        soft_max=100.0,
+        # Blender divides `step` by 100, so this is the 0.1 the built-in uses.
+        step=10,
+        precision=3,
+        get=_get_emitter_radius,
+        set=_set_emitter_radius,
+    )
+
+
+# `shadow_soft_size` lives on the subtypes, not on Light, so the proxy does too.
+radius_owners = (
+    (bpy.types.PointLight, POINT_RADIUS_DESCRIPTION),
+    (bpy.types.SpotLight, SPOT_RADIUS_DESCRIPTION),
+)
+
+
 classes = (
     MITSUBA_LIGHT_PT_light,
     MITSUBA_LIGHT_PT_beam_shape,
@@ -313,8 +364,12 @@ classes = (
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+    for owner, description in radius_owners:
+        owner.mitsuba_emitter_radius = emitter_radius_property(description)
 
 
 def unregister():
+    for owner, _ in radius_owners:
+        del owner.mitsuba_emitter_radius
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
