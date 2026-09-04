@@ -24,6 +24,25 @@ with open(os.path.join(dirname(__file__), "samplers.json")) as file:
 with open(os.path.join(dirname(__file__), "rfilters.json")) as file:
     rfilter_data = json.load(file)
 
+def plugin_limits(param_dict):
+    '''
+    The bounds one JSON parameter puts on its property.
+
+    `min` and `max` are hard: Blender refuses a value outside them, typed or
+    scripted. `soft_min` and `soft_max` only stop the slider, for a parameter
+    whose sensible range is far narrower than its valid one. A hard bound is
+    the slider bound too unless the JSON gives its own.
+    '''
+    limits = {key: param_dict[key] for key in
+              ('min', 'max', 'soft_min', 'soft_max') if key in param_dict}
+
+    for hard, soft in (('min', 'soft_min'), ('max', 'soft_max')):
+        if hard in limits:
+            limits.setdefault(soft, limits[hard])
+
+    return limits
+
+
 def create_plugin_props(name, arg_dict, depth=1, prefix=""):
     '''
     Dynamically create a PropertyGroup for a given plugin defined in arg_dict.
@@ -57,8 +76,7 @@ def create_plugin_props(name, arg_dict, depth=1, prefix=""):
                     name = label,
                     description = description,
                     default = param_dict.get('default', 0),
-                    soft_min = param_dict.get('min', -2**31),
-                    soft_max = param_dict.get('max', 2**31-1)
+                    **plugin_limits(param_dict)
                 ))
             elif param_type == 'boolean':
                 props_draw.add(param_name)
@@ -73,6 +91,7 @@ def create_plugin_props(name, arg_dict, depth=1, prefix=""):
                     name = label,
                     description = description,
                     default = param_dict.get('default', 0.0),
+                    **plugin_limits(param_dict)
                 ))
             # Nested plugin
             elif param_type == 'integrator' or param_type == 'list' and param_dict['values_type'] == 'integrator':

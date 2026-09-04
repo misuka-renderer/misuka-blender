@@ -861,6 +861,20 @@ def test_the_sample_count_shows_only_for_the_acoustic_integrator():
         settings.active_integrator = 'acoustic_path'
 
 
+def test_a_sample_count_cannot_go_below_one():
+    '''
+    Mitsuba needs at least one ray. The JSON `min` used to reach Blender as a
+    `soft_min`, which only stops the slider, so a typed or scripted zero got
+    through.
+    '''
+    bpy.ops.object.camera_add()
+    sampler = bpy.context.active_object.data.mitsuba.samplers.independent
+
+    sampler.sample_count = 0
+
+    assert sampler.sample_count == 1
+
+
 def integrator_setting(root, kind, name):
     integrator = root.find(".//integrator[@type='acoustic_path']")
     assert integrator is not None, 'no acoustic integrator in the exported scene'
