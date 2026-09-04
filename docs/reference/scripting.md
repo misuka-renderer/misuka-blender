@@ -119,7 +119,7 @@ Both default `'independent'`.
 `acoustic_samplers.<name>.sample_count`
 
 : Integer, rays per frequency band.
-Default `262144`, minimum `1`, maximum `2**31 - 1`.
+Default `262144`, minimum `1`, maximum `2**32 - 1`.
 See [Samples](../guide/scene-settings.md#samples).
 
 `visual_samplers.<name>.sample_count`

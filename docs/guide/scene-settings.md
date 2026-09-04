@@ -12,7 +12,7 @@ It is in **Properties** > **Render**, in the **Sampler** panel each export mode 
 : Rays traced per frequency band.
 Default `262144`, which is `2**18`.
 Minimum `1`.
-The slider stops at `2**28`, and you can type up to `2**31 - 1`.
+The slider stops at `2**28`, and you can type up to `2**32 - 1`.
 
 **Visual** > **Sampler** > **Sample Count**
 
