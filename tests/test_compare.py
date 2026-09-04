@@ -26,7 +26,7 @@ def test_round_trip_visual(xml_scene, resource_resolver, mitsuba_scene_ztest):
     #       z-test its variance image. The importer has no Blender equivalent for
     #       `moment`, so the scene keeps the property default (`acoustic_path`);
     #       select the visual integrator explicitly before exporting.
-    bpy.context.scene.mitsuba.active_integrator = 'path'
+    bpy.context.scene.mitsuba.visual_integrator = 'path'
 
     assert bpy.ops.export_scene.mitsuba(
         filepath=output_scene_file, ignore_background=True, export_mode='VISUAL') == {'FINISHED'}

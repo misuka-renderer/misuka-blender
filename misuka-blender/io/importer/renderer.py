@@ -57,7 +57,12 @@ def apply_mi_path_properties(mi_context, mi_props, bl_props=None):
     if bl_path_props is None:
         mi_context.log(f'misuka Integrator "path" is not supported.', 'ERROR')
         return False
-    bl_integrator.active_integrator = 'path'
+    # The scene keeps one integrator per export mode, and an imported scene is
+    # a visual one. A nested integrator group keeps a single active integrator.
+    if bl_props is None:
+        bl_integrator.visual_integrator = 'path'
+    else:
+        bl_integrator.active_integrator = 'path'
     bl_path_props.max_depth = mi_props.get('max_depth', -1)
     bl_path_props.rr_depth = mi_props.get('rr_depth', 5)
     bl_path_props.hide_emitters = mi_props.get('hide_emitters', False)
@@ -92,7 +97,7 @@ def apply_mi_moment_properties(mi_context, mi_props, bl_props=None):
         mi_context.log(f'misuka Integrator "moment" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
-    mi_renderer.active_integrator = 'moment'
+    mi_renderer.visual_integrator = 'moment'
     bl_child_integrator_list = bl_moment_props.integrators
     for mi_integrator_props in mi_props_utils.named_references_with_class(mi_context, mi_props, 'Integrator'):
         bl_child_integrator_list.new(name=mi_integrator_props.id())
@@ -123,12 +128,12 @@ def apply_mi_integrator_properties(mi_context, mi_props, bl_integrator_props=Non
 
 def apply_mi_tent_properties(mi_context, mi_props):
     mi_camera = mi_context.bl_scene.camera.data.mitsuba
-    bl_box_props = getattr(mi_camera.rfilters, 'tent', None)
+    bl_box_props = getattr(mi_camera.visual_rfilters, 'tent', None)
     if bl_box_props is None:
         mi_context.log(f'misuka Reconstruction Filter "tent" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
-    mi_camera.active_rfilter = 'tent'
+    mi_camera.visual_rfilter = 'tent'
     # Cycles properties
     # NOTE: Cycles does not have any equivalent to the tent filter
 
@@ -137,12 +142,12 @@ def apply_mi_tent_properties(mi_context, mi_props):
 def apply_mi_box_properties(mi_context, mi_props):
     mi_camera = mi_context.bl_scene.camera.data.mitsuba
     bl_renderer = mi_context.bl_scene.cycles
-    bl_box_props = getattr(mi_camera.rfilters, 'box', None)
+    bl_box_props = getattr(mi_camera.visual_rfilters, 'box', None)
     if bl_box_props is None:
         mi_context.log(f'misuka Reconstruction Filter "box" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
-    mi_camera.active_rfilter = 'box'
+    mi_camera.visual_rfilter = 'box'
     # Cycles properties
     bl_renderer.pixel_filter_type = 'BOX'
 
@@ -151,12 +156,12 @@ def apply_mi_box_properties(mi_context, mi_props):
 def apply_mi_gaussian_properties(mi_context, mi_props):
     mi_camera = mi_context.bl_scene.camera.data.mitsuba
     bl_renderer = mi_context.bl_scene.cycles
-    bl_box_props = getattr(mi_camera.rfilters, 'gaussian', None)
+    bl_box_props = getattr(mi_camera.visual_rfilters, 'gaussian', None)
     if bl_box_props is None:
         mi_context.log(f'misuka Reconstruction Filter "gaussian" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
-    mi_camera.active_rfilter = 'gaussian'
+    mi_camera.visual_rfilter = 'gaussian'
     bl_box_props.stddev = mi_props.get('stddev', 0.5)
     # Cycles properties
     bl_renderer.pixel_filter_type = 'GAUSSIAN'
@@ -184,12 +189,12 @@ def apply_mi_rfilter_properties(mi_context, mi_props):
 def apply_mi_independent_properties(mi_context, mi_props):
     mi_camera = mi_context.bl_scene.camera.data.mitsuba
     bl_renderer = mi_context.bl_scene.cycles
-    bl_independent_props = getattr(mi_camera.samplers, 'independent', None)
+    bl_independent_props = getattr(mi_camera.visual_samplers, 'independent', None)
     if bl_independent_props is None:
         mi_context.log(f'misuka Sampler "independent" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
-    mi_camera.active_sampler = 'independent'
+    mi_camera.visual_sampler = 'independent'
     bl_independent_props.sample_count = mi_props.get('sample_count', 4)
     bl_independent_props.seed = mi_props.get('seed', 0)
     # Cycles properties
@@ -207,12 +212,12 @@ def apply_mi_independent_properties(mi_context, mi_props):
 def apply_mi_stratified_properties(mi_context, mi_props):
     mi_camera = mi_context.bl_scene.camera.data.mitsuba
     bl_renderer = mi_context.bl_scene.cycles
-    bl_stratified_props = getattr(mi_camera.samplers, 'stratified', None)
+    bl_stratified_props = getattr(mi_camera.visual_samplers, 'stratified', None)
     if bl_stratified_props is None:
         mi_context.log(f'misuka Sampler "stratified" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
-    mi_camera.active_sampler = 'stratified'
+    mi_camera.visual_sampler = 'stratified'
     bl_stratified_props.sample_count = mi_props.get('sample_count', 4)
     bl_stratified_props.seed = mi_props.get('seed', 0)
     bl_stratified_props.jitter = mi_props.get('jitter', True)
@@ -230,12 +235,12 @@ def apply_mi_stratified_properties(mi_context, mi_props):
 def apply_mi_multijitter_properties(mi_context, mi_props):
     mi_camera = mi_context.bl_scene.camera.data.mitsuba
     bl_renderer = mi_context.bl_scene.cycles
-    bl_multijitter_props = getattr(mi_camera.samplers, 'multijitter', None)
+    bl_multijitter_props = getattr(mi_camera.visual_samplers, 'multijitter', None)
     if bl_multijitter_props is None:
         mi_context.log(f'misuka Sampler "multijitter" is not supported.', 'ERROR')
         return False
     # Mitsuba properties
-    mi_camera.active_sampler = 'multijitter'
+    mi_camera.visual_sampler = 'multijitter'
     bl_multijitter_props.sample_count = mi_props.get('sample_count', 4)
     bl_multijitter_props.seed = mi_props.get('seed', 0)
     bl_multijitter_props.jitter = mi_props.get('jitter', True)

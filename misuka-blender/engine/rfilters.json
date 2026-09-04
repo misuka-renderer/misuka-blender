@@ -15,7 +15,7 @@
                 "label" : "Standard Deviation",
                 "description" : "Standard deviation of the gaussian.",
                 "type" : "float",
-                "default" : 0.5,
+                "default" : 0.25,
                 "min" : 0.0
             }
         }

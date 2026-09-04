@@ -58,10 +58,16 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
     # script that sets one and exports would otherwise write the old value.
     mts_camera = b_camera.original.data.mitsuba
 
-    sampler = getattr(mts_camera.samplers, mts_camera.active_sampler).to_dict()
-
     if acoustic_mode:
-        sampler['sample_count'] = export_ctx.acoustic_sample_count
+        sampler = getattr(
+            mts_camera.acoustic_samplers,
+            mts_camera.acoustic_sampler
+        ).to_dict()
+    else:
+        sampler = getattr(
+            mts_camera.visual_samplers,
+            mts_camera.visual_sampler
+        ).to_dict()
 
     params['sampler'] = sampler
 
@@ -75,7 +81,10 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
         film['frequencies'] = ", ".join(
             str(f) for f in resolution_frequencies(export_ctx.acoustic_band_resolution)
         )
-        film['rfilter'] = {'type': 'box'}
+        film['rfilter'] = getattr(
+            mts_camera.acoustic_rfilters,
+            mts_camera.acoustic_rfilter
+        ).to_dict()
 
     else:
         film['type'] = 'hdrfilm'
@@ -85,8 +94,8 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
         film['height'] = int(res_y * scale)
 
         film['rfilter'] = getattr(
-            mts_camera.rfilters,
-            mts_camera.active_rfilter
+            mts_camera.visual_rfilters,
+            mts_camera.visual_rfilter
         ).to_dict()
 
     params['film'] = film

@@ -24,6 +24,21 @@ with open(os.path.join(dirname(__file__), "samplers.json")) as file:
 with open(os.path.join(dirname(__file__), "rfilters.json")) as file:
     rfilter_data = json.load(file)
 
+# What the acoustic half of the Sampler panel changes about the plugin the JSON
+# describes. Only the sample count differs, and only in what a sensible value
+# is: the same rays are spread over time bins and frequency bands, so a count
+# that gives a clean image gives a noisy energy-time curve.
+ACOUSTIC_SAMPLER_OVERRIDES = {
+    'sample_count' : {
+        'description' : "Rays traced per frequency band. misuka traces an even square number of them most efficiently",
+        'default' : 2 ** 18,
+        # A Blender integer is a signed 32-bit one, so this is the real ceiling.
+        # The slider stops well short of it, since nothing sensible goes there.
+        'max' : 2 ** 31 - 1,
+        'soft_max' : 2 ** 28,
+    }
+}
+
 def plugin_limits(param_dict):
     '''
     The bounds one JSON parameter puts on its property.
@@ -43,7 +58,7 @@ def plugin_limits(param_dict):
     return limits
 
 
-def create_plugin_props(name, arg_dict, depth=1, prefix=""):
+def create_plugin_props(name, arg_dict, depth=1, prefix="", overrides=None):
     '''
     Dynamically create a PropertyGroup for a given plugin defined in arg_dict.
     This allows us to avoid manually creating classes for each plugin (e.g. integrator, BSDF, etc.)
@@ -55,23 +70,32 @@ def create_plugin_props(name, arg_dict, depth=1, prefix=""):
     arg_dict: the labels, description and properties defined in the JSON plugin files
     depth: Recursion depth (for nested plugins, e.g. Stokes integrator) We only allow a certain amount of nesting, to avoid infinite definition of properties
     prefix: Prefix to use to declare a class with a unique name
+    overrides: per-parameter keys that replace the JSON ones, for a second set
+               of properties built from the same plugin. The default and the
+               range that suit one context can be wrong in another: an acoustic
+               run needs orders of magnitude more samples than an image.
+               Needs its own `prefix`, since it declares its own class.
     '''
+    overrides = overrides or {}
     prefix += name.title()
     plugin_props = type("%sProps" % prefix, (PropertyGroup, ), {
         "args": arg_dict
     })
     bpy.utils.register_class(plugin_props)
     custom_draw = set() # List of parameter names that need to call their own draw function (nested plugins)
-    props_draw = set() # List of parameters to draw normally, using layout.prop()
+    # A list rather than a set, so the panel draws the parameters in the order
+    # the JSON file lists them.
+    props_draw = [] # List of parameters to draw normally, using layout.prop()
     if 'parameters' in arg_dict:
         for param_name, param_dict in arg_dict['parameters'].items():
+            param_dict = {**param_dict, **overrides.get(param_name, {})}
             param_type = param_dict['type']
             label = param_dict['label']
             description = param_dict['description'] if 'description' in param_dict else ''
             if 'advanced' in param_dict and param_dict['advanced']:
                 continue # TODO
             if param_type == 'integer':
-                props_draw.add(param_name)
+                props_draw.append(param_name)
                 setattr(plugin_props, param_name, IntProperty(
                     name = label,
                     description = description,
@@ -79,14 +103,14 @@ def create_plugin_props(name, arg_dict, depth=1, prefix=""):
                     **plugin_limits(param_dict)
                 ))
             elif param_type == 'boolean':
-                props_draw.add(param_name)
+                props_draw.append(param_name)
                 setattr(plugin_props, param_name, BoolProperty(
                     name = label,
                     description = description,
                     default = param_dict.get('default', False)
                 ))
             elif param_type == 'float':
-                props_draw.add(param_name)
+                props_draw.append(param_name)
                 setattr(plugin_props, param_name, FloatProperty(
                     name = label,
                     description = description,
@@ -168,7 +192,7 @@ def create_plugin_props(name, arg_dict, depth=1, prefix=""):
                         '''
                         Look for the given class in the mitsuba settings
                         '''
-                        settings = getattr(context.scene.mitsuba.available_integrators, context.scene.mitsuba.active_integrator)
+                        settings = getattr(context.scene.mitsuba.available_integrators, context.scene.mitsuba.visual_integrator)
                         while True:
                             for param in dir(settings):
                                 prop = getattr(settings, param)
@@ -240,7 +264,7 @@ def create_plugin_props(name, arg_dict, depth=1, prefix=""):
                 if list_type == 'string':
                     choices = param_dict['choices']
                     for choice, label in choices.items():
-                        props_draw.add(choice)
+                        props_draw.append(choice)
                         setattr(plugin_props, choice, BoolProperty(
                             name = label
                         ))
@@ -289,15 +313,31 @@ class MitsubaRenderSettings(PropertyGroup):
     It creates classes for each plugin described in the JSON files dynamically.
     '''
 
-    enum_integrators = [(name, integrator['label'], integrator['description']) for name, integrator in integrator_data.items()]
+    # One integrator per export mode, so both are set up and visible at once
+    # and neither panel can hold a plugin the other mode needs. An acoustic
+    # integrator is the only one a `tape` film can be rendered with, and it
+    # cannot produce an image.
+    enum_acoustic_integrators = [
+        (name, integrator['label'], integrator['description'])
+        for name, integrator in integrator_data.items()
+        if name.startswith('acoustic')
+    ]
+    enum_visual_integrators = [
+        (name, integrator['label'], integrator['description'])
+        for name, integrator in integrator_data.items()
+        if not name.startswith('acoustic')
+    ]
 
-    # Acoustic export is what this add-on is for, so its integrator is the
-    # default, and its settings are in the Integrator panel from the moment the
-    # engine is picked. Choose a visual integrator here for a Visual export.
-    active_integrator : EnumProperty(
+    acoustic_integrator : EnumProperty(
         name = "Integrator",
-        items = enum_integrators,
+        items = enum_acoustic_integrators,
         default = "acoustic_path"
+    )
+
+    visual_integrator : EnumProperty(
+        name = "Integrator",
+        items = enum_visual_integrators,
+        default = "path"
     )
     # Dynamic class for integrator parameters
     IntegratorProperties = type("IntegratorProperties",
@@ -327,17 +367,6 @@ class MitsubaRenderSettings(PropertyGroup):
         description = "Frequency axis the material Interpolate buttons work along. Band centres are evenly spaced on the logarithmic one",
         items = acoustic_bands.INTERPOLATION_ITEMS,
         default = 'LOG'
-    )
-
-    acoustic_sample_count : IntProperty(
-        name = "Samples",
-        description = "Rays traced per frequency band. An acoustic run needs far more of them than an image does. Mitsuba traces an even square number of them most efficiently",
-        default = 2 ** 18,
-        min = 1,
-        # A Blender integer is a signed 32-bit one, so this is the real ceiling.
-        # The slider stops well short of it, since nothing sensible goes there.
-        max = 2 ** 31 - 1,
-        soft_max = 2 ** 28
     )
 
     acoustic_max_time : FloatProperty(
@@ -376,13 +405,19 @@ class MitsubaCameraSettings(PropertyGroup):
 
     enum_samplers = [(name, sampler['label'], sampler['description']) for name, sampler in sampler_data.items()]
 
-    active_sampler : EnumProperty(
+    acoustic_sampler : EnumProperty(
         name = "Sampler",
         items = enum_samplers,
         default = "independent"
     )
 
-    # Dynamic class for sampler parameters
+    visual_sampler : EnumProperty(
+        name = "Sampler",
+        items = enum_samplers,
+        default = "independent"
+    )
+
+    # Dynamic classes for sampler parameters, one set per export mode.
     SamplerProperties = type("SamplerProperties",
         (PropertyGroup, ),
         {
@@ -393,14 +428,36 @@ class MitsubaCameraSettings(PropertyGroup):
         }
     )
     bpy.utils.register_class(SamplerProperties)
-    samplers : PointerProperty(type = SamplerProperties)
+
+    AcousticSamplerProperties = type("AcousticSamplerProperties",
+        (PropertyGroup, ),
+        {
+            '__annotations__' : {
+                name : PointerProperty(type=create_plugin_props(
+                    name, sampler,
+                    prefix="Acoustic",
+                    overrides=ACOUSTIC_SAMPLER_OVERRIDES
+                )) for name, sampler in sampler_data.items()
+            }
+        }
+    )
+    bpy.utils.register_class(AcousticSamplerProperties)
+
+    acoustic_samplers : PointerProperty(type = AcousticSamplerProperties)
+    visual_samplers : PointerProperty(type = SamplerProperties)
 
     enum_rfilters = [(name, rfilter['label'], rfilter['description']) for name, rfilter in rfilter_data.items()]
 
-    active_rfilter : EnumProperty(
+    acoustic_rfilter : EnumProperty(
         name = "Reconstruction Filter",
         items = enum_rfilters,
-        default = "box"
+        default = "gaussian"
+    )
+
+    visual_rfilter : EnumProperty(
+        name = "Reconstruction Filter",
+        items = enum_rfilters,
+        default = "gaussian"
     )
 
     # Dynamic class for reconstruction filter parameters
@@ -414,7 +471,10 @@ class MitsubaCameraSettings(PropertyGroup):
         }
     )
     bpy.utils.register_class(RfilterProperties)
-    rfilters : PointerProperty(type = RfilterProperties)
+    # Separate storage per mode, since both dropdowns offer the same plugins and
+    # a filter that suits an image rarely suits an impulse response.
+    acoustic_rfilters : PointerProperty(type = RfilterProperties)
+    visual_rfilters : PointerProperty(type = RfilterProperties)
 
     @classmethod
     def register(cls):
@@ -428,9 +488,16 @@ class MitsubaCameraSettings(PropertyGroup):
     def unregister(cls):
         del bpy.types.Camera.mitsuba
 
-class MITSUBA_RENDER_PT_integrator(bpy.types.Panel):
-    bl_idname = "MITSUBA_RENDER_PT_integrator"
-    bl_label = "Integrator"
+class MitsubaModePanel(bpy.types.Panel):
+    '''
+    Base for every panel that belongs to one export mode.
+
+    The two modes are set up side by side, each under a heading of its own, so
+    a scene ready for an acoustic run keeps its visual settings beside it
+    rather than behind a dropdown change. The mode's name is the heading, so
+    the panels under it are just Integrator, Sampler and Reconstruction Filter.
+    '''
+
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = 'render'
@@ -440,17 +507,44 @@ class MITSUBA_RENDER_PT_integrator(bpy.types.Panel):
     def poll(cls, context):
         return context.engine in cls.COMPAT_ENGINES
 
+
+class MITSUBA_RENDER_PT_acoustic(MitsubaModePanel):
+    bl_idname = "MITSUBA_RENDER_PT_acoustic"
+    bl_label = "Acoustic"
+
+    def draw(self, context):
+        pass
+
+
+class MITSUBA_RENDER_PT_visual(MitsubaModePanel):
+    bl_idname = "MITSUBA_RENDER_PT_visual"
+    bl_label = "Visual"
+
+    def draw(self, context):
+        pass
+
+
+class MitsubaIntegratorPanel(MitsubaModePanel):
+    bl_label = "Integrator"
+
     def draw(self, context):
         layout = self.layout
         mts_settings = context.scene.mitsuba
-        layout.prop(mts_settings, "active_integrator", text="Integrator")
-        getattr(mts_settings.available_integrators, mts_settings.active_integrator).draw(layout)
+        active = getattr(mts_settings, self.integrator_prop)
+        layout.prop(mts_settings, self.integrator_prop, text="Integrator")
+        getattr(mts_settings.available_integrators, active).draw(layout)
 
-        # The sample count is a sampler setting in Mitsuba, so it cannot live in
-        # integrators.json without being written into the integrator element.
-        # It still belongs beside the settings it trades off against.
-        if mts_settings.active_integrator == 'acoustic_path':
-            layout.prop(mts_settings, "acoustic_sample_count")
+
+class MITSUBA_RENDER_PT_integrator_acoustic(MitsubaIntegratorPanel):
+    bl_idname = "MITSUBA_RENDER_PT_integrator_acoustic"
+    bl_parent_id = "MITSUBA_RENDER_PT_acoustic"
+    integrator_prop = "acoustic_integrator"
+
+
+class MITSUBA_RENDER_PT_integrator_visual(MitsubaIntegratorPanel):
+    bl_idname = "MITSUBA_RENDER_PT_integrator_visual"
+    bl_parent_id = "MITSUBA_RENDER_PT_visual"
+    integrator_prop = "visual_integrator"
 
 class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
     '''
@@ -505,60 +599,93 @@ class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
         col.label(text=f"{acoustic_bands.time_bins(mts_settings)} time bins")
 
 
-class MITSUBA_CAMERA_PT_sampler(bpy.types.Panel):
-    bl_idname = "MITSUBA_CAMERA_PT_sampler"
+class MitsubaSamplerPanel(MitsubaModePanel):
+    '''
+    The sample count each mode wants is orders of magnitude apart, so they are
+    set up independently rather than sharing one panel with two counts in it.
+    '''
+
     bl_label = "Sampler"
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'render'
-    COMPAT_ENGINES = {'MITSUBA'}
-
-    @classmethod
-    def poll(cls, context):
-        return context.engine in cls.COMPAT_ENGINES
 
     def draw(self, context):
         layout = self.layout
         if hasattr(context.scene.camera, 'data'):
             cam_settings = context.scene.camera.data.mitsuba
-            layout.prop(cam_settings, "active_sampler", text="Sampler")
-            getattr(cam_settings.samplers, cam_settings.active_sampler).draw(layout)
+            active = getattr(cam_settings, self.sampler_prop)
+            layout.prop(cam_settings, self.sampler_prop, text="Sampler")
+            getattr(getattr(cam_settings, self.samplers_prop), active).draw(layout)
 
-class MITSUBA_CAMERA_PT_rfilter(bpy.types.Panel):
-    bl_idname = "MITSUBA_CAMERA_PT_rfilter"
+
+class MITSUBA_CAMERA_PT_sampler_acoustic(MitsubaSamplerPanel):
+    bl_idname = "MITSUBA_CAMERA_PT_sampler_acoustic"
+    bl_parent_id = "MITSUBA_RENDER_PT_acoustic"
+    sampler_prop = "acoustic_sampler"
+    samplers_prop = "acoustic_samplers"
+
+
+class MITSUBA_CAMERA_PT_sampler_visual(MitsubaSamplerPanel):
+    bl_idname = "MITSUBA_CAMERA_PT_sampler_visual"
+    bl_parent_id = "MITSUBA_RENDER_PT_visual"
+    sampler_prop = "visual_sampler"
+    samplers_prop = "visual_samplers"
+
+class MitsubaRfilterPanel(MitsubaModePanel):
+    '''
+    An acoustic export smooths across time bins and a visual one across pixels,
+    so the two want different filters and are set up independently.
+    '''
+
     bl_label = "Reconstruction Filter"
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'render'
-    COMPAT_ENGINES = {'MITSUBA'}
-
-    @classmethod
-    def poll(cls, context):
-        return context.engine in cls.COMPAT_ENGINES
 
     def draw(self, context):
         layout = self.layout
         if hasattr(context.scene.camera, 'data'):
             cam_settings = context.scene.camera.data.mitsuba
-            layout.prop(cam_settings, "active_rfilter", text="Filter")
-            getattr(cam_settings.rfilters, cam_settings.active_rfilter).draw(layout)
+            active = getattr(cam_settings, self.rfilter_prop)
+            layout.prop(cam_settings, self.rfilter_prop, text="Filter")
+            getattr(getattr(cam_settings, self.rfilters_prop), active).draw(layout)
+
+
+class MITSUBA_CAMERA_PT_rfilter_acoustic(MitsubaRfilterPanel):
+    bl_idname = "MITSUBA_CAMERA_PT_rfilter_acoustic"
+    bl_parent_id = "MITSUBA_RENDER_PT_acoustic"
+    rfilter_prop = "acoustic_rfilter"
+    rfilters_prop = "acoustic_rfilters"
+
+
+class MITSUBA_CAMERA_PT_rfilter_visual(MitsubaRfilterPanel):
+    bl_idname = "MITSUBA_CAMERA_PT_rfilter_visual"
+    bl_parent_id = "MITSUBA_RENDER_PT_visual"
+    rfilter_prop = "visual_rfilter"
+    rfilters_prop = "visual_rfilters"
+
+# Panels are drawn in registration order, both the headings and what sits under
+# one, and an acoustic export is what the add-on is for, so Acoustic leads.
+PANELS = (
+    MITSUBA_RENDER_PT_acoustic,
+    MITSUBA_RENDER_PT_integrator_acoustic,
+    MITSUBA_CAMERA_PT_sampler_acoustic,
+    MITSUBA_CAMERA_PT_rfilter_acoustic,
+    MITSUBA_RENDER_PT_visual,
+    MITSUBA_RENDER_PT_integrator_visual,
+    MITSUBA_CAMERA_PT_sampler_visual,
+    MITSUBA_CAMERA_PT_rfilter_visual,
+    MITSUBA_OUTPUT_PT_acoustic_film,
+)
+
 
 def register():
     from . import panels
     panels.register()
     bpy.utils.register_class(MitsubaRenderSettings)
     bpy.utils.register_class(MitsubaCameraSettings)
-    bpy.utils.register_class(MITSUBA_RENDER_PT_integrator)
-    bpy.utils.register_class(MITSUBA_OUTPUT_PT_acoustic_film)
-    bpy.utils.register_class(MITSUBA_CAMERA_PT_sampler)
-    bpy.utils.register_class(MITSUBA_CAMERA_PT_rfilter)
+    for panel in PANELS:
+        bpy.utils.register_class(panel)
 
 def unregister():
     from . import panels
     panels.unregister()
     bpy.utils.unregister_class(MitsubaRenderSettings)
     bpy.utils.unregister_class(MitsubaCameraSettings)
-    bpy.utils.unregister_class(MITSUBA_RENDER_PT_integrator)
-    bpy.utils.unregister_class(MITSUBA_OUTPUT_PT_acoustic_film)
-    bpy.utils.unregister_class(MITSUBA_CAMERA_PT_sampler)
-    bpy.utils.unregister_class(MITSUBA_CAMERA_PT_rfilter)
+    for panel in reversed(PANELS):
+        bpy.utils.unregister_class(panel)

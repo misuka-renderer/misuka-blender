@@ -265,13 +265,17 @@ def add_point_light(power, radius):
     return light
 
 
-def export_scene(mat, tmp_path, export_mode='ACOUSTIC', **kwargs):
+def export_scene(mat, tmp_path, export_mode='ACOUSTIC', camera_setup=None,
+                 **kwargs):
     '''
     Export a single cube carrying `mat` and return the parsed scene root.
 
     Either export mode needs the misuka engine, since that is where the
     settings it writes live, and an Acoustic one needs something to emit.
     Select the engine and add a point light unless the test set them up itself.
+
+    `camera_setup` is called with every camera's misuka settings, since the
+    exported sensor is whichever camera the scene happens to hold first.
     '''
     if bpy.context.scene.render.engine != 'MITSUBA':
         bpy.context.scene.render.engine = 'MITSUBA'
@@ -279,6 +283,10 @@ def export_scene(mat, tmp_path, export_mode='ACOUSTIC', **kwargs):
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
+
+    if camera_setup is not None:
+        for camera in bpy.data.cameras:
+            camera_setup(camera.mitsuba)
 
     has_light = any(ob.type == 'LIGHT' for ob in bpy.data.objects)
     if export_mode == 'ACOUSTIC' and not has_light:
@@ -370,11 +378,66 @@ def test_acoustic_export_defaults_to_262144_samples(mat, tmp_path):
 
 
 def test_the_sample_count_setting_reaches_the_exported_scene(mat, tmp_path):
-    bpy.context.scene.mitsuba.acoustic_sample_count = 64
+    def set_count(mts_camera):
+        sampler = getattr(mts_camera.acoustic_samplers, mts_camera.acoustic_sampler)
+        sampler.sample_count = 64
 
-    root = export_scene(mat, tmp_path)
+    root = export_scene(mat, tmp_path, camera_setup=set_count)
 
     assert scene_spp(root) == 64
+
+
+def film_rfilter(root):
+    '''The reconstruction filter the `tape` film ends up with.'''
+    film = root.find(".//film[@type='tape']")
+    assert film is not None, 'no tape film in the exported scene'
+
+    rfilter = film.find('rfilter')
+    assert rfilter is not None, 'no rfilter on the tape film'
+
+    return rfilter
+
+
+def test_the_acoustic_film_defaults_to_the_same_filter_as_the_image(mat, tmp_path):
+    '''
+    A narrow gaussian either way. The acoustic film used to be given a box, and
+    it was hardcoded rather than read from a panel.
+    '''
+    rfilter = film_rfilter(export_scene(mat, tmp_path))
+
+    assert rfilter.get('type') == 'gaussian'
+    assert float(rfilter.find("float[@name='stddev']").get('value')) == 0.25
+
+
+def test_the_acoustic_film_takes_its_own_reconstruction_filter(mat, tmp_path):
+    '''
+    It used to be a hardcoded box, so the panel was visual-only. The two films
+    smooth along different axes, time bins against pixels, so each mode carries
+    its own filter.
+    '''
+    def set_filters(mts_camera):
+        mts_camera.acoustic_rfilters.gaussian.stddev = 0.75
+        mts_camera.visual_rfilter = 'tent'
+
+    rfilter = film_rfilter(export_scene(mat, tmp_path, camera_setup=set_filters))
+
+    assert rfilter.get('type') == 'gaussian'
+    assert float(rfilter.find("float[@name='stddev']").get('value')) == 0.75
+
+
+def test_each_mode_keeps_its_own_reconstruction_filter_settings():
+    '''
+    Both dropdowns offer the same plugins, so they need storage of their own or
+    tuning one would retune the other.
+    '''
+    bpy.ops.object.camera_add()
+    mts_camera = bpy.context.active_object.data.mitsuba
+
+    mts_camera.acoustic_rfilters.gaussian.stddev = 0.75
+
+    assert mts_camera.visual_rfilters.gaussian.stddev == 0.25
+    assert mts_camera.acoustic_rfilter == 'gaussian'
+    assert mts_camera.visual_rfilter == 'gaussian'
 
 
 def source_sphere(root):
@@ -827,52 +890,93 @@ def test_film_settings_are_stored_on_the_scene(mat):
     operator_props = bpy.ops.export_scene.mitsuba.get_rna_type().properties
 
     for name in ('acoustic_band_resolution', 'acoustic_max_time',
-                 'acoustic_sampling_rate', 'acoustic_sample_count'):
+                 'acoustic_sampling_rate'):
         assert hasattr(bpy.context.scene.mitsuba, name), name
         assert name not in operator_props, name
 
 
-def draw_integrator_panel():
-    '''Names of the properties the Integrator panel draws, in order.'''
+def draw_sampler_panel(panel):
+    '''Names of the properties one Sampler panel draws, in order.'''
     drawn = []
-    panel = engine_props.MITSUBA_RENDER_PT_integrator
-    stub = type('Stub', (), {'draw': panel.draw})()
+    # The panel reads which properties to draw off its own class.
+    stub = type('Stub', (), {
+        'draw': panel.draw,
+        'sampler_prop': panel.sampler_prop,
+        'samplers_prop': panel.samplers_prop,
+    })()
     stub.layout = StubLayout(drawn)
     stub.draw(StubContext(None))
 
     return [name for kind, name, _ in drawn if kind == 'prop']
 
 
-def test_the_sample_count_shows_only_for_the_acoustic_integrator():
+def test_each_export_mode_has_its_own_sampler_panel():
     '''
-    It is a sampler setting in Mitsuba, so it cannot come from
-    integrators.json without being written into the integrator element. The
-    panel draws it beside the settings it trades off against instead.
+    The two modes need counts orders of magnitude apart, so each mode picks a
+    sampler and a count of its own. Both used to sit in one panel.
     '''
-    settings = bpy.context.scene.mitsuba
+    bpy.ops.object.camera_add()
+    bpy.context.scene.camera = bpy.context.active_object
 
-    try:
-        settings.active_integrator = 'acoustic_path'
-        assert 'acoustic_sample_count' in draw_integrator_panel()
+    acoustic = draw_sampler_panel(engine_props.MITSUBA_CAMERA_PT_sampler_acoustic)
+    visual = draw_sampler_panel(engine_props.MITSUBA_CAMERA_PT_sampler_visual)
 
-        settings.active_integrator = 'path'
-        assert 'acoustic_sample_count' not in draw_integrator_panel()
-    finally:
-        settings.active_integrator = 'acoustic_path'
+    assert acoustic == ['acoustic_sampler', 'sample_count', 'seed']
+    assert visual == ['visual_sampler', 'sample_count', 'seed']
 
 
-def test_a_sample_count_cannot_go_below_one():
+def test_each_mode_keeps_its_own_sampler_settings():
+    '''
+    Both dropdowns offer the same plugins, so they need storage of their own or
+    setting one count would set the other.
+    '''
+    bpy.ops.object.camera_add()
+    mts_camera = bpy.context.active_object.data.mitsuba
+
+    mts_camera.visual_samplers.independent.sample_count = 128
+
+    assert mts_camera.acoustic_samplers.independent.sample_count == 2 ** 18
+    assert mts_camera.acoustic_sampler == 'independent'
+    assert mts_camera.visual_sampler == 'independent'
+
+
+def test_neither_sample_count_can_go_below_one():
     '''
     Mitsuba needs at least one ray. The JSON `min` used to reach Blender as a
     `soft_min`, which only stops the slider, so a typed or scripted zero got
     through.
     '''
     bpy.ops.object.camera_add()
-    sampler = bpy.context.active_object.data.mitsuba.samplers.independent
+    mts_camera = bpy.context.active_object.data.mitsuba
 
-    sampler.sample_count = 0
+    for samplers in (mts_camera.acoustic_samplers, mts_camera.visual_samplers):
+        samplers.independent.sample_count = 0
 
-    assert sampler.sample_count == 1
+        assert samplers.independent.sample_count == 1
+
+
+def draw_integrator_panel(panel):
+    '''Names of the properties one Integrator panel draws, in order.'''
+    drawn = []
+    stub = type('Stub', (), {
+        'draw': panel.draw,
+        'integrator_prop': panel.integrator_prop,
+    })()
+    stub.layout = StubLayout(drawn)
+    stub.draw(StubContext(None))
+
+    return [name for kind, name, _ in drawn if kind == 'prop']
+
+
+def test_the_acoustic_integrator_draws_hide_emitters_last():
+    '''
+    It is the odd one out: the settings above it trade quality against time,
+    and this one changes what is in the result at all.
+    '''
+    drawn = draw_integrator_panel(engine_props.MITSUBA_RENDER_PT_integrator_acoustic)
+
+    assert drawn == ['acoustic_integrator', 'max_depth', 'max_energy_loss',
+                     'hide_emitters']
 
 
 def integrator_setting(root, kind, name):
@@ -922,12 +1026,22 @@ def test_max_energy_loss_is_declared_and_exported(mat, tmp_path):
     assert float(integrator_setting(root, 'float', 'max_energy_loss')) == 90.0
 
 
-def test_the_engine_defaults_to_the_acoustic_integrator():
+def test_each_export_mode_has_its_own_integrator():
     '''
-    So its settings are in the Integrator panel the moment the engine is
-    picked, rather than behind a dropdown change.
+    Both panels are drawn at once, each already on the integrator its mode
+    needs, so neither mode is set up behind a dropdown change. The two lists
+    are disjoint, so a panel cannot name a plugin its mode would reject.
     '''
-    assert bpy.context.scene.mitsuba.active_integrator == 'acoustic_path'
+    settings = bpy.context.scene.mitsuba
+
+    assert settings.acoustic_integrator == 'acoustic_path'
+    assert settings.visual_integrator == 'path'
+
+    acoustic = {name for name, _, _ in settings.enum_acoustic_integrators}
+    visual = {name for name, _, _ in settings.enum_visual_integrators}
+
+    assert acoustic == {'acoustic_path'}
+    assert not acoustic & visual
 
 
 def test_export_mode_is_a_choice_of_two_scenes():
@@ -984,6 +1098,9 @@ def test_every_acoustic_property_carries_a_description():
     '''
     material_props = bpy.types.Material.bl_rna.properties
     scene_props = bpy.types.Scene.bl_rna.properties['mitsuba'].fixed_type.properties
+    camera_props = bpy.types.Camera.bl_rna.properties['mitsuba'].fixed_type.properties
+    samplers = camera_props['acoustic_samplers'].fixed_type.properties
+    sampler_props = samplers['independent'].fixed_type.properties
 
     checked = 0
 
@@ -993,8 +1110,8 @@ def test_every_acoustic_property_carries_a_description():
             'acoustic_specular_lobe_width')),
         (scene_props, (
             'acoustic_band_resolution', 'acoustic_interpolation',
-            'acoustic_max_time', 'acoustic_sampling_rate',
-            'acoustic_sample_count')),
+            'acoustic_max_time', 'acoustic_sampling_rate')),
+        (sampler_props, ('sample_count',)),
     ):
         for name in names:
             assert name in props, name
@@ -1048,12 +1165,12 @@ def test_the_export_mode_picks_the_integrator(
 
 def test_an_optical_export_still_honours_a_chosen_integrator(mat, tmp_path):
     '''
-    Only acoustic_path is overridden. Picking a different visual integrator has
-    to keep working, or the dropdown would be pointless.
+    Picking a different visual integrator has to keep working, or the dropdown
+    would be pointless.
     '''
     scene = bpy.context.scene
     scene.render.engine = 'MITSUBA'
-    scene.mitsuba.active_integrator = 'direct'
+    scene.mitsuba.visual_integrator = 'direct'
 
     root = export_scene(mat, tmp_path, export_mode='VISUAL')
 

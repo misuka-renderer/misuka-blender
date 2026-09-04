@@ -10,17 +10,17 @@
                 "default": -1,
                 "min": -1
             },
-            "hide_emitters": {
-                "label": "Hide Emitters",
-                "description": "Hide directly visible emitters.",
-                "type": "boolean",
-                "default": false
-            },
             "max_energy_loss": {
                 "label": "Max Energy Loss",
                 "description": "Stop tracing a path once its energy has dropped this far, in dB, below the energy it started with.",
                 "type": "float",
                 "default": 90.0
+            },
+            "hide_emitters": {
+                "label": "Hide Emitters",
+                "description": "Hide directly visible emitters.",
+                "type": "boolean",
+                "default": false
             }
         }
     },

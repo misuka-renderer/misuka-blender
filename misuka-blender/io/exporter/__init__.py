@@ -63,33 +63,22 @@ class SceneConverter:
             )
 
         # --- Integrator setup ---
+        # Each mode has its own dropdown, and neither offers the other's
+        # integrators, so the panel a mode reads cannot name a plugin it
+        # would reject.
         if acoustic_mode:
-            # Force the acoustic integrator whatever the Integrator panel says.
             integrator = getattr(
                 b_scene.mitsuba.available_integrators,
-                "acoustic_path"
+                b_scene.mitsuba.acoustic_integrator
             ).to_dict()
 
             # Required for acoustic integrator
             integrator['max_time'] = self.export_ctx.acoustic_max_time
 
         else:
-            active_integrator = b_scene.mitsuba.active_integrator
-
-            # acoustic_path is the engine's default, since acoustic export is
-            # what the add-on is for. It cannot produce an image though, so a
-            # visual export or an F12 render substitutes a path tracer rather
-            # than writing a scene misuka would reject.
-            if active_integrator == 'acoustic_path':
-                self.export_ctx.log(
-                    "The acoustic integrator cannot render an image. Exporting "
-                    "with 'path' instead; pick a visual integrator in the "
-                    "Integrator panel, or enable Acoustic Mode.", 'WARN')
-                active_integrator = 'path'
-
             integrator = getattr(
                 b_scene.mitsuba.available_integrators,
-                active_integrator
+                b_scene.mitsuba.visual_integrator
             ).to_dict()
 
         #issue request: useful naming

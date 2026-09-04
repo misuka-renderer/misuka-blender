@@ -361,11 +361,57 @@ def acoustic_panels():
     return found
 
 MISUKA_PANELS = (
-    'MITSUBA_RENDER_PT_integrator',
+    'MITSUBA_RENDER_PT_acoustic',
+    'MITSUBA_RENDER_PT_integrator_acoustic',
+    'MITSUBA_CAMERA_PT_sampler_acoustic',
+    'MITSUBA_CAMERA_PT_rfilter_acoustic',
+    'MITSUBA_RENDER_PT_visual',
+    'MITSUBA_RENDER_PT_integrator_visual',
+    'MITSUBA_CAMERA_PT_sampler_visual',
+    'MITSUBA_CAMERA_PT_rfilter_visual',
     'MITSUBA_OUTPUT_PT_acoustic_film',
-    'MITSUBA_CAMERA_PT_sampler',
-    'MITSUBA_CAMERA_PT_rfilter',
 )
+
+# One heading per export mode, with the same three panels under each.
+ENGINE_SETTINGS = (
+    ('MITSUBA_RENDER_PT_acoustic', 'Acoustic', (
+        ('MITSUBA_RENDER_PT_integrator_acoustic', 'Integrator'),
+        ('MITSUBA_CAMERA_PT_sampler_acoustic', 'Sampler'),
+        ('MITSUBA_CAMERA_PT_rfilter_acoustic', 'Reconstruction Filter'),
+    )),
+    ('MITSUBA_RENDER_PT_visual', 'Visual', (
+        ('MITSUBA_RENDER_PT_integrator_visual', 'Integrator'),
+        ('MITSUBA_CAMERA_PT_sampler_visual', 'Sampler'),
+        ('MITSUBA_CAMERA_PT_rfilter_visual', 'Reconstruction Filter'),
+    )),
+)
+
+
+def test_the_engine_settings_are_grouped_by_export_mode():
+    '''
+    The mode names the group, so each panel under it is labelled with what it
+    is. They used to sit side by side at the top level, each carrying its mode
+    in its own label.
+    '''
+    registered = list(engine_props.PANELS)
+
+    for parent_name, heading, children in ENGINE_SETTINGS:
+        parent = getattr(engine_props, parent_name)
+
+        assert parent.bl_label == heading
+        assert not hasattr(parent, 'bl_parent_id'), parent_name
+
+        for child_name, label in children:
+            child = getattr(engine_props, child_name)
+
+            assert child.bl_parent_id == parent_name, child_name
+            assert child.bl_label == label, child_name
+
+        # Blender draws panels in registration order, so a group is registered
+        # as a block, its heading first.
+        block = [parent] + [getattr(engine_props, name) for name, _ in children]
+        start = registered.index(parent)
+        assert registered[start:start + len(block)] == block, parent_name
 
 
 @pytest.mark.parametrize('other', ['BLENDER_EEVEE_NEXT', 'CYCLES'])

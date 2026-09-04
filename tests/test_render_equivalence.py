@@ -54,7 +54,7 @@ def scene():
     sc.render.image_settings.color_depth = '32'
     sc.render.image_settings.color_mode = 'RGBA'
     sc.view_settings.view_transform = 'Standard'
-    sc.mitsuba.active_integrator = 'path'
+    sc.mitsuba.visual_integrator = 'path'
 
     mesh = bpy.ops.mesh.primitive_uv_sphere_add
     with bpy.context.temp_override(scene=sc):

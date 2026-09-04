@@ -63,7 +63,7 @@ def test_importer_path_integrator(resource_resolver, mitsuba_scene_parser, xml_s
     assert bpy.ops.import_scene.mitsuba(filepath=scene_file) == {'FINISHED'}
 
     bl_scene = bpy.context.scene
-    assert bl_scene.mitsuba.active_integrator == 'path'
+    assert bl_scene.mitsuba.visual_integrator == 'path'
     assert bl_scene.mitsuba.available_integrators.path.max_depth == mi_integrator.get('max_depth')
     assert bl_scene.mitsuba.available_integrators.path.rr_depth == mi_integrator.get('rr_depth')
     assert bl_scene.mitsuba.available_integrators.path.hide_emitters == mi_integrator.get('hide_emitters')
@@ -84,7 +84,7 @@ def test_importer_moment_integrator(resource_resolver, mitsuba_scene_parser, xml
     assert bpy.ops.import_scene.mitsuba(filepath=scene_file) == {'FINISHED'}
 
     bl_scene = bpy.context.scene
-    assert bl_scene.mitsuba.active_integrator == 'moment'
+    assert bl_scene.mitsuba.visual_integrator == 'moment'
     assert bl_scene.mitsuba.available_integrators.moment.integrators.count == 1
     bl_child_integrator = bl_scene.mitsuba.available_integrators.moment.integrators.collection[0]
     assert bl_child_integrator.active_integrator == 'path'
@@ -105,9 +105,9 @@ def test_importer_independent_sampler(resource_resolver, mitsuba_scene_parser, x
     assert bpy.ops.import_scene.mitsuba(filepath=scene_file) == {'FINISHED'}
 
     bl_camera = bpy.context.scene.camera.data.mitsuba
-    assert bl_camera.active_sampler == 'independent'
-    assert bl_camera.samplers.independent.sample_count == mi_sampler.get('sample_count')
-    assert bl_camera.samplers.independent.seed == mi_sampler.get('seed')
+    assert bl_camera.visual_sampler == 'independent'
+    assert bl_camera.visual_samplers.independent.sample_count == mi_sampler.get('sample_count')
+    assert bl_camera.visual_samplers.independent.seed == mi_sampler.get('seed')
 
     # assert len(mi_sampler.unqueried()) == 0
 
@@ -122,10 +122,10 @@ def test_importer_stratified_sampler(resource_resolver, mitsuba_scene_parser, xm
     assert bpy.ops.import_scene.mitsuba(filepath=scene_file) == {'FINISHED'}
 
     bl_camera = bpy.context.scene.camera.data.mitsuba
-    assert bl_camera.active_sampler == 'stratified'
-    assert bl_camera.samplers.stratified.sample_count == mi_sampler.get('sample_count')
-    assert bl_camera.samplers.stratified.seed == mi_sampler.get('seed')
-    assert bl_camera.samplers.stratified.jitter == mi_sampler.get('jitter')
+    assert bl_camera.visual_sampler == 'stratified'
+    assert bl_camera.visual_samplers.stratified.sample_count == mi_sampler.get('sample_count')
+    assert bl_camera.visual_samplers.stratified.seed == mi_sampler.get('seed')
+    assert bl_camera.visual_samplers.stratified.jitter == mi_sampler.get('jitter')
 
     # assert len(mi_sampler.unqueried()) == 0
 
@@ -140,10 +140,10 @@ def test_importer_multijitter_sampler(resource_resolver, mitsuba_scene_parser, x
     assert bpy.ops.import_scene.mitsuba(filepath=scene_file) == {'FINISHED'}
 
     bl_camera = bpy.context.scene.camera.data.mitsuba
-    assert bl_camera.active_sampler == 'multijitter'
-    assert bl_camera.samplers.multijitter.sample_count == mi_sampler.get('sample_count')
-    assert bl_camera.samplers.multijitter.seed == mi_sampler.get('seed')
-    assert bl_camera.samplers.multijitter.jitter == mi_sampler.get('jitter')
+    assert bl_camera.visual_sampler == 'multijitter'
+    assert bl_camera.visual_samplers.multijitter.sample_count == mi_sampler.get('sample_count')
+    assert bl_camera.visual_samplers.multijitter.seed == mi_sampler.get('seed')
+    assert bl_camera.visual_samplers.multijitter.jitter == mi_sampler.get('jitter')
 
     # assert len(mi_sampler.unqueried()) == 0
 
@@ -158,7 +158,7 @@ def test_importer_box_rfilter(resource_resolver, mitsuba_scene_parser, xml_scene
     assert bpy.ops.import_scene.mitsuba(filepath=scene_file) == {'FINISHED'}
 
     bl_camera = bpy.context.scene.camera.data.mitsuba
-    assert bl_camera.active_rfilter == 'box'
+    assert bl_camera.visual_rfilter == 'box'
 
     bl_cycles = bpy.context.scene.cycles
     assert bl_cycles.pixel_filter_type == 'BOX'
@@ -176,7 +176,7 @@ def test_importer_tent_rfilter(resource_resolver, mitsuba_scene_parser, xml_scen
     assert bpy.ops.import_scene.mitsuba(filepath=scene_file) == {'FINISHED'}
 
     bl_camera = bpy.context.scene.camera.data.mitsuba
-    assert bl_camera.active_rfilter == 'tent'
+    assert bl_camera.visual_rfilter == 'tent'
     
     # assert len(mi_rfilter.unqueried()) == 0
 
@@ -191,8 +191,8 @@ def test_importer_gaussian_rfilter(resource_resolver, mitsuba_scene_parser, xml_
     assert bpy.ops.import_scene.mitsuba(filepath=scene_file) == {'FINISHED'}
 
     bl_camera = bpy.context.scene.camera.data.mitsuba
-    assert bl_camera.active_rfilter == 'gaussian'
-    assert bl_camera.rfilters.gaussian.stddev == mi_rfilter.get('stddev')
+    assert bl_camera.visual_rfilter == 'gaussian'
+    assert bl_camera.visual_rfilters.gaussian.stddev == mi_rfilter.get('stddev')
 
     bl_cycles = bpy.context.scene.cycles
     assert bl_cycles.pixel_filter_type == 'GAUSSIAN'

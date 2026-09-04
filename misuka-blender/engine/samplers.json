@@ -5,9 +5,9 @@
         "parameters" : {
             "sample_count" : {
                 "label" : "Sample Count",
-                "description" : "Number of samples per pixel.",
+                "description" : "Rays traced per pixel",
                 "type" : "integer",
-                "default" : 4,
+                "default" : 64,
                 "min" : 1
             },
             "seed" : {
@@ -24,9 +24,9 @@
         "parameters" : {
             "sample_count" : {
                 "label" : "Sample Count",
-                "description" : "Number of samples per pixel.",
+                "description" : "Rays traced per pixel",
                 "type" : "integer",
-                "default" : 4,
+                "default" : 64,
                 "min" : 1
             },
             "seed" : {
@@ -35,11 +35,11 @@
                 "type" : "integer",
                 "default" : 0
             },
-            "jitter": {
-                "label": "Jitter",
-                "description": "Additional random jitter withing the stratum.",
-                "type": "boolean",
-                "default": true
+            "jitter" : {
+                "label" : "Jitter",
+                "description" : "Additional random jitter withing the stratum.",
+                "type" : "boolean",
+                "default" : true
             }
         }
     },
@@ -49,9 +49,9 @@
         "parameters" : {
             "sample_count" : {
                 "label" : "Sample Count",
-                "description" : "Number of samples per pixel.",
+                "description" : "Rays traced per pixel",
                 "type" : "integer",
-                "default" : 4,
+                "default" : 64,
                 "min" : 1
             },
             "seed" : {
@@ -60,11 +60,11 @@
                 "type" : "integer",
                 "default" : 0
             },
-            "jitter": {
-                "label": "Jitter",
-                "description": "Additional random jitter withing the substratum.",
-                "type": "boolean",
-                "default": true
+            "jitter" : {
+                "label" : "Jitter",
+                "description" : "Additional random jitter withing the substratum.",
+                "type" : "boolean",
+                "default" : true
             }
         }
     }
