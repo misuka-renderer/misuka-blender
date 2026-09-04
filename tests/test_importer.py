@@ -51,7 +51,6 @@ def test_importer_initializes_mitsuba_renderer(resource_resolver, xml_scene):
     assert bpy.ops.import_scene.mitsuba(filepath=scene_file) == {'FINISHED'}
 
     assert bpy.context.scene.render.engine == 'MITSUBA'
-    assert bpy.context.scene.mitsuba.variant == 'scalar_rgb'
 
 @pytest.mark.parametrize("xml_scene", ["scenes/integrator_path.xml"])
 def test_importer_path_integrator(resource_resolver, mitsuba_scene_parser, xml_scene):

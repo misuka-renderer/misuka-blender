@@ -307,11 +307,7 @@ def apply_mi_film_properties(mi_context, mi_props):
 ###########################
 
 def init_mitsuba_renderer(mi_context):
+    # The add-on picks the misuka variant itself when it loads, so an import
+    # only has to select the engine.
     mi_context.bl_scene.render.engine = 'MITSUBA'
-    from misuka import variants
-    mi_renderer = mi_context.bl_scene.mitsuba
-    if 'scalar_rgb' not in variants():
-        mi_context.log('misuka variant "scalar_rgb" not available.', 'ERROR')
-        return False
-    mi_renderer.variant = 'scalar_rgb'
     return True

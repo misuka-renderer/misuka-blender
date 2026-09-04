@@ -270,29 +270,6 @@ class MitsubaRenderSettings(PropertyGroup):
     It creates classes for each plugin described in the JSON files dynamically.
     '''
 
-    from misuka import variant, variants
-    available_variants = variants()
-    enum_variants = []
-    for var in available_variants:
-        enum_variants.append((var, var, ""))
-
-    # Prefer GPU/JIT-accelerated variants for interactive rendering inside
-    # Blender; fall back to whatever misuka.variant() is currently active.
-    # NOTE: a generator expression here can't see other class-body names
-    # (only the outermost iterable is evaluated in the class scope), so a
-    # plain loop is used instead.
-    default_variant = variant()
-    for _preferred in ['cuda_ad_rgb', 'metal_ad_rgb', 'llvm_ad_rgb', 'scalar_rgb']:
-        if _preferred in available_variants:
-            default_variant = _preferred
-            break
-
-    variant : EnumProperty(
-        name = "Variant",
-        items = enum_variants,
-        default = default_variant
-    )
-    # TODO: break variant into its subcomponents (backend/color/polarization/precision)
     enum_integrators = [(name, integrator['label'], integrator['description']) for name, integrator in integrator_data.items()]
 
     # Acoustic export is what this add-on is for, so its integrator is the
@@ -547,22 +524,9 @@ class MITSUBA_CAMERA_PT_rfilter(bpy.types.Panel):
             layout.prop(cam_settings, "active_rfilter", text="Filter")
             getattr(cam_settings.rfilters, cam_settings.active_rfilter).draw(layout)
 
-def draw_device(self, context):
-    scene = context.scene
-    layout = self.layout
-    layout.use_property_split = True
-    layout.use_property_decorate = False
-
-    if context.engine == 'MITSUBA':
-        mts_settings = scene.mitsuba
-
-        col = layout.column()
-        col.prop(mts_settings, "variant")
-
 def register():
     from . import panels
     panels.register()
-    bpy.types.RENDER_PT_context.append(draw_device)
     bpy.utils.register_class(MitsubaRenderSettings)
     bpy.utils.register_class(MitsubaCameraSettings)
     bpy.utils.register_class(MITSUBA_RENDER_PT_integrator)
@@ -573,7 +537,6 @@ def register():
 def unregister():
     from . import panels
     panels.unregister()
-    bpy.types.RENDER_PT_context.remove(draw_device)
     bpy.utils.unregister_class(MitsubaRenderSettings)
     bpy.utils.unregister_class(MitsubaCameraSettings)
     bpy.utils.unregister_class(MITSUBA_RENDER_PT_integrator)
