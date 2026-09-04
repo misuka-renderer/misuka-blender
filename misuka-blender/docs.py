@@ -21,8 +21,9 @@ def draw_help_button(layout, page):
     '''
     Add a HELP button opening `page`.
 
-    Meant for a panel's `draw_header`, where it sits beside the panel title
-    without taking a row away from the content.
+    Meant for a panel's `draw_header_preset`, which Blender right-aligns in the
+    header. `draw_header` puts its content between the disclosure triangle and
+    the title instead, where the button crowds the label.
     '''
     row = layout.row()
     row.alignment = 'RIGHT'

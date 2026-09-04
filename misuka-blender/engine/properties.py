@@ -477,7 +477,7 @@ class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
     def poll(cls, context):
         return context.engine in cls.COMPAT_ENGINES
 
-    def draw_header(self, context):
+    def draw_header_preset(self, context):
         draw_help_button(self.layout, "guide/scene-settings.html")
 
     def draw(self, context):

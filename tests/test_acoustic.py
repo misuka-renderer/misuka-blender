@@ -530,10 +530,11 @@ def draw_panel(mat, only=None):
         context = StubContext(mat)
 
         # The HELP buttons live in the header, so it has to be drawn too.
-        if hasattr(panel, 'draw_header'):
-            header = type('Stub', (), {'draw_header': panel.draw_header})()
+        # Blender right-aligns `draw_header_preset`, which is where they sit.
+        if hasattr(panel, 'draw_header_preset'):
+            header = type('Stub', (), {'draw_header_preset': panel.draw_header_preset})()
             header.layout = StubLayout(drawn)
-            header.draw_header(context)
+            header.draw_header_preset(context)
 
         stub = type('Stub', (), {'draw': panel.draw})()
         stub.layout = StubLayout(drawn)

@@ -636,7 +636,7 @@ class ACOUSTIC_PT_database(AcousticPanel, bpy.types.Panel):
     bl_parent_id = "ACOUSTIC_PT_material"
     bl_label = "Acoustic Index Database"
 
-    def draw_header(self, context):
+    def draw_header_preset(self, context):
         draw_help_button(self.layout, "guide/acousticindex.html")
 
     def draw(self, context):
@@ -696,7 +696,7 @@ class ACOUSTIC_PT_coefficients(AcousticPanel, bpy.types.Panel):
     bl_parent_id = "ACOUSTIC_PT_material"
     bl_label = "Coefficients"
 
-    def draw_header(self, context):
+    def draw_header_preset(self, context):
         draw_help_button(self.layout, "guide/acoustic-materials.html")
 
     def draw(self, context):
@@ -773,7 +773,7 @@ class ACOUSTIC_PT_specular(AcousticPanel, bpy.types.Panel):
     bl_parent_id = "ACOUSTIC_PT_material"
     bl_label = "Specular Reflection"
 
-    def draw_header(self, context):
+    def draw_header_preset(self, context):
         draw_help_button(
             self.layout,
             "guide/acoustic-materials.html#specular-reflection")
