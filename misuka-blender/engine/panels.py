@@ -13,6 +13,7 @@ import bpy
 from bpy.props import FloatProperty
 
 from ..io import draw_paragraphs
+from ..io.exporter.materials import emits
 
 
 class MitsubaPanel:
@@ -75,8 +76,8 @@ def export_notes(light):
             "The radius is only used in an Acoustic export, to build a "
             "spherical emitter. A Visual export ignores it and writes an "
             "emitter with no size.",
-            "For an emitter that behaves the same in both modes, give a "
-            "sphere mesh an Emission material instead.",
+            "For an emitter both export modes use, give a sphere mesh an "
+            "Emission material instead.",
         ]
 
     notes = [
@@ -254,6 +255,39 @@ class MITSUBA_MATERIAL_PT_context(MitsubaPanel, bpy.types.Panel):
             row.template_ID(space, "pin_id")
 
 
+def surface_node(material):
+    '''The shader feeding this material's output, or None.'''
+    if not material.use_nodes or material.node_tree is None:
+        return None
+
+    output = material.node_tree.get_output_node('ALL')
+    if output is None or not output.inputs["Surface"].is_linked:
+        return None
+
+    return output.inputs["Surface"].links[0].from_node
+
+
+def emission_notes(material):
+    '''
+    What each export mode reads off an Emission material.
+
+    The rows above are Blender's own node view, and a socket label on a
+    built-in node is read-only, so Strength cannot be renamed to the quantity
+    it stands for. Name it here instead.
+    '''
+    node = surface_node(material)
+
+    if node is None or not emits(node):
+        return []
+
+    return [
+        "Strength is a radiance, not a total power, so the same Strength on a "
+        "bigger mesh emits more.",
+        "An Acoustic export reads Strength alone and gives every band that "
+        "value. Color is Visual-only.",
+    ]
+
+
 class MITSUBA_MATERIAL_PT_surface(MitsubaPanel, bpy.types.Panel):
     '''Replaces EEVEE_MATERIAL_PT_surface.'''
 
@@ -276,6 +310,12 @@ class MITSUBA_MATERIAL_PT_surface(MitsubaPanel, bpy.types.Panel):
             # EEVEE also offers metallic, specular and roughness here, but the
             # exporter's non-node path reads only diffuse_color.
             layout.prop(mat, "diffuse_color", text="Base Color")
+
+        notes = emission_notes(mat)
+        if notes:
+            col = layout.column()
+            col.separator()
+            draw_paragraphs(col, context, *notes)
 
 
 class MITSUBA_WORLD_PT_surface(MitsubaPanel, bpy.types.Panel):

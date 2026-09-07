@@ -267,26 +267,56 @@ def convert_glass_materials_cycles(export_ctx, current_node):
 
     return params
 
-def convert_emitter_materials_cycles(export_ctx, current_node):
+def emitter_radiance(export_ctx, current_node):
+    '''
+    What an Emission node radiates, as plain numbers.
 
-    if  current_node.inputs["Strength"].is_linked:
+    A Visual export keeps Blender's meaning: the RGB Color times Strength. An
+    Acoustic export reads Strength alone, as one value for every band, the way
+    a point light builds its spectrum from Power alone. An RGB triple in an
+    acoustic scene is a visible-light spectrum, which is not something the user
+    can set a level with.
+
+    Strength stays a radiance in both modes, so the emitter's power still grows
+    with the area of the mesh it is on.
+    '''
+    if current_node.inputs["Strength"].is_linked:
         raise NotImplementedError("Only default emitter strength value is supported.")#TODO: value input
 
-    else:
-        radiance = current_node.inputs["Strength"].default_value
+    strength = current_node.inputs["Strength"].default_value
+
+    if export_ctx.acoustic_mode:
+        # Color is Visual-only here, so a linked one is no reason to refuse
+        # the material.
+        return [strength]
 
     if current_node.inputs['Color'].is_linked:
         raise NotImplementedError("Only default emitter color is supported.")#TODO: rgb input
 
-    else:
-        radiance = [x * radiance for x in current_node.inputs["Color"].default_value[:]]
-        if np.sum(radiance) == 0:
-            export_ctx.log("Emitter has zero emission, this will case mitsuba to fail! Ignoring it.", 'WARN')
-            return {'type':'diffuse', 'reflectance': export_ctx.spectrum(0)}
+    return [x * strength for x in current_node.inputs["Color"].default_value[:]]
+
+
+def emitter_spectrum(export_ctx, radiance):
+    '''
+    Format an emitter_radiance() value for the scene dict.
+
+    An acoustic radiance is a single number, which has to reach the file as a
+    `uniform` texture rather than the default RGB.
+    '''
+    return export_ctx.spectrum(radiance, mode='uniform')
+
+
+def convert_emitter_materials_cycles(export_ctx, current_node):
+
+    radiance = emitter_radiance(export_ctx, current_node)
+
+    if np.sum(radiance) == 0:
+        export_ctx.log("Emitter has zero emission, this will case mitsuba to fail! Ignoring it.", 'WARN')
+        return {'type':'diffuse', 'reflectance': export_ctx.spectrum(0)}
 
     params = {
         'type': 'area',
-        'radiance': export_ctx.spectrum(radiance),
+        'radiance': emitter_spectrum(export_ctx, radiance),
     }
 
     return params
@@ -305,14 +335,13 @@ def convert_add_materials_cycles(export_ctx, current_node):
         raise NotImplementedError("Adding two BSDFs is not supported, consider using a mix shader instead.")
     elif mat_I.type == 'EMISSION' and mat_II.type == 'EMISSION':
         #weight radiances
-        #only RGB values for emitter colors are supported for now, so we can do this. It may be broken if we allow textures or spectra in blender
-        radiance_I = [float(f) for f in convert_emitter_materials_cycles(export_ctx, mat_I)['radiance']['value'].split(" ")]
-        radiance_II = [float(f) for f in convert_emitter_materials_cycles(export_ctx, mat_II)['radiance']['value'].split(" ")]
+        radiance_I = emitter_radiance(export_ctx, mat_I)
+        radiance_II = emitter_radiance(export_ctx, mat_II)
 
-        sum_radiance = [radiance_I[i] + radiance_II[i] for i in range(3)]
+        sum_radiance = [a + b for a, b in zip(radiance_I, radiance_II)]
         params = {
             'type': 'area',
-            'radiance': export_ctx.spectrum(sum_radiance),
+            'radiance': emitter_spectrum(export_ctx, sum_radiance),
         }
         return params
     else:
@@ -332,16 +361,15 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
 
     if mat_I.type == 'EMISSION' and mat_II.type == 'EMISSION':
         #weight radiances
-        #only RGB values for emitter colors are supported for now, so we can do this. It may be broken if we allow textures or spectra in blender
         if current_node.inputs['Fac'].is_linked:#texture weight
             raise NotImplementedError("Only uniform weight is supported for mixing emitters.")
-        radiance_I = [float(f) for f in convert_emitter_materials_cycles(export_ctx, mat_I)['radiance']['value'].split(" ")]
-        radiance_II = [float(f) for f in convert_emitter_materials_cycles(export_ctx, mat_II)['radiance']['value'].split(" ")]
+        radiance_I = emitter_radiance(export_ctx, mat_I)
+        radiance_II = emitter_radiance(export_ctx, mat_II)
         w = current_node.inputs['Fac'].default_value
-        weighted_radiance = [(1.0-w)*radiance_I[i] + w*radiance_II[i] for i in range(3)]
+        weighted_radiance = [(1.0-w)*a + w*b for a, b in zip(radiance_I, radiance_II)]
         params = {
             'type': 'area',
-            'radiance': export_ctx.spectrum(weighted_radiance),
+            'radiance': emitter_spectrum(export_ctx, weighted_radiance),
         }
         return params
 

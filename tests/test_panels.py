@@ -205,6 +205,52 @@ def test_only_a_point_light_claims_the_color_is_dropped(engine, make_light):
     assert 'Color is only used' not in notes(make_light('AREA'))
 
 
+def emission_material(strength=1.0):
+    material = bpy.data.materials.new('emission_panel_test')
+    material.use_nodes = True
+    tree = material.node_tree
+    for node in list(tree.nodes):
+        if node.type != 'OUTPUT_MATERIAL':
+            tree.nodes.remove(node)
+    emission = tree.nodes.new('ShaderNodeEmission')
+    emission.inputs['Strength'].default_value = strength
+    tree.links.new(emission.outputs[0],
+                   tree.get_output_node('ALL').inputs['Surface'])
+    return material
+
+
+def surface_labels(material):
+    drawn = []
+    stub = type('Stub', (), {'draw': panels.MITSUBA_MATERIAL_PT_surface.draw})()
+    stub.layout = StubLayout(drawn)
+    stub.draw(StubContext(material=material))
+    return ' '.join(text for kind, text in drawn if kind == 'label')
+
+
+def test_the_surface_panel_says_what_strength_means(engine):
+    '''
+    Blender's node view draws the built-in socket names, and a socket label on
+    a built-in node is read-only, so Strength cannot be renamed to the quantity
+    the exporter reads it as. The panel names it instead.
+    '''
+    engine('MITSUBA')
+
+    labels = surface_labels(emission_material())
+
+    assert 'radiance' in labels
+    assert 'Visual-only' in labels
+
+
+def test_a_non_emitting_material_gets_no_emission_note(engine):
+    '''The note is about Strength, which only an Emission node has.'''
+    engine('MITSUBA')
+
+    material = bpy.data.materials.new('diffuse_panel_test')
+    material.use_nodes = True
+
+    assert 'radiance' not in surface_labels(material)
+
+
 @pytest.mark.parametrize('light_type', ['SPOT', 'SUN', 'AREA'])
 def test_a_non_point_light_says_an_acoustic_export_skips_it(
         engine, make_light, light_type):

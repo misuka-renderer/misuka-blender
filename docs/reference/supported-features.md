@@ -38,6 +38,7 @@ Limitations:
 - Glass BSDF supports only the default IOR.
 - Emission supports only the default strength and color.
   Drive it from the socket defaults, not from a linked node.
+  In Acoustic mode a linked color is fine, since only strength is read.
 - Add Shader works only as the final node, directly behind Material Output.
 - Add Shader cannot add two BSDFs.
   Use a Mix Shader.
@@ -60,6 +61,8 @@ See [Texture inputs](plugin-mapping.md#texture-inputs).
 
 Other shader nodes are not substituted.
 A Diffuse BSDF stays a `diffuse`, an Emission stays an `area` emitter, and a material with **Use Nodes** off stays a `diffuse` built from its viewport color.
+An Emission does change in one way: its radiance comes from **Strength** alone, as one value for every band.
+See [Emission materials](plugin-mapping.md#in-acoustic-mode).
 Those materials carry acoustic coefficients in the panel, but an acoustic export never reads them.
 
 So give every surface you want to hear a Principled BSDF, which is what a new Blender material has.
