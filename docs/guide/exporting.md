@@ -69,7 +69,7 @@ See [The world background](#the-world-background).
 
 **Forward Axis** / **Up Axis**
 
-: Default `Y Forward` and `Z Up`, which is what makes Blender and misuka coordinates agree.
+: Default `Y` forward and `Z` up, which is what makes Blender and misuka coordinates agree.
 Change these only when fitting an export into an existing scene that uses a different convention.
 
 ## What the acoustic scene contains
