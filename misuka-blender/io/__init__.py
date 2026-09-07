@@ -1024,7 +1024,8 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
             name = "Allow Multiple Emitters",
             description = (
                 "Export an acoustic scene holding more than one source. Their "
-                "energy sums into a single energy-time curve"
+                "energy sums into a single energy-time curve. Acoustic mode "
+                "only: a visual render is free to have several emitters"
             ),
             # Ticked off in invoke(), which only runs for an interactive
             # export. A script calling the operator is taken to mean it.
@@ -1067,19 +1068,26 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
+        acoustic = self.export_mode == 'ACOUSTIC'
+
         layout.prop(self, 'export_mode')
         layout.prop(self, 'use_selection')
-        layout.prop(self, 'allow_multiple_emitters')
+
+        # Each of these belongs to one mode. They are greyed out in the other
+        # rather than hidden, which would move everything under them every
+        # time the mode changes.
+        emitters = layout.row()
+        emitters.active = acoustic
+        emitters.prop(self, 'allow_multiple_emitters')
+
         background = layout.row()
-        # Inert under Acoustic, which skips the background whatever it says.
-        background.active = self.export_mode != 'ACOUSTIC'
+        background.active = not acoustic
         background.prop(self, 'ignore_background')
+
         layout.prop(self, 'axis_forward')
         layout.prop(self, 'axis_up')
 
-        if self.export_mode != 'ACOUSTIC':
-            return
-        if count_sources(context.scene) < 2:
+        if not acoustic or count_sources(context.scene) < 2:
             return
 
         # Stays up once the box is ticked: the scene still holds several
