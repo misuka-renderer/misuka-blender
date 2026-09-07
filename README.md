@@ -2,7 +2,6 @@
 
 ![misuka Blender](res/banner_misuka.png)
 
-[![Documentation](https://img.shields.io/readthedocs/misuka-blender?label=docs)](https://misuka-blender.readthedocs.io/latest/)
 
 | Blender 3.6 | Blender 4.2 | Blender 4.5 | Blender 5.2 |
 |---|---|---|---|
@@ -36,3 +35,4 @@ See [NOTICE](NOTICE) for the details.
 The misuka renderer it exports to is licensed separately, under [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
 Because this add-on imports misuka, it is effectively restricted to noncommercial use as well.
 Commercial use needs an agreement with the misuka maintainers.
+
