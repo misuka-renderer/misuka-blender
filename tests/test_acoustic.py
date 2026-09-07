@@ -534,7 +534,7 @@ def test_each_mode_keeps_its_own_reconstruction_filter_settings():
 
 def source_sphere(root):
     shape = root.find(".//shape[@type='sphere']")
-    assert shape is not None, 'no source sphere in the exported scene'
+    assert shape is not None, 'no emitter sphere in the exported scene'
 
     radius = float(shape.find("float[@name='radius']").get('value'))
     emitter = shape.find("emitter[@type='area']")
@@ -550,7 +550,7 @@ def test_the_source_emits_the_lights_power_whatever_the_radius(
         mat, tmp_path, radius):
     '''
     Blender keeps a point light's Power fixed when you change its Radius. The
-    acoustic source used to write the point intensity as a radiance, so its
+    acoustic emitter used to write the point intensity as a radiance, so its
     power grew with the radius squared.
     '''
     power = 100.0
@@ -1511,7 +1511,7 @@ def test_a_failed_lookup_leaves_the_previous_entry_in_place(mat, fake_api, api_k
 @pytest.mark.parametrize('light_type', ['SUN', 'SPOT', 'AREA'])
 def test_an_acoustic_export_skips_non_point_lights(mat, tmp_path, light_type):
     '''
-    Only convert_point_light() builds the sphere an acoustic source needs. The
+    Only convert_point_light() builds the sphere an acoustic emitter needs. The
     others wrote radiance tinted by the light color, which means nothing here.
     '''
     add_point_light(100.0, 0.5)
@@ -1553,10 +1553,10 @@ def test_an_acoustic_export_without_a_source_is_refused(mat, tmp_path):
         bpy.ops.export_scene.mitsuba(filepath=path, export_mode='ACOUSTIC')
 
 
-def test_an_emission_mesh_counts_as_a_source(mat, tmp_path):
+def test_an_emission_mesh_counts_as_an_emitter(mat, tmp_path):
     '''
     The Emitter panel points at this as the way to get an emitter that behaves
-    the same in both modes, so it has to satisfy the source check.
+    the same in both modes, so it has to satisfy the emitter check.
     '''
     bpy.context.scene.render.engine = 'MITSUBA'
     add_emission_mesh()
@@ -1575,7 +1575,7 @@ def test_an_acoustic_mesh_emitter_is_transparent(tmp_path):
     '''
     A black diffuse makes an emitter shadeless in a visual render, but in an
     acoustic one it absorbs everything that reaches it, so a reflection coming
-    back to the source would die there. A point light already gets 'null'.
+    back to the emitter would die there. A point light already gets 'null'.
     '''
     bpy.context.scene.render.engine = 'MITSUBA'
     add_emission_mesh()
@@ -1678,7 +1678,7 @@ def test_an_exported_scene_imports_under_its_own_names(mat, tmp_path):
     assert not any(name.startswith('_unnamed_') for name in names)
 
 
-def two_source_scene(mat):
+def two_emitter_scene(mat):
     '''A scene with two point lights, a cube and a camera.'''
     add_point_light(100.0, 0.5)
     add_point_light(100.0, 0.5)
@@ -1691,10 +1691,10 @@ def two_source_scene(mat):
 
 def test_an_acoustic_export_refuses_more_than_one_emitter(mat, tmp_path):
     '''
-    An energy-time curve runs from one source to one receiver. Several emitters
+    An energy-time curve runs from one emitter to one receiver. Several emitters
     sum into a single curve without saying so.
     '''
-    two_source_scene(mat)
+    two_emitter_scene(mat)
     path = os.path.join(str(tmp_path), 'scene.xml')
 
     with pytest.raises(RuntimeError, match='2 emitters'):
@@ -1715,7 +1715,7 @@ def add_colored_world(color=(1.0, 0.0, 0.0)):
 def test_an_acoustic_export_skips_the_world(mat, tmp_path):
     '''
     A background emits from every direction at once, which is a room with no
-    walls rather than a source anyone measures with.
+    walls rather than an emitter anyone measures with.
     '''
     add_colored_world()
     add_point_light(100.0, 0.5)
@@ -1736,7 +1736,7 @@ def test_an_acoustic_export_skips_the_world(mat, tmp_path):
 
 def test_a_colored_world_is_not_a_second_acoustic_emitter(mat, tmp_path):
     '''
-    A colored world used to count towards the one-source rule, so a scene with
+    A colored world used to count towards the one-emitter rule, so a scene with
     a point light and a background was refused.
     '''
     add_colored_world()
@@ -1772,10 +1772,10 @@ def test_a_visual_export_still_writes_the_world(mat, tmp_path):
 
 def test_the_override_exports_several_emitters(mat, tmp_path):
     '''
-    The user can say they mean it, and then pick a source at render time by
+    The user can say they mean it, and then pick an emitter at render time by
     zeroing the radiance of the others.
     '''
-    two_source_scene(mat)
+    two_emitter_scene(mat)
     path = os.path.join(str(tmp_path), 'scene.xml')
 
     assert bpy.ops.export_scene.mitsuba(
@@ -1791,7 +1791,7 @@ def test_a_scripted_export_is_not_refused(mat, tmp_path):
     invoke() ticks the override off, and only an interactive export runs it. A
     script calling the operator is taken to mean what it asked for.
     '''
-    two_source_scene(mat)
+    two_emitter_scene(mat)
     path = os.path.join(str(tmp_path), 'scene.xml')
 
     assert bpy.ops.export_scene.mitsuba(
@@ -1878,7 +1878,7 @@ def test_a_mode_specific_option_is_greyed_out_in_the_other_mode(option, live_in)
 
 def test_the_export_panel_warns_about_several_emitters(mat):
     '''The warning stays up once the box is ticked: the scene has not changed.'''
-    two_source_scene(mat)
+    two_emitter_scene(mat)
 
     for allowed in (False, True):
         drawn = []
@@ -1893,7 +1893,7 @@ def test_the_export_panel_warns_about_several_emitters(mat):
 
 def test_the_export_panel_is_quiet_in_visual_mode(mat):
     '''Several emitters are ordinary in a visual render.'''
-    two_source_scene(mat)
+    two_emitter_scene(mat)
 
     drawn = []
     cls, stub = export_operator_stub(drawn, export_mode='VISUAL')
@@ -1902,26 +1902,26 @@ def test_the_export_panel_is_quiet_in_visual_mode(mat):
     assert not any(kind == 'label' for kind, _, _ in drawn)
 
 
-def test_the_panel_sees_more_than_one_source(mat):
+def test_the_panel_sees_more_than_one_emitter(mat):
     '''
     The warning in the export panel reads the Blender scene, since the export's
     own count only exists once the export has run.
     '''
     from importlib import import_module
-    count_sources = import_module('misuka-blender.io').count_sources
+    count_emitters = import_module('misuka-blender.io').count_emitters
 
-    two_source_scene(mat)
-    assert count_sources(bpy.context.scene) == 2
+    two_emitter_scene(mat)
+    assert count_emitters(bpy.context.scene) == 2
 
 
 def test_the_panel_stops_counting_at_the_limit(mat):
     '''draw() runs on every redraw, so the walk stops once it has an answer.'''
     from importlib import import_module
-    count_sources = import_module('misuka-blender.io').count_sources
+    count_emitters = import_module('misuka-blender.io').count_emitters
 
-    two_source_scene(mat)
+    two_emitter_scene(mat)
     add_point_light(100.0, 0.5)
-    assert count_sources(bpy.context.scene) == 2
+    assert count_emitters(bpy.context.scene) == 2
 
 
 @pytest.mark.parametrize('export_mode', ['ACOUSTIC', 'VISUAL'])

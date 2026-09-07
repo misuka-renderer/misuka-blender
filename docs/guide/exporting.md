@@ -55,7 +55,7 @@ Default off.
 
 **Allow Multiple Emitters**
 
-: Export an acoustic scene holding more than one source.
+: Export an acoustic scene holding more than one emitter.
 Default off, and Acoustic mode only.
 A visual render is free to have several emitters, so the option is greyed out there.
 See [Multiple emitters](#multiple-emitters).
@@ -83,7 +83,7 @@ See [Sampler](scene-settings.md#sampler).
 
 ## Multiple emitters
 
-An acoustic export expects one emitter by default, because an energy-time curve runs from one source to one receiver.
+An acoustic export expects one emitter by default, because an energy-time curve runs from one emitter to one receiver.
 
 Two things count as an emitter:
 
@@ -94,7 +94,7 @@ A sun, spot or area light does not, and an acoustic export skips all three.
 Neither does the world background.
 See [The world background](#the-world-background).
 
-With no source, the export stops with:
+With no emitter, the export stops with:
 
 > This acoustic scene has no emitter.
 > Add a point light, or give a mesh an Emission material, and export again.
@@ -103,13 +103,13 @@ With more than one, it stops and names them:
 
 > This acoustic scene has 2 emitters (emit-Point, emit-Point_001).
 > Their energy sums into one energy-time curve.
-> Tick Allow Multiple Emitters to export anyway, or hide all but one source.
+> Tick Allow Multiple Emitters to export anyway, or hide all but one emitter.
 
 The names in that list are the exported ids, not the Blender names: a light is listed as `emit-<light name>` and an emitting mesh as `mesh-<object name>`.
 See [Plugin ids](../reference/plugin-mapping.md#plugin-ids).
 
 Objects disabled for render do not count, so you do not have to delete anything.
-Untick **Renders**, under **Show In** in **Properties** > **Object** > **Visibility**, on every source but one.
+Untick **Renders**, under **Show In** in **Properties** > **Object** > **Visibility**, on every emitter but one.
 
 ### The world background
 
@@ -117,7 +117,7 @@ An acoustic export writes no world background, whatever the world is set to.
 
 In Visual mode a colored world becomes a `constant` emitter surrounding the scene, and Blender's default grey one is skipped unless you untick **Ignore Default Background**.
 In Acoustic mode neither happens.
-A background emits from every direction at once and never reflects, so as a sound source it is a room with no walls rather than anything a measurement uses.
+A background emits from every direction at once and never reflects, so as an emitter it is a room with no walls rather than anything a measurement uses.
 
 The console says so when the world would otherwise have been exported:
 
@@ -125,21 +125,21 @@ The console says so when the world would otherwise have been exported:
 
 This is also why **Ignore Default Background** is greyed out under Acoustic.
 
-### What several sources mean
+### What several emitters mean
 
-Every source emits at once and their energy adds together, so the curve is the sum of all of them rather than the response of any one.
+Every emitter sounds at once and their energy adds together, so the curve is the sum of all of them rather than the response of any one.
 For a room measurement that is almost never what you want, and nothing in the result says it happened.
 
 The export refuses it by default for that reason.
 An export driven from Python is not refused, since a script asking for the export is taken to mean it.
 
-### Exporting several sources on purpose
+### Exporting several emitters on purpose
 
-Tick **Allow Multiple Emitters** in the export options and every source is written to the file.
-The warning stays in the panel, because the scene still holds several sources.
+Tick **Allow Multiple Emitters** in the export options and every emitter is written to the file.
+The warning stays in the panel, because the scene still holds several emitters.
 
-This is the way to avoid one file per source position.
-Export once, then pick the source you want at render time by zeroing the radiance of the others:
+This is the way to avoid one file per emitter position.
+Export once, then pick the emitter you want at render time by zeroing the radiance of the others:
 
 ```python
 import misuka as mi
@@ -148,11 +148,11 @@ import misuka as mi
 scene = mi.load_file('scene.xml', optimize=False)
 params = mi.traverse(scene)
 
-# Silence every source, then bring one back.
-sources = [k for k in params.keys() if k.endswith('.emitter.radiance.value')]
-for key in sources:
+# Silence every emitter, then bring one back.
+emitters = [k for k in params.keys() if k.endswith('.emitter.radiance.value')]
+for key in emitters:
     params[key] = 0.0
-params['emit-Source.emitter.radiance.value'] = 1.0
+params['emit-Point.emitter.radiance.value'] = 1.0
 params.update()
 
 etc = mi.render(scene)
@@ -165,9 +165,9 @@ Receivers need no such trick: export as many cameras as you like and choose one 
 
 Pass `optimize=False` to `load_file`.
 
-Loading a scene normally merges plugins that are identical, and two sources of the same **Power** export identical radiance.
-They then share one parameter, so `sources` holds a single key and setting it to zero silences both.
-Sources at the same level are the usual case, which is what makes this easy to walk into.
+Loading a scene normally merges plugins that are identical, and two emitters of the same **Power** export identical radiance.
+They then share one parameter, so `emitters` holds a single key and setting it to zero silences both.
+Emitters at the same level are the usual case, which is what makes this easy to walk into.
 
 :::
 

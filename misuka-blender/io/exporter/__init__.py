@@ -84,7 +84,7 @@ class SceneConverter:
         # reached the file as 'elm__0'.
         self.export_ctx.data_add(integrator, name="integrator")
 
-        # A background emits from every direction at once, so as a sound source
+        # A background emits from every direction at once, so as an emitter
         # it is a room with no walls rather than anything you would measure.
         # An acoustic export leaves it out whatever the world is set to, which
         # is why Ignore Default Background is inert in that mode.
@@ -147,14 +147,14 @@ class SceneConverter:
                     "or give a mesh an Emission material, and export again."
                 )
 
-            # Several sources sum into one energy-time curve, which is rarely
+            # Several emitters sum into one energy-time curve, which is rarely
             # what a room measurement wants. The user can say they mean it,
-            # and then switch between sources at render time instead.
+            # and then switch between emitters at render time instead.
             if len(emitters) > 1 and not self.allow_multiple_emitters:
                 raise RuntimeError(
                     "This acoustic scene has %d emitters (%s). Their energy "
                     "sums into one energy-time curve. Tick Allow Multiple "
-                    "Emitters to export anyway, or hide all but one source. "
+                    "Emitters to export anyway, or hide all but one emitter. "
                     "See %s"
                     % (len(emitters), ', '.join(sorted(emitters)),
                        docs.url('guide/exporting.html#multiple-emitters'))

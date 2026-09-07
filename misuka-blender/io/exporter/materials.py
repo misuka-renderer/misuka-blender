@@ -373,7 +373,7 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
 
 
 # The constant grey Blender puts in every new scene's world. An export skips it
-# unless the user asks for it, so it is not a sound source either.
+# unless the user asks for it, so it is not an emitter either.
 DEFAULT_BACKGROUND_GREY = 0.05087608844041824
 
 
@@ -550,8 +550,8 @@ def cycles_material_to_dict(export_ctx, node, material):
 
     # An acoustic export reads the coefficients off the material, so every
     # shader that only reflects becomes the same acousticbsdf whatever node
-    # it is built on. Emission is the exception: a mesh emitter is a source
-    # in an acoustic scene, so those keep their own converter.
+    # it is built on. Emission is the exception: an emitting mesh is what an
+    # acoustic scene sounds from, so those keep their own converter.
     if export_ctx.acoustic_mode and not emits(node):
         return convert_acoustic_material(export_ctx, material)
 
@@ -638,8 +638,8 @@ def export_material(export_ctx, material):
             # Every object in mitsuba carries a bsdf, so an emitter needs one
             # it does not interact with. A visual render wants the emitter
             # shadeless, which a black diffuse gives. An acoustic one wants the
-            # source transparent: a black diffuse absorbs everything that hits
-            # it, so a reflection returning to the source would die there
+            # emitter transparent: a black diffuse absorbs everything that hits
+            # it, so a reflection returning to the emitter would die there
             # instead of carrying on. This is the bsdf an acoustic point light
             # already gets, in lights.convert_point_light().
             if export_ctx.acoustic_mode:
