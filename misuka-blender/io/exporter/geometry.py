@@ -218,10 +218,7 @@ def export_object(deg_instance, export_ctx, is_particle):
             if use_shapegroup:
                 group[name] = params
             else:
-                if export_ctx.export_ids:
-                    export_ctx.data_add(params, name=mesh_id)
-                else:
-                    export_ctx.data_add(params)
+                export_ctx.data_add(params, name=mesh_id)
 
         if use_shapegroup:
             export_ctx.data_add(group, name=object_id)

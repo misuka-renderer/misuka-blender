@@ -961,12 +961,6 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
 	        default = False,
 	    )
 
-    export_ids: BoolProperty(
-            name = "Export IDs",
-            description = "Add an 'id' field for each object (shape, emitter, camera...)",
-            default = False
-    )
-
     ignore_background: BoolProperty(
             name = "Ignore Default Background",
             description = "Ignore blender's default constant gray background when exporting to misuka.",
@@ -1005,8 +999,6 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
 	        ).to_4x4()
 
         self.converter.export_ctx.axis_mat = axis_mat
-        # Add IDs to all base plugins (shape, emitter, sensor...)
-        self.converter.export_ctx.export_ids = self.export_ids
         self.converter.export_ctx.acoustic_mode = self.export_mode == 'ACOUSTIC'
         mts_settings = context.scene.mitsuba
         self.converter.export_ctx.acoustic_band_resolution = mts_settings.acoustic_band_resolution

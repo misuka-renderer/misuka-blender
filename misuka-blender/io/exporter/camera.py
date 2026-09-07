@@ -100,7 +100,4 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
 
     params['film'] = film
 
-    if export_ctx.export_ids:
-        export_ctx.data_add(params, name=b_camera.name_full)
-    else:
-        export_ctx.data_add(params)
+    export_ctx.data_add(params, name=b_camera.name_full)

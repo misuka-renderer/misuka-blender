@@ -14,8 +14,6 @@ Both modes export under the misuka render engine, so every value below comes fro
 | Emission material on a mesh | `area` emitter on the shape | Unchanged, same as visual |
 | Point light | `point` emitter | `sphere` shape with an `area` emitter and a `null` BSDF |
 
-Acoustic mode also forces **Export IDs** on, because an acoustic scene is addressed by id.
-
 ## What each acoustic plugin does
 
 `acoustic_path`

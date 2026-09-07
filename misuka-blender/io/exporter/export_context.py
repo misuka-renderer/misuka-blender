@@ -67,7 +67,6 @@ class ExportContext:
         self.scene_data = OrderedDict([('type','scene')])
         self.counter = 0 # Counter to create unique IDs.
         self.exported_mats = ExportedMaterialsCache()
-        self.export_ids = False # Export Object IDs in the XML file
         self.exported_ids = set()
         self.renamed_ids = {} # Names a '.' forced us to rewrite, for the log
         # All the args defined below are set in the Converter

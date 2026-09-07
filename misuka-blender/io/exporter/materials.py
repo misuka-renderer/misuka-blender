@@ -716,10 +716,7 @@ def convert_world(export_ctx, world, ignore_background):
             'radiance': export_ctx.spectrum(world.color)
         })
 
-    if export_ctx.export_ids:
-        export_ctx.data_add(params, "World")
-    else:
-        export_ctx.data_add(params)
+    export_ctx.data_add(params, "World")
 
 def export_world(export_ctx, world, ignore_background):
     '''
