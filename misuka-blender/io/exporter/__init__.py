@@ -84,8 +84,17 @@ class SceneConverter:
         # reached the file as 'elm__0'.
         self.export_ctx.data_add(integrator, name="integrator")
 
-        # --- Rest of original exporter ---
-        materials.export_world(self.export_ctx, b_scene.world, self.ignore_background)
+        # A background emits from every direction at once, so as a sound source
+        # it is a room with no walls rather than anything you would measure.
+        # An acoustic export leaves it out whatever the world is set to, which
+        # is why Ignore Default Background is inert in that mode.
+        if acoustic_mode:
+            if materials.world_emits(b_scene.world):
+                self.export_ctx.log(
+                    "An acoustic export skips the world background.", 'INFO')
+        else:
+            materials.export_world(self.export_ctx, b_scene.world,
+                                   self.ignore_background)
 
 
         # Establish list of particle objects

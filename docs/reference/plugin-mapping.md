@@ -24,7 +24,7 @@ came from, in both modes:
 | Shape | `mesh-<object name>` |
 | Point light | `emit-<light name>` |
 | Camera | the camera's object name |
-| World background | `World` |
+| World background | `World`, Visual mode only |
 | Material | `mat-<material name>` |
 | Integrator | `integrator` |
 

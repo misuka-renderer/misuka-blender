@@ -627,12 +627,17 @@ class StubLayout:
     def __init__(self, drawn):
         self.drawn = drawn
         self.enabled = True
+        self.active = True
         self.alert = False
         self.scale_y = 1.0
         self.operator_context = 'EXEC_DEFAULT'
 
     def column(self, **kwargs):
-        return StubLayout(self.drawn)
+        # A layout greyed out with active = False is still drawn, so the flag
+        # has to travel down to the props inside it.
+        nested = StubLayout(self.drawn)
+        nested.active = self.active
+        return nested
 
     # split(factor=...) is another way of asking for a nested layout, and a
     # stub layout has no widths to divide up.
@@ -653,6 +658,8 @@ class StubLayout:
         if index >= 0:
             value = value[index]
         self.drawn.append(('prop', name, index))
+        if not self.active:
+            self.drawn.append(('greyed', name, index))
 
 
 class StubContext:
@@ -1696,6 +1703,73 @@ def test_an_acoustic_export_refuses_more_than_one_emitter(mat, tmp_path):
             allow_multiple_emitters=False)
 
 
+def add_colored_world(color=(1.0, 0.0, 0.0)):
+    '''A world background that is not Blender's default grey.'''
+    world = bpy.data.worlds.new('World')
+    world.use_nodes = False
+    world.color = color
+    bpy.context.scene.world = world
+    return world
+
+
+def test_an_acoustic_export_skips_the_world(mat, tmp_path):
+    '''
+    A background emits from every direction at once, which is a room with no
+    walls rather than a source anyone measures with.
+    '''
+    add_colored_world()
+    add_point_light(100.0, 0.5)
+
+    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+    assert root.find(".//emitter[@type='constant']") is None
+    assert root.find(".//shape[@id='emit-Point']") is not None
+
+
+def test_a_colored_world_is_not_a_second_acoustic_emitter(mat, tmp_path):
+    '''
+    A colored world used to count towards the one-source rule, so a scene with
+    a point light and a background was refused.
+    '''
+    add_colored_world()
+    add_point_light(100.0, 0.5)
+
+    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode='ACOUSTIC',
+        allow_multiple_emitters=False) == {'FINISHED'}
+
+
+def test_a_visual_export_still_writes_the_world(mat, tmp_path):
+    '''Only the acoustic mode drops the background.'''
+    add_colored_world()
+
+    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode='VISUAL') == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+    assert root.find(".//emitter[@type='constant']") is not None
+
+
 def test_the_override_exports_several_emitters(mat, tmp_path):
     '''
     The user can say they mean it, and then pick a source at render time by
@@ -1756,6 +1830,21 @@ def test_the_export_panel_draws_every_option():
         if 'HIDDEN' not in (prop.keywords.get('options') or set())
     }
     assert shown == expected
+
+
+def test_the_background_option_is_greyed_out_in_acoustic_mode():
+    '''
+    An acoustic export skips the background whatever the box says, so the box
+    is shown inert rather than hidden, which would move everything under it.
+    '''
+    for mode, greyed in (('ACOUSTIC', True), ('VISUAL', False)):
+        drawn = []
+        cls, stub = export_operator_stub(drawn, export_mode=mode)
+        cls.draw(stub, StubContext(None))
+
+        was_greyed = ('greyed', 'ignore_background', -1) in drawn
+        assert was_greyed is greyed, mode
+        assert ('prop', 'ignore_background', -1) in drawn, mode
 
 
 def test_the_export_panel_warns_about_several_emitters(mat):
