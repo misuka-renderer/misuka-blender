@@ -108,14 +108,14 @@ See [Export Mode](guide/exporting.md#export-mode).
 
 **"This acoustic scene has no emitter"**
 
-Add a point light, give a mesh an Emission material, or color the world background.
+Add a point light, or give a mesh an Emission material.
 A scene lit only by sun, spot or area lights ends up here, because an Acoustic export skips all three.
+Coloring the world does not help: an acoustic export writes no background.
 See [Multiple emitters](guide/exporting.md#multiple-emitters) and [Lights](reference/supported-features.md#lights).
 
 **"This acoustic scene has N emitters"**
 
 Leave one and untick **Renders** for the rest, under **Show In** in **Properties** > **Object** > **Visibility**.
-Watch for the world: a background you have colored counts as an emitter.
 To export them all on purpose, tick **Allow Multiple Emitters** and pick a source at render time.
 See [Multiple emitters](guide/exporting.md#multiple-emitters).
 

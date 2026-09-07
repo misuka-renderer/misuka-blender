@@ -958,12 +958,11 @@ def count_sources(scene, limit=2):
     built, which is the authority: this one is what the panel can know before
     the export runs.
     '''
-    from .exporter.materials import emits, world_emits
+    from .exporter.materials import emits
 
+    # The world is not counted: an acoustic export skips the background
+    # whatever it is set to.
     found = 0
-
-    if world_emits(scene.world):
-        found += 1
 
     for obj in scene.objects:
         if found >= limit:
@@ -1013,7 +1012,11 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
 
     ignore_background: BoolProperty(
             name = "Ignore Default Background",
-            description = "Ignore blender's default constant gray background when exporting to misuka.",
+            description = (
+                "Ignore Blender's default constant grey background. Visual "
+                "mode only: an acoustic export skips the background whatever "
+                "this says"
+            ),
             default = True
     )
 
@@ -1067,7 +1070,10 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         layout.prop(self, 'export_mode')
         layout.prop(self, 'use_selection')
         layout.prop(self, 'allow_multiple_emitters')
-        layout.prop(self, 'ignore_background')
+        background = layout.row()
+        # Inert under Acoustic, which skips the background whatever it says.
+        background.active = self.export_mode != 'ACOUSTIC'
+        background.prop(self, 'ignore_background')
         layout.prop(self, 'axis_forward')
         layout.prop(self, 'axis_up')
 
