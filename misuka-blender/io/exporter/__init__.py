@@ -1,4 +1,5 @@
 import os
+import xml.etree.ElementTree as ET
 
 if "bpy" in locals():
     import importlib
@@ -77,11 +78,9 @@ class SceneConverter:
                 b_scene.mitsuba.visual_integrator
             ).to_dict()
 
-        #issue request: useful naming
-        if acoustic_mode:
-            self.export_ctx.data_add(integrator, name="integrator")
-        else:
-            self.export_ctx.data_add(integrator)
+        # Named in both modes. Left unnamed it fell through to the counter and
+        # reached the file as 'elm__0'.
+        self.export_ctx.data_add(integrator, name="integrator")
 
         # --- Rest of original exporter ---
         materials.export_world(self.export_ctx, b_scene.world, self.ignore_background)
@@ -153,7 +152,41 @@ class SceneConverter:
         config = parser.ParserConfig(variant())
         state = parser.parse_dict(config, self.export_ctx.scene_data)
         parser.write_file(state, self.export_path)
+        name_scene_plugins(self.export_path)
 
     def dict_to_scene(self):
         from misuka import load_dict
         return load_dict(self.export_ctx.scene_data)
+
+
+def name_scene_plugins(path):
+    """
+    Give every plugin in the scene an `id` matching the name it was exported
+    under.
+
+    misuka's writer only emits an `id` for a plugin something else references,
+    and writes the export name as a `name` attribute otherwise. Nothing reads
+    that back: `mi.traverse()` keys such a plugin by its memory address, and
+    the importer falls back to `_unnamed_<n>`. Copying the name across is what
+    lets a script address a shape, a sensor or an emitter by the name it has in
+    Blender.
+
+    Only the direct children of `<scene>` are plugins in their own right. A
+    nested element's `name` is the parameter it fills, such as the `bsdf` of a
+    shape, so it is left alone.
+    """
+    # Scene children that declare something rather than instantiate a plugin.
+    # `<default name="spp">` names a variable, not an object to address.
+    not_plugins = {'default', 'alias', 'include', 'path', 'ref'}
+
+    tree = ET.parse(path)
+    root = tree.getroot()
+
+    for element in root:
+        if element.tag in not_plugins:
+            continue
+        name = element.get('name')
+        if name is not None and element.get('id') is None:
+            element.set('id', name)
+
+    tree.write(path, encoding='utf-8', xml_declaration=False)
