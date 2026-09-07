@@ -3,8 +3,7 @@
 [Acoustic Index](https://acousticindex.com) is a database of measured acoustic material data.
 The add-on can look a material up there and write its coefficients straight into the table.
 
-This is optional.
-Everything works without it, you just type the numbers yourself.
+This feature is entirely optional.
 
 ```{image} ../_static/img/database-panel.png
 :alt: The Acoustic Index Database panel after a successful load
@@ -39,7 +38,7 @@ The image below shows the product ID that was used to name the material in the s
 :align: center
 ```
 
-So: name your material after the product, or paste its Acoustic Index ID as the name.
+Name your material after the product, or paste its Acoustic Index ID as the name.
 Either works.
 
 ## Load from Database
@@ -49,12 +48,18 @@ It reports `N variants loaded`.
 
 Absorption variants (measured to ISO 354) and scattering variants (measured to ISO 17497-1) arrive together in one list.
 The dropdown starts on "Select a Variant".
-
 A failed lookup keeps whatever was loaded before.
+
+::: {note}
+
+Currently, Acoustic Index only provides absorption measurements.
+Type scattering coefficients in by hand.
+
+:::
 
 ## The status box
 
-Once something is loaded, a box shows the entry's label and manufacturer, with one of three lines above it:
+Once a measurement is loaded, a box shows the entry's label and manufacturer, with one of three lines above it:
 
 **Matched Database Entry**, green checkmark
 
@@ -98,7 +103,7 @@ Third-octave data is kept at third-octave resolution.
 It is never averaged down to octaves, even when the scene is in Octave mode.
 
 Measured Sabine absorption coefficients can exceed 1, but misuka expects values between 0 and 1.
-Blender clamps coefficients to this interval on import.
+Values outside this range are clamped to this interval on import.
 
 ### Messages
 
