@@ -148,6 +148,12 @@ They act on the active material, so set `context.material` or run them from a co
 | `bpy.ops.acoustic.reset_scat()` | Reset to 0.5, under Scattering |
 | `bpy.ops.acoustic.reset_specular_lobe_width()` | Reset to 0.001 |
 
+## Switching between sources
+
+An acoustic scene exported with **Allow Multiple Emitters** holds every source
+at once. Pick one at render time by zeroing the radiance of the others.
+See [Multiple emitters](../guide/exporting.md#multiple-emitters).
+
 ## Example
 
 Set two absorption bands on every material in the scene, then interpolate the rest:

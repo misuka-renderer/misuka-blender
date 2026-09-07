@@ -1671,11 +1671,8 @@ def test_an_exported_scene_imports_under_its_own_names(mat, tmp_path):
     assert not any(name.startswith('_unnamed_') for name in names)
 
 
-def test_an_acoustic_export_refuses_more_than_one_emitter(mat, tmp_path):
-    '''
-    An impulse response runs from one source to one receiver. Several emitters
-    would sum into a single response without saying so.
-    '''
+def two_source_scene(mat):
+    '''A scene with two point lights, a cube and a camera.'''
     add_point_light(100.0, 0.5)
     add_point_light(100.0, 0.5)
 
@@ -1684,10 +1681,129 @@ def test_an_acoustic_export_refuses_more_than_one_emitter(mat, tmp_path):
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
 
+
+def test_an_acoustic_export_refuses_more_than_one_emitter(mat, tmp_path):
+    '''
+    An energy-time curve runs from one source to one receiver. Several emitters
+    sum into a single curve without saying so.
+    '''
+    two_source_scene(mat)
     path = os.path.join(str(tmp_path), 'scene.xml')
 
     with pytest.raises(RuntimeError, match='2 emitters'):
-        bpy.ops.export_scene.mitsuba(filepath=path, export_mode='ACOUSTIC')
+        bpy.ops.export_scene.mitsuba(
+            filepath=path, export_mode='ACOUSTIC',
+            allow_multiple_emitters=False)
+
+
+def test_the_override_exports_several_emitters(mat, tmp_path):
+    '''
+    The user can say they mean it, and then pick a source at render time by
+    zeroing the radiance of the others.
+    '''
+    two_source_scene(mat)
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode='ACOUSTIC',
+        allow_multiple_emitters=True) == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+    assert len(root.findall(".//shape/emitter[@type='area']")) == 2
+
+
+def test_a_scripted_export_is_not_refused(mat, tmp_path):
+    '''
+    invoke() ticks the override off, and only an interactive export runs it. A
+    script calling the operator is taken to mean what it asked for.
+    '''
+    two_source_scene(mat)
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
+
+
+def export_operator_stub(drawn, **overrides):
+    '''
+    An ExportMitsuba stand-in carrying each property's default.
+
+    The operator cannot be instantiated outside Blender's own invoke, and its
+    draw() only reads attributes, so the defaults declared on the class are
+    enough to exercise it.
+    '''
+    from types import SimpleNamespace
+
+    cls = importlib.import_module('misuka-blender.io').ExportMitsuba
+    values = {name: prop.keywords.get('default')
+              for name, prop in cls.__annotations__.items()}
+    values.update(overrides)
+    return cls, SimpleNamespace(layout=StubLayout(drawn), **values)
+
+
+def test_the_export_panel_draws_every_option():
+    '''
+    The panel lists its properties by hand, so a new one is invisible until it
+    is added here too.
+    '''
+    drawn = []
+    cls, stub = export_operator_stub(drawn)
+    cls.draw(stub, StubContext(None))
+
+    shown = {name for kind, name, _ in drawn if kind == 'prop'}
+    expected = {
+        name for name, prop in cls.__annotations__.items()
+        if 'HIDDEN' not in (prop.keywords.get('options') or set())
+    }
+    assert shown == expected
+
+
+def test_the_export_panel_warns_about_several_emitters(mat):
+    '''The warning stays up once the box is ticked: the scene has not changed.'''
+    two_source_scene(mat)
+
+    for allowed in (False, True):
+        drawn = []
+        cls, stub = export_operator_stub(
+            drawn, export_mode='ACOUSTIC', allow_multiple_emitters=allowed)
+        cls.draw(stub, StubContext(None))
+
+        assert ('label', 'More than one emitter found.', 'ERROR') in drawn
+        assert any(kind == 'operator' and name == 'wm.url_open'
+                   for kind, name, _ in drawn)
+
+
+def test_the_export_panel_is_quiet_in_visual_mode(mat):
+    '''Several emitters are ordinary in a visual render.'''
+    two_source_scene(mat)
+
+    drawn = []
+    cls, stub = export_operator_stub(drawn, export_mode='VISUAL')
+    cls.draw(stub, StubContext(None))
+
+    assert not any(kind == 'label' for kind, _, _ in drawn)
+
+
+def test_the_panel_sees_more_than_one_source(mat):
+    '''
+    The warning in the export panel reads the Blender scene, since the export's
+    own count only exists once the export has run.
+    '''
+    from importlib import import_module
+    count_sources = import_module('misuka-blender.io').count_sources
+
+    two_source_scene(mat)
+    assert count_sources(bpy.context.scene) == 2
+
+
+def test_the_panel_stops_counting_at_the_limit(mat):
+    '''draw() runs on every redraw, so the walk stops once it has an answer.'''
+    from importlib import import_module
+    count_sources = import_module('misuka-blender.io').count_sources
+
+    two_source_scene(mat)
+    add_point_light(100.0, 0.5)
+    assert count_sources(bpy.context.scene) == 2
 
 
 @pytest.mark.parametrize('export_mode', ['ACOUSTIC', 'VISUAL'])

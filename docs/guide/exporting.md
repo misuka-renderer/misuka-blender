@@ -53,6 +53,12 @@ See [Plugin mapping](../reference/plugin-mapping.md) for the full substitution t
 : Export only the selected objects.
 Default off.
 
+**Allow Multiple Emitters**
+
+: Export an acoustic scene holding more than one source.
+Default off, and it does nothing in Visual mode, where several emitters are ordinary.
+See [Multiple emitters](#multiple-emitters).
+
 **Ignore Default Background**
 
 : Skip Blender's default constant grey world background.
@@ -72,16 +78,18 @@ One value comes from outside those tables.
 The sensor's sampler carries `sample_count` from the active camera's Sampler panel for that mode, defaulting to `262144` under Acoustic and `64` under Visual.
 See [Sampler](scene-settings.md#sampler).
 
-## Exactly one emitter
+## Multiple emitters
 
-An acoustic export needs one sound source and no more, because an energy-time curve runs from one source to one receiver.
+An acoustic export is happiest with one sound source, because an energy-time
+curve runs from one source to one receiver.
 
 Three things count as a source:
 
 - A point light.
 - A mesh with an Emission material.
 - The world background, unless it is Blender's default grey.
-  Change its color in **Properties** > **World** > **Surface** and it becomes a `constant` emitter that surrounds the scene.
+  Change its color in **Properties** > **World** > **Surface** and it becomes a
+  `constant` emitter that surrounds the scene.
 
 A sun, spot or area light does not.
 An acoustic export skips all three.
@@ -93,13 +101,73 @@ With no source, the export stops with:
 
 With more than one, it stops and names them:
 
-> This acoustic scene has 2 emitters (emit-Point, emit-Point_001), and an impulse response runs from one source.
-> Leave one of them, and hide or remove the rest.
+> This acoustic scene has 2 emitters (emit-Point, emit-Point_001).
+> Their energy sums into one energy-time curve.
+> Tick Allow Multiple Emitters to export anyway, or hide all but one source.
 
-The names in that list are the exported ids, not the Blender names: a light is listed as `emit-<light name>`, an emitting mesh as `mesh-<object name>`, and the world background as `World`.
+The names in that list are the exported ids, not the Blender names: a light is
+listed as `emit-<light name>`, an emitting mesh as `mesh-<object name>`, and the
+world background as `World`.
+See [Plugin ids](../reference/plugin-mapping.md#plugin-ids).
 
 Objects disabled for render do not count, so you do not have to delete anything.
-Untick **Renders**, under **Show In** in **Properties** > **Object** > **Visibility**, on every source but one.
+Untick **Renders**, under **Show In** in **Properties** > **Object** >
+**Visibility**, on every source but one.
+
+### What several sources mean
+
+Every source emits at once and their energy adds together, so the curve is the
+sum of all of them rather than the response of any one.
+For a room measurement that is almost never what you want, and nothing in the
+result says it happened.
+
+The export refuses it by default for that reason.
+An export driven from Python is not refused, since a script asking for the
+export is taken to mean it.
+
+### Exporting several sources on purpose
+
+Tick **Allow Multiple Emitters** in the export options and every source is
+written to the file.
+The warning stays in the panel, because the scene still holds several sources.
+
+This is the way to avoid one file per source position.
+Export once, then pick the source you want at render time by zeroing the
+radiance of the others:
+
+```python
+import misuka as mi
+
+# optimize=False matters here, see below.
+scene = mi.load_file('scene.xml', optimize=False)
+params = mi.traverse(scene)
+
+# Silence every source, then bring one back.
+sources = [k for k in params.keys() if k.endswith('.emitter.radiance.value')]
+for key in sources:
+    params[key] = 0.0
+params['emit-Source.emitter.radiance.value'] = 1.0
+params.update()
+
+etc = mi.render(scene)
+```
+
+The keys are the exported ids, which is why every plugin carries one.
+Receivers need no such trick: export as many cameras as you like and choose one
+with `mi.render(scene, sensor=1)`.
+
+:::{warning}
+
+Pass `optimize=False` to `load_file`.
+
+Loading a scene normally merges plugins that are identical, and two sources of
+the same **Power** export identical radiance.
+They then share one parameter, so `sources` holds a single key and setting it to
+zero silences both.
+Sources at the same level are the usual case, which is what makes this easy to
+walk into.
+
+:::
 
 ## Dots in names
 

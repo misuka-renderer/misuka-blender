@@ -21,6 +21,7 @@ from . import materials
 from . import geometry
 from . import lights
 from . import camera
+from ... import docs
 
 class SceneConverter:
     '''
@@ -31,6 +32,7 @@ class SceneConverter:
         self.export_ctx = export_context.ExportContext()
         self.use_selection = False # Only export selection
         self.ignore_background = True
+        self.allow_multiple_emitters = False
         self.render = render
 
     def set_path(self, name):
@@ -136,15 +138,17 @@ class SceneConverter:
                     "or give a mesh an Emission material, and export again."
                 )
 
-            # An impulse response runs from one source to one receiver. Several
-            # emitters would sum into a single response without saying so, so
-            # the choice is left to the user rather than made for them.
-            if len(emitters) > 1:
+            # Several sources sum into one energy-time curve, which is rarely
+            # what a room measurement wants. The user can say they mean it,
+            # and then switch between sources at render time instead.
+            if len(emitters) > 1 and not self.allow_multiple_emitters:
                 raise RuntimeError(
-                    "This acoustic scene has %d emitters (%s), and an impulse "
-                    "response runs from one source. Leave one of them, and "
-                    "hide or remove the rest."
-                    % (len(emitters), ', '.join(sorted(emitters)))
+                    "This acoustic scene has %d emitters (%s). Their energy "
+                    "sums into one energy-time curve. Tick Allow Multiple "
+                    "Emitters to export anyway, or hide all but one source. "
+                    "See %s"
+                    % (len(emitters), ', '.join(sorted(emitters)),
+                       docs.url('guide/exporting.html#multiple-emitters'))
                 )
 
     def dict_to_xml(self):
