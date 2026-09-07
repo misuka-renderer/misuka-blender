@@ -56,7 +56,8 @@ Default off.
 **Allow Multiple Emitters**
 
 : Export an acoustic scene holding more than one source.
-Default off, and it does nothing in Visual mode, where several emitters are ordinary.
+Default off, and Acoustic mode only.
+A visual render is free to have several emitters, so the option is greyed out there.
 See [Multiple emitters](#multiple-emitters).
 
 **Ignore Default Background**

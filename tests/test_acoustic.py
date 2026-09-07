@@ -1832,19 +1832,25 @@ def test_the_export_panel_draws_every_option():
     assert shown == expected
 
 
-def test_the_background_option_is_greyed_out_in_acoustic_mode():
+@pytest.mark.parametrize('option, live_in', [
+    ('ignore_background', 'VISUAL'),
+    ('allow_multiple_emitters', 'ACOUSTIC'),
+])
+def test_a_mode_specific_option_is_greyed_out_in_the_other_mode(option, live_in):
     '''
-    An acoustic export skips the background whatever the box says, so the box
-    is shown inert rather than hidden, which would move everything under it.
+    An acoustic export skips the background whatever the box says, and a visual
+    render is free to have several emitters. Each option is shown inert in the
+    mode it does nothing in, rather than hidden, which would move everything
+    under it every time the mode changes.
     '''
-    for mode, greyed in (('ACOUSTIC', True), ('VISUAL', False)):
+    for mode in ('ACOUSTIC', 'VISUAL'):
         drawn = []
         cls, stub = export_operator_stub(drawn, export_mode=mode)
         cls.draw(stub, StubContext(None))
 
-        was_greyed = ('greyed', 'ignore_background', -1) in drawn
-        assert was_greyed is greyed, mode
-        assert ('prop', 'ignore_background', -1) in drawn, mode
+        assert ('prop', option, -1) in drawn, mode
+        greyed = ('greyed', option, -1) in drawn
+        assert greyed is (mode != live_in), mode
 
 
 def test_the_export_panel_warns_about_several_emitters(mat):
