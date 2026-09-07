@@ -1832,6 +1832,29 @@ def test_the_export_panel_draws_every_option():
     assert shown == expected
 
 
+@pytest.mark.parametrize('operator', ['ExportMitsuba', 'ImportMistuba'])
+def test_the_axis_dropdowns_do_not_repeat_their_own_label(operator):
+    '''
+    orientation_helper labels the entries "X Forward", "Y Forward" and so on,
+    repeating the field's label in every line of the menu. Only the label is
+    shortened: the values are what axis_conversion reads.
+    '''
+    io = importlib.import_module('misuka-blender.io')
+    cls = getattr(io, operator)
+
+    for attr, word in (('axis_forward', 'Forward'), ('axis_up', 'Up')):
+        keywords = cls.__annotations__[attr].keywords
+        values = [value for value, _, _ in keywords['items']]
+        labels = [label for _, label, _ in keywords['items']]
+
+        assert values == ['X', 'Y', 'Z', '-X', '-Y', '-Z']
+        assert labels == values
+        assert not any(word in label for label in labels)
+        # The callback keeping Forward and Up on different axes is the
+        # decorator's, and has to survive the relabelling.
+        assert keywords['update'] is not None
+
+
 @pytest.mark.parametrize('option, live_in', [
     ('ignore_background', 'VISUAL'),
     ('allow_multiple_emitters', 'ACOUSTIC'),

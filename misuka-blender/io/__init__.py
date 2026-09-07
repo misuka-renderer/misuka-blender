@@ -898,6 +898,26 @@ class ACOUSTIC_OT_reset_specular_lobe_width(AcousticOperator, bpy.types.Operator
         return {'FINISHED'}
 
 
+def short_axis_labels(cls):
+    """
+    Drop the redundant word from the axis dropdowns.
+
+    `orientation_helper` labels the entries "X Forward", "Y Forward" and so on,
+    repeating the field's own label in every line of the menu. Only the label
+    changes: the values, the defaults and the callback that keeps Forward and
+    Up on different axes all come from the decorator untouched, so this has to
+    be applied above it.
+    """
+    for attr, word in (('axis_forward', 'Forward'), ('axis_up', 'Up')):
+        prop = cls.__annotations__[attr]
+        prop.keywords['items'] = tuple(
+            (value, label.replace(' ' + word, ''), description)
+            for value, label, description in prop.keywords['items']
+        )
+    return cls
+
+
+@short_axis_labels
 @orientation_helper(axis_forward='-Z', axis_up='Y')
 class ImportMitsuba(bpy.types.Operator, ImportHelper):
     """Import a misuka scene"""
@@ -995,6 +1015,7 @@ def count_sources(scene, limit=2):
     return found
 
 
+@short_axis_labels
 @orientation_helper(axis_forward='Y', axis_up='Z')
 class ExportMitsuba(bpy.types.Operator, ExportHelper):
     """Export as a misuka scene"""
