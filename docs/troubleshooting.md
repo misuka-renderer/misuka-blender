@@ -160,11 +160,6 @@ Set the light's **Power** in **Object Data Properties** > **Light / Emitter**.
 That is the only thing that changes the level, and it goes over in watts.
 Changing the radius does not change the level.
 
-**The Ignore Default Background checkbox does nothing**
-
-Correct.
-The exporter always ignores Blender's default grey world background, whatever the checkbox says.
-
 ## Import problems
 
 **"Failed to load misuka scene. See error log."**
