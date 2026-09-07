@@ -94,20 +94,6 @@ A sun, spot or area light does not, and an acoustic export skips all three.
 Neither does the world background.
 See [The world background](#the-world-background).
 
-With no emitter, the export stops with:
-
-> This acoustic scene has no emitter.
-> Add a point light, or give a mesh an Emission material, and export again.
-
-With more than one, it stops and names them:
-
-> This acoustic scene has 2 emitters (emit-Point, emit-Point_001).
-> Their energy sums into one energy-time curve.
-> Tick Allow Multiple Emitters to export anyway, or hide all but one emitter.
-
-The names in that list are the exported ids, not the Blender names: a light is listed as `emit-<light name>` and an emitting mesh as `mesh-<object name>`.
-See [Plugin ids](../reference/plugin-mapping.md#plugin-ids).
-
 Objects disabled for render do not count, so you do not have to delete anything.
 Untick **Renders**, under **Show In** in **Properties** > **Object** > **Visibility**, on every emitter but one.
 
@@ -116,30 +102,18 @@ Untick **Renders**, under **Show In** in **Properties** > **Object** > **Visibil
 An acoustic export writes no world background, whatever the world is set to.
 
 In Visual mode a colored world becomes a `constant` emitter surrounding the scene, and Blender's default grey one is skipped unless you untick **Ignore Default Background**.
-In Acoustic mode neither happens.
-A background emits from every direction at once and never reflects, so as an emitter it is a room with no walls rather than anything a measurement uses.
 
-The console says so when the world would otherwise have been exported:
+### Why rendering multiple acoustic emitters is disabled by default
 
-> An acoustic export skips the world background.
-
-This is also why **Ignore Default Background** is greyed out under Acoustic.
-
-### What several emitters mean
-
-Every emitter sounds at once and their energy adds together, so the curve is the sum of all of them rather than the response of any one.
-For a room measurement that is almost never what you want, and nothing in the result says it happened.
-
-The export refuses it by default for that reason.
-An export driven from Python is not refused, since a script asking for the export is taken to mean it.
+When a misuka scene contains multiple emitters, their contributions are simply added together.
+When rendering energy impulse responses that is almost never what you want, so the export refuses it by default.
+Scripted exports are executed literally and do not refuse multiple emitters.
 
 ### Exporting several emitters on purpose
 
+If you want to render scenes with multiple emitter positions and only export them once, you can export all emitters at once and then pick the emitter you want at render time by zeroing the radiance of the others.
 Tick **Allow Multiple Emitters** in the export options and every emitter is written to the file.
-The warning stays in the panel, because the scene still holds several emitters.
-
-This is the way to avoid one file per emitter position.
-Export once, then pick the emitter you want at render time by zeroing the radiance of the others:
+Then in python, set the radiance of all but one emitter to 0:
 
 ```python
 import misuka as mi
@@ -158,9 +132,6 @@ params.update()
 etc = mi.render(scene)
 ```
 
-The keys are the exported ids, which is why every plugin carries one.
-Receivers need no such trick: export as many cameras as you like and choose one with `mi.render(scene, sensor=1)`.
-
 :::{warning}
 
 Pass `optimize=False` to `load_file`.
@@ -171,16 +142,23 @@ Emitters at the same level are the usual case, which is what makes this easy to 
 
 :::
 
+## Multiple Receivers
+
+Receivers need no such trick: export as many cameras as you like and choose one by passing a sensor index to the render function.
+
+The following code renders the first receiver (index `0`).
+`1` renders the second receiver, and so on.
+
+```python
+mi.render(scene, sensor=0)
+```
+
 ## Dots in names
 
 misuka reserves `.` as a delimiter in scene paths and rejects a key that has one.
 Blender names every duplicate `Light.001`, so this comes up often.
-The exporter rewrites the dot to `_` in the exported id and warns once per name:
+The exporter rewrites the dot to `_` in the exported id and warns once per name.
 
-> Name 'emit-Point.001' contains a '.', which misuka reserves as a path delimiter.
-> Exporting it as 'emit-Point_001'.
-
-The export succeeds.
 Only the ids inside the XML change, not your Blender names.
 Rename the object or material in Blender if you want the id to match exactly.
 
@@ -210,9 +188,3 @@ Watch for:
 `Could not export 'X', light type Y is not supported`
 
 : See [Supported features](../reference/supported-features.md).
-
-## Progress
-
-A progress bar runs while the scene is written.
-When it finishes the status bar reports "Scene exported successfully!".
-
