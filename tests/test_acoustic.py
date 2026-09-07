@@ -1595,7 +1595,7 @@ def test_a_dot_in_a_name_is_replaced(mat, tmp_path, export_mode):
 
     path = os.path.join(str(tmp_path), 'scene.xml')
     assert bpy.ops.export_scene.mitsuba(
-        filepath=path, export_mode=export_mode, export_ids=True) == {'FINISHED'}
+        filepath=path, export_mode=export_mode) == {'FINISHED'}
 
     root = ET.parse(path).getroot()
 

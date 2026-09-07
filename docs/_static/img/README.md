@@ -71,7 +71,7 @@ Used by `docs/guide/acousticindex.md`.
 
 **File** > **Export** > **misuka (.xml)**.
 
-Show: the options column on the right, with **Export Mode** set to **Acoustic**, plus **Selection Only**, **Export IDs**, **Ignore Default Background**, **Forward Axis** and **Up Axis**.
+Show: the options column on the right, with **Export Mode** set to **Acoustic**, plus **Selection Only**, **Ignore Default Background**, **Forward Axis** and **Up Axis**.
 
 Used by `docs/guide/exporting.md`.
 

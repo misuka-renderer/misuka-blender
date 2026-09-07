@@ -53,11 +53,6 @@ See [Plugin mapping](../reference/plugin-mapping.md) for the full substitution t
 : Export only the selected objects.
 Default off.
 
-**Export IDs**
-
-: Add an `id` field to every shape, emitter and sensor.
-Default off, and forced on in Acoustic mode, where ids are how the scene is addressed.
-
 **Ignore Default Background**
 
 : Skip Blender's default constant grey world background.

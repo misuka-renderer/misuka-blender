@@ -48,10 +48,6 @@ class SceneConverter:
         b_scene = depsgraph.scene  # TODO: what if there are multiple scenes?
         acoustic_mode = self.export_ctx.acoustic_mode
 
-        # Enable useful IDs for acoustic scenes
-        if acoustic_mode:
-            self.export_ctx.export_ids = True
-
         # Every setting an export writes lives on the misuka engine. Under
         # another one the exporter would substitute that engine's own settings,
         # so the scene would not match the panels the user set up. Say so rather
