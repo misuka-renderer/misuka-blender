@@ -71,7 +71,11 @@ Used by `docs/guide/acousticindex.md`.
 
 **File** > **Export** > **misuka (.xml)**.
 
-Show: the options column on the right, with **Export Mode** set to **Acoustic**, plus **Selection Only**, **Ignore Default Background**, **Forward Axis** and **Up Axis**.
+Show: the options column on the right, with **Export Mode** set to **Acoustic**, plus **Selection Only**, **Allow Multiple Emitters**, **Ignore Default Background**, **Forward** and **Up**.
+
+**Ignore Default Background** is greyed out under Acoustic, and so is **Allow Multiple Emitters** under Visual.
+Keep the mode on Acoustic so the shot matches the page around it.
+Capture a scene with one emitter, or the warning box appears under the options.
 
 Used by `docs/guide/exporting.md`.
 
