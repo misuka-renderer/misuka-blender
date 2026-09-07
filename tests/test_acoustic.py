@@ -1555,8 +1555,8 @@ def test_an_acoustic_export_without_a_source_is_refused(mat, tmp_path):
 
 def test_an_emission_mesh_counts_as_an_emitter(mat, tmp_path):
     '''
-    The Emitter panel points at this as the way to get an emitter that behaves
-    the same in both modes, so it has to satisfy the emitter check.
+    The Emitter panel points at this as the way to get an emitter both export
+    modes use, so it has to satisfy the emitter check.
     '''
     bpy.context.scene.render.engine = 'MITSUBA'
     add_emission_mesh()
@@ -1569,6 +1569,105 @@ def test_an_emission_mesh_counts_as_an_emitter(mat, tmp_path):
 
     root = ET.parse(path).getroot()
     assert root.find(".//emitter[@type='area']") is not None
+
+
+def mesh_emitter(root):
+    '''The area emitter an Emission mesh writes onto its shape.'''
+    emitter = root.find(".//shape[@type='ply']/emitter[@type='area']")
+    assert emitter is not None, 'no mesh emitter in the exported scene'
+    return emitter
+
+
+def export_emission_mesh(tmp_path, export_mode, strength=1.0, color=None):
+    '''Export a lone Emission sphere and return the parsed scene root.'''
+    bpy.context.scene.render.engine = 'MITSUBA'
+    emission = emission_node(add_emission_mesh())
+    emission.inputs['Strength'].default_value = strength
+    if color is not None:
+        emission.inputs['Color'].default_value = color
+
+    bpy.ops.object.camera_add()
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode=export_mode) == {'FINISHED'}
+
+    return ET.parse(path).getroot()
+
+
+def emission_node(b_object):
+    tree = b_object.data.materials[0].node_tree
+    return next(n for n in tree.nodes if n.type == 'EMISSION')
+
+
+def test_an_acoustic_mesh_emitter_writes_one_value_per_band(tmp_path):
+    '''
+    An RGB radiance is a visible-light spectrum, which says nothing about what
+    the emitter puts out at the scene's band frequencies. Strength alone
+    becomes a uniform spectrum, the way a point light's Power does.
+    '''
+    root = export_emission_mesh(tmp_path, 'ACOUSTIC', strength=7.5)
+
+    emitter = mesh_emitter(root)
+    assert emitter.find("rgb[@name='radiance']") is None
+
+    texture = emitter.find("texture[@name='radiance']")
+    assert texture is not None, f'no radiance on {ET.tostring(emitter)}'
+    assert texture.get('type') == 'uniform'
+    assert float(texture.find("float[@name='value']").get('value')) == \
+        pytest.approx(7.5)
+
+
+def test_color_does_not_change_an_acoustic_emitters_level(tmp_path):
+    '''
+    Color is Visual-only, as it is on a point light, so tinting an emitter must
+    not quietly turn it down.
+    '''
+    root = export_emission_mesh(
+        tmp_path, 'ACOUSTIC', strength=7.5, color=(0.1, 0.2, 0.3, 1.0))
+
+    texture = mesh_emitter(root).find("texture[@name='radiance']")
+    assert float(texture.find("float[@name='value']").get('value')) == \
+        pytest.approx(7.5)
+
+
+def test_an_acoustic_emitter_takes_a_linked_color(tmp_path):
+    '''
+    A linked Color used to cost the whole material, which then exported as the
+    dummy and emitted nothing. An acoustic export never reads Color, so there
+    is nothing there to refuse.
+    '''
+    bpy.context.scene.render.engine = 'MITSUBA'
+    tree = add_emission_mesh().data.materials[0].node_tree
+    emission = next(n for n in tree.nodes if n.type == 'EMISSION')
+    emission.inputs['Strength'].default_value = 3.0
+
+    rgb = tree.nodes.new('ShaderNodeRGB')
+    tree.links.new(rgb.outputs[0], emission.inputs['Color'])
+
+    bpy.ops.object.camera_add()
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+    texture = mesh_emitter(root).find("texture[@name='radiance']")
+    assert float(texture.find("float[@name='value']").get('value')) == \
+        pytest.approx(3.0)
+
+
+def test_a_visual_mesh_emitter_keeps_its_color(tmp_path):
+    '''
+    A visual render still wants Blender's own radiance: Color times Strength.
+    '''
+    root = export_emission_mesh(
+        tmp_path, 'VISUAL', strength=2.0, color=(0.5, 0.25, 0.0, 1.0))
+
+    rgb = mesh_emitter(root).find("rgb[@name='radiance']")
+    assert rgb is not None
+    values = [float(v) for v in rgb.get('value').replace(',', ' ').split()]
+    assert values == pytest.approx([1.0, 0.5, 0.0])
 
 
 def test_an_acoustic_mesh_emitter_is_transparent(tmp_path):

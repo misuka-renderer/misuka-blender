@@ -11,13 +11,12 @@ Both modes export under the misuka render engine, so every value below comes fro
 | Camera | `perspective` sensor | `microphone` sensor |
 | Film | `hdrfilm`, with the reconstruction filter chosen under Visual | `tape`, with `time_bins`, `frequencies` and the reconstruction filter chosen under Acoustic |
 | Principled BSDF | `principled` | `acousticbsdf`, wrapped in `twosided` |
-| Emission material on a mesh | `area` emitter on the shape, with a black `diffuse` BSDF that makes it shadeless | `area` emitter on the shape, with a `null` BSDF so the emitter does not absorb what reaches it |
+| Emission material on a mesh | `area` emitter on the shape, with a black `diffuse` BSDF that makes it shadeless, and an RGB `radiance` | `area` emitter on the shape, with a `null` BSDF so the emitter does not absorb what reaches it, and a `uniform` `radiance` built from **Strength** alone |
 | Point light | `point` emitter | `sphere` shape with an `area` emitter and a `null` BSDF |
 
 ## Plugin ids
 
-Every plugin in the exported file carries an `id` naming the Blender object it
-came from, in both modes:
+Every plugin in the exported file carries an `id` naming the Blender object it came from, in both modes:
 
 | Plugin | id |
 |---|---|
@@ -28,14 +27,11 @@ came from, in both modes:
 | Material | `mat-<material name>` |
 | Integrator | `integrator` |
 
-A mesh split across several material slots exports one shape per slot, named
-`mesh-<object name>-<material name>`, with a numeric suffix when two slots share
-a material.
+A mesh split across several material slots exports one shape per slot, named `mesh-<object name>-<material name>`, with a numeric suffix when two slots share a material.
 
-The id is what a script addresses a plugin by after loading the file, and what
-the importer names Blender data from when the scene is read back in. A `.` in a
-Blender name is rewritten to `_`, because misuka reserves it as a path
-delimiter. See [Dots in names](../guide/exporting.md#dots-in-names).
+The id is what a script addresses a plugin by after loading the file, and what the importer names Blender data from when the scene is read back in.
+A `.` in a Blender name is rewritten to `_`, because misuka reserves it as a path delimiter.
+See [Dots in names](../guide/exporting.md#dots-in-names).
 
 ## What each acoustic plugin does
 
@@ -116,7 +112,33 @@ Anything else raises "Node type: X is not supported in misuka." and the object f
 
 ## Emission materials
 
-A mesh whose material is an Emission shader becomes an emitting shape.
+If you want to define an emitter that is also visible in visual export mode, you can attach an Emission shader to a shape (e.g. a sphere).
+
+### In Acoustic mode
+
+An Acoustic export reads **Strength** and writes it as a `uniform` spectrum, so the emitter puts out that radiance in every band.
+
+```xml
+<shape type="ply">
+    <string name="filename" value="meshes/sphere.ply"/>
+    <bsdf type="null"/>
+
+    <emitter type="area">
+        <texture type="uniform" name="radiance">
+            <float name="value" value="10"/>
+        </texture>
+    </emitter>
+</shape>
+```
+
+**Strength** is exported to [radiance](https://pbr-book.org/3ed-2018/Color_and_Radiometry/Radiometry#x1-Radiance).
+An `area` emitter of radiance `L` on a surface of area `A` puts out a power of `pi * A * L`, so the same **Strength** on a bigger mesh emits more total power.
+**Strength** must be a plain value: when linked from another node it raises "Only default emitter strength value is supported."
+
+**Color** is Visual-only and is ignored in acoustic mode.
+
+### In Visual mode
+
 The exporter attaches an `area` emitter to the shape itself and points its BSDF at a shared black `diffuse` called `empty-emitter-bsdf`, so the surface emits but does not reflect:
 
 ```xml
@@ -130,21 +152,10 @@ The exporter attaches an `area` emitter to the shape itself and points its BSDF 
 </shape>
 ```
 
-`radiance` is the Emission node's **Color** multiplied by its **Strength**.
-Both must be plain socket values.
-A linked Color or Strength raises "Only default emitter color is supported." or "Only default emitter strength value is supported.", and the material falls back to the magenta dummy.
+`radiance` is the Emission node's **Color** multiplied by its **Strength**, here a Color of `1.0 0.5 0.25` and a Strength of `10`.
+Both must be plain socket values here too.
+Either one driven from another node raises "Only default emitter color is supported." or "Only default emitter strength value is supported.", and the material falls back to the magenta dummy.
 A Color and Strength that multiply out to zero logs a warning and exports a black `diffuse` instead, since a zero emitter makes misuka fail.
-
-Any mesh works, so this is how a scene gets an emitter with a shape.
-
-:::{warning}
-
-This is not an acoustic emitter.
-An Emission material exports the same way in Acoustic mode, but `radiance` is an RGB value, and misuka turns RGB into a visible-light spectrum.
-What such an emitter puts out at the scene's band frequencies is not something you control.
-Use a point light for an acoustic emitter, and see [Why point lights become spheres](#why-point-lights-become-spheres).
-
-:::
 
 ## Texture inputs
 
@@ -191,3 +202,4 @@ Unwrap the mesh 0 to 1, or bake the checker to an image with Cycles and plug tha
 
 A linked **Vector** input is ignored, with a warning.
 A linked **Scale** input falls back to its own value, with a warning.
+

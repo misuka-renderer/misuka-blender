@@ -87,8 +87,8 @@ An acoustic export expects one emitter by default, because an energy-time curve 
 
 Two things count as an emitter:
 
-- A point light.
-- A mesh with an Emission material.
+- A point light. Its level is the light's **Power**, held fixed whatever the **Radius**.
+- A mesh with an Emission material. Its level is the Emission node's **Strength**, which is a radiance, so a bigger mesh emits more. **Color** is Visual-only.
 
 A sun, spot or area light does not, and an acoustic export skips all three.
 Neither does the world background.
