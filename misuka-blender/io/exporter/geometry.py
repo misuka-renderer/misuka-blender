@@ -209,7 +209,13 @@ def export_object(deg_instance, export_ctx, is_particle):
                 mat_id = f"mat-{b_object.data.materials[mat_nr].name}"
                 if export_ctx.exported_mats.has_mat(mat_id): # Add one emitter *and* one bsdf
                     mixed_mat = export_ctx.exported_mats.mats[mat_id]
-                    params['bsdf'] = {'type':'ref', 'id':mixed_mat['bsdf']}
+                    # An emitter's bsdf is either the id of one the scene
+                    # shares, which has to be referenced, or a plugin small
+                    # enough to write inline, such as the acoustic 'null'.
+                    if isinstance(mixed_mat['bsdf'], dict):
+                        params['bsdf'] = mixed_mat['bsdf']
+                    else:
+                        params['bsdf'] = {'type':'ref', 'id':mixed_mat['bsdf']}
                     params['emitter'] = mixed_mat['emitter']
                 else:
                     params['bsdf'] = {'type':'ref', 'id':mat_id}

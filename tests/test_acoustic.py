@@ -265,6 +265,22 @@ def add_point_light(power, radius):
     return light
 
 
+def add_emission_mesh(name='Emitter'):
+    '''A sphere carrying a material whose only shader is an Emission node.'''
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5)
+    emissive = bpy.data.materials.new(name)
+    emissive.use_nodes = True
+    tree = emissive.node_tree
+    for node in list(tree.nodes):
+        if node.type != 'OUTPUT_MATERIAL':
+            tree.nodes.remove(node)
+    emission = tree.nodes.new('ShaderNodeEmission')
+    tree.links.new(emission.outputs[0],
+                   tree.get_output_node('ALL').inputs['Surface'])
+    bpy.context.active_object.data.materials.append(emissive)
+    return bpy.context.active_object
+
+
 def export_scene(mat, tmp_path, export_mode='ACOUSTIC', camera_setup=None,
                  **kwargs):
     '''
@@ -1536,17 +1552,7 @@ def test_an_emission_mesh_counts_as_a_source(mat, tmp_path):
     the same in both modes, so it has to satisfy the source check.
     '''
     bpy.context.scene.render.engine = 'MITSUBA'
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5)
-    emissive = bpy.data.materials.new('Emitter')
-    emissive.use_nodes = True
-    tree = emissive.node_tree
-    for node in list(tree.nodes):
-        if node.type != 'OUTPUT_MATERIAL':
-            tree.nodes.remove(node)
-    emission = tree.nodes.new('ShaderNodeEmission')
-    tree.links.new(emission.outputs[0],
-                   tree.get_output_node('ALL').inputs['Surface'])
-    bpy.context.active_object.data.materials.append(emissive)
+    add_emission_mesh()
 
     bpy.ops.object.camera_add()
     path = os.path.join(str(tmp_path), 'scene.xml')
@@ -1556,6 +1562,42 @@ def test_an_emission_mesh_counts_as_a_source(mat, tmp_path):
 
     root = ET.parse(path).getroot()
     assert root.find(".//emitter[@type='area']") is not None
+
+
+def test_an_acoustic_mesh_emitter_is_transparent(tmp_path):
+    '''
+    A black diffuse makes an emitter shadeless in a visual render, but in an
+    acoustic one it absorbs everything that reaches it, so a reflection coming
+    back to the source would die there. A point light already gets 'null'.
+    '''
+    bpy.context.scene.render.engine = 'MITSUBA'
+    add_emission_mesh()
+    bpy.ops.object.camera_add()
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+    assert root.find(".//shape/bsdf[@type='null']") is not None
+    assert root.find(".//bsdf[@type='diffuse']") is None
+
+
+def test_a_visual_mesh_emitter_stays_shadeless(tmp_path):
+    '''
+    The black diffuse is what makes an emitter shadeless in a visual render, so
+    the acoustic 'null' must not leak into that mode.
+    '''
+    bpy.context.scene.render.engine = 'MITSUBA'
+    add_emission_mesh()
+    bpy.ops.object.camera_add()
+    path = os.path.join(str(tmp_path), 'scene.xml')
+
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode='VISUAL') == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+    assert root.find(".//bsdf[@id='empty-emitter-bsdf']") is not None
 
 
 def test_an_acoustic_export_refuses_more_than_one_emitter(mat, tmp_path):

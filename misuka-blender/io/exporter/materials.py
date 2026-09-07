@@ -594,15 +594,24 @@ def export_material(export_ctx, material):
     else:
         if mat_params['type'] == 'area': # Emitter with no bsdf
             mats = {}
-            # We want the emitter object to be "shadeless", so we need to add it a dummy, empty bsdf, because all objects have a bsdf by default in mitsuba
-            if not export_ctx.data_get('empty-emitter-bsdf'): # We only need to add one of this, but we may have multiple emitter materials
-                empty_bsdf = {
-                    'type':'diffuse',
-                    'reflectance':export_ctx.spectrum(0.0), # No interaction with light
-                    'id':'empty-emitter-bsdf'
-                }
-                export_ctx.data_add(empty_bsdf)
-            mats['bsdf'] = 'empty-emitter-bsdf'
+            # Every object in mitsuba carries a bsdf, so an emitter needs one
+            # it does not interact with. A visual render wants the emitter
+            # shadeless, which a black diffuse gives. An acoustic one wants the
+            # source transparent: a black diffuse absorbs everything that hits
+            # it, so a reflection returning to the source would die there
+            # instead of carrying on. This is the bsdf an acoustic point light
+            # already gets, in lights.convert_point_light().
+            if export_ctx.acoustic_mode:
+                mats['bsdf'] = {'type': 'null'}
+            else:
+                if not export_ctx.data_get('empty-emitter-bsdf'): # We only need to add one of this, but we may have multiple emitter materials
+                    empty_bsdf = {
+                        'type':'diffuse',
+                        'reflectance':export_ctx.spectrum(0.0), # No interaction with light
+                        'id':'empty-emitter-bsdf'
+                    }
+                    export_ctx.data_add(empty_bsdf)
+                mats['bsdf'] = 'empty-emitter-bsdf'
             mats['emitter'] = mat_params
             export_ctx.exported_mats.add_material(mats, mat_id)
 
