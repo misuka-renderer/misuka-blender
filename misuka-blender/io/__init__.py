@@ -29,7 +29,7 @@ from . import bl_utils
 from . import acoustic_bands
 from . import importer
 from . import exporter
-from ..docs import draw_help_button
+from ..docs import draw_help_button, draw_help_link
 from .acoustic_bands import (
         ABS_PROPS,
         ACOUSTIC_DEFAULT,
@@ -946,6 +946,56 @@ class ImportMitsuba(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
 
 
+def count_sources(scene, limit=2):
+    '''
+    How many acoustic sources `scene` holds, counting no further than `limit`.
+
+    The export panel only needs to know whether there is more than one, and a
+    panel's draw() runs on every redraw, so the walk stops as soon as it has an
+    answer.
+
+    This reads the Blender scene. The export's own check reads the scene it
+    built, which is the authority: this one is what the panel can know before
+    the export runs.
+    '''
+    from .exporter.materials import emits, world_emits
+
+    found = 0
+
+    if world_emits(scene.world):
+        found += 1
+
+    for obj in scene.objects:
+        if found >= limit:
+            return found
+        if obj.hide_render:
+            continue
+
+        if obj.type == 'LIGHT':
+            # Only a point light becomes an acoustic source. The others are
+            # skipped, see lights.ACOUSTIC_LIGHT_TYPES.
+            if obj.data.type == 'POINT':
+                found += 1
+            continue
+
+        if obj.type != 'MESH':
+            continue
+
+        for material in obj.data.materials:
+            if material is None or not material.use_nodes:
+                continue
+            if material.node_tree is None:
+                continue
+            output_node = material.node_tree.get_output_node('ALL')
+            if output_node is None or not output_node.inputs['Surface'].is_linked:
+                continue
+            if emits(output_node.inputs['Surface'].links[0].from_node):
+                found += 1
+                break
+
+    return found
+
+
 @orientation_helper(axis_forward='Y', axis_up='Z')
 class ExportMitsuba(bpy.types.Operator, ExportHelper):
     """Export as a misuka scene"""
@@ -964,6 +1014,17 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
     ignore_background: BoolProperty(
             name = "Ignore Default Background",
             description = "Ignore blender's default constant gray background when exporting to misuka.",
+            default = True
+    )
+
+    allow_multiple_emitters: BoolProperty(
+            name = "Allow Multiple Emitters",
+            description = (
+                "Export an acoustic scene holding more than one source. Their "
+                "energy sums into a single energy-time curve"
+            ),
+            # Ticked off in invoke(), which only runs for an interactive
+            # export. A script calling the operator is taken to mean it.
             default = True
     )
 
@@ -991,6 +1052,37 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
     def reset(self):
         self.converter = exporter.SceneConverter()
 
+    def invoke(self, context, event):
+        # Only an interactive export comes through here, so this is where the
+        # override goes back off. Called directly from a script the operator
+        # keeps the permissive default and exports without asking.
+        self.allow_multiple_emitters = False
+        return super().invoke(context, event)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        layout.prop(self, 'export_mode')
+        layout.prop(self, 'use_selection')
+        layout.prop(self, 'allow_multiple_emitters')
+        layout.prop(self, 'ignore_background')
+        layout.prop(self, 'axis_forward')
+        layout.prop(self, 'axis_up')
+
+        if self.export_mode != 'ACOUSTIC':
+            return
+        if count_sources(context.scene) < 2:
+            return
+
+        # Stays up once the box is ticked: the scene still holds several
+        # sources and the export still sums them.
+        box = layout.box()
+        box.label(text="More than one emitter found.", icon='ERROR')
+        draw_help_link(box, 'guide/exporting.html#multiple-emitters',
+                       "Multiple emitters")
+
     def execute(self, context):
         # Conversion matrix to shift the "Up" Vector. This can be useful when exporting single objects to an existing mitsuba scene.
         axis_mat = axis_conversion(
@@ -1007,6 +1099,7 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
 
         self.converter.use_selection = self.use_selection
         self.converter.ignore_background = self.ignore_background
+        self.converter.allow_multiple_emitters = self.allow_multiple_emitters
 
         # Set path to scene .xml file
         self.converter.set_path(self.filepath)

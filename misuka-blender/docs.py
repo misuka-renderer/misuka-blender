@@ -28,3 +28,14 @@ def draw_help_button(layout, page):
     row = layout.row()
     row.alignment = 'RIGHT'
     row.operator('wm.url_open', text='', icon='HELP', emboss=False).url = url(page)
+
+
+def draw_help_link(layout, page, text):
+    """
+    Add a labelled button opening `page`.
+
+    `draw_help_button` is icon-only and right-aligns itself, which suits a
+    panel header. This one carries its own label, for the body of a panel where
+    a bare icon beside a line of prose does not say where it goes.
+    """
+    layout.operator('wm.url_open', text=text, icon='HELP').url = url(page)

@@ -82,7 +82,7 @@ Each one logs a warning naming it:
 > Use a point light, or give a mesh an Emission material to emit from its surface.
 
 Skipping every light this way can leave the scene with no source at all, which stops the export.
-See [Exactly one emitter](../guide/exporting.md#exactly-one-emitter).
+See [Multiple emitters](../guide/exporting.md#multiple-emitters).
 
 Area lights support square, rectangle and disk shapes.
 Ellipse shapes raise "Light shape: ELLIPSE is not supported."

@@ -110,13 +110,20 @@ See [Export Mode](guide/exporting.md#export-mode).
 
 Add a point light, give a mesh an Emission material, or color the world background.
 A scene lit only by sun, spot or area lights ends up here, because an Acoustic export skips all three.
-See [Exactly one emitter](guide/exporting.md#exactly-one-emitter) and [Lights](reference/supported-features.md#lights).
+See [Multiple emitters](guide/exporting.md#multiple-emitters) and [Lights](reference/supported-features.md#lights).
 
 **"This acoustic scene has N emitters"**
 
 Leave one and untick **Renders** for the rest, under **Show In** in **Properties** > **Object** > **Visibility**.
 Watch for the world: a background you have colored counts as an emitter.
-See [Exactly one emitter](guide/exporting.md#exactly-one-emitter).
+To export them all on purpose, tick **Allow Multiple Emitters** and pick a source at render time.
+See [Multiple emitters](guide/exporting.md#multiple-emitters).
+
+**Zeroing one emitter's radiance silences all of them**
+
+Load the scene with `mi.load_file(path, optimize=False)`.
+Loading a scene normally merges identical plugins, and two sources of the same **Power** share one radiance parameter.
+See [Multiple emitters](guide/exporting.md#multiple-emitters).
 
 **"Name 'X' contains a '.', which misuka reserves as a path delimiter"**
 

@@ -372,6 +372,47 @@ def convert_mix_materials_cycles(export_ctx, current_node):#TODO: test and fix t
         raise NotImplementedError("Mixing a BSDF and an emitter is not supported. Consider using an Add shader instead.")
 
 
+# The constant grey Blender puts in every new scene's world. An export skips it
+# unless the user asks for it, so it is not a sound source either.
+DEFAULT_BACKGROUND_GREY = 0.05087608844041824
+
+
+def world_emits(world):
+    '''
+    Whether this world would export as an emitter.
+
+    Blender's untouched grey background does not, since the exporter skips it.
+    Neither does a black one, which emits nothing.
+    '''
+    if world is None:
+        return False
+
+    if not world.use_nodes or world.node_tree is None:
+        return any(channel > 0.0 for channel in world.color[:3])
+
+    output_node = world.node_tree.get_output_node('ALL')
+    if output_node is None or not output_node.inputs['Surface'].is_linked:
+        return False
+
+    surface_node = output_node.inputs['Surface'].links[0].from_node
+    if surface_node.type not in ('BACKGROUND', 'EMISSION'):
+        return False
+
+    socket = surface_node.inputs['Color']
+    if socket.is_linked:
+        return True # An environment texture or a color node.
+
+    strength_socket = surface_node.inputs.get('Strength')
+    if strength_socket is not None and strength_socket.is_linked:
+        return True # Driven by something we cannot read here.
+    strength = 1.0 if strength_socket is None else strength_socket.default_value
+
+    radiance = [channel * strength for channel in socket.default_value[:3]]
+    if radiance == [DEFAULT_BACKGROUND_GREY] * 3:
+        return False
+    return sum(radiance) > 0
+
+
 #Extension for acoustic rendering
 def convert_acoustic_material(export_ctx, material):
     '''
@@ -706,7 +747,7 @@ def convert_world(export_ctx, world, ignore_background):
                 color = socket.default_value
             if 'type' not in params: # Not an envmap
                 radiance = [x * strength for x in color[:3]]
-                if ignore_background and radiance == [0.05087608844041824]*3:
+                if ignore_background and radiance == [DEFAULT_BACKGROUND_GREY]*3:
                     export_ctx.log("Ignoring Blender's default background...", 'INFO')
                     return
                 if np.sum(radiance) == 0:
