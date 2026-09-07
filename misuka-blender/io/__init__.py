@@ -899,7 +899,7 @@ class ACOUSTIC_OT_reset_specular_lobe_width(AcousticOperator, bpy.types.Operator
 
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
-class ImportMistuba(bpy.types.Operator, ImportHelper):
+class ImportMitsuba(bpy.types.Operator, ImportHelper):
     """Import a misuka scene"""
     bl_idname = "import_scene.mitsuba"
     bl_label = "misuka Import"
@@ -1036,11 +1036,11 @@ def menu_export_func(self, context):
     self.layout.operator(ExportMitsuba.bl_idname, text="misuka (.xml)")
 
 def menu_import_func(self, context):
-    self.layout.operator(ImportMistuba.bl_idname, text="misuka (.xml)")
+    self.layout.operator(ImportMitsuba.bl_idname, text="misuka (.xml)")
 
 
 classes = (
-    ImportMistuba,
+    ImportMitsuba,
     ExportMitsuba,
     ACOUSTIC_PT_material,
     ACOUSTIC_PT_database,
