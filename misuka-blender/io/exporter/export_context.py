@@ -157,7 +157,7 @@ class ExportContext:
         '''
         The name of everything in the scene that emits.
 
-        A source is either an emitter plugin of its own, such as the `point`
+        An emitter is either a plugin of its own, such as the `point`
         a visual export writes, or a shape carrying one, which is what both an
         acoustic point light and an Emission material produce.
         '''

@@ -169,7 +169,7 @@ def test_the_radius_proxy_reads_and_writes_the_blender_field(engine, make_light)
 
 def test_the_radius_row_names_both_export_modes(engine, make_light):
     '''
-    Radius is the source sphere radius in an Acoustic export and discarded in a
+    Radius is the emitter sphere radius in an Acoustic export and discarded in a
     Visual one. Which mode runs is a setting on the export operator, so the
     panel cannot read it and has to name both.
     '''

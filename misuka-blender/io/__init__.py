@@ -966,9 +966,9 @@ class ImportMitsuba(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
 
 
-def count_sources(scene, limit=2):
+def count_emitters(scene, limit=2):
     '''
-    How many acoustic sources `scene` holds, counting no further than `limit`.
+    How many acoustic emitters `scene` holds, counting no further than `limit`.
 
     The export panel only needs to know whether there is more than one, and a
     panel's draw() runs on every redraw, so the walk stops as soon as it has an
@@ -991,7 +991,7 @@ def count_sources(scene, limit=2):
             continue
 
         if obj.type == 'LIGHT':
-            # Only a point light becomes an acoustic source. The others are
+            # Only a point light becomes an acoustic emitter. The others are
             # skipped, see lights.ACOUSTIC_LIGHT_TYPES.
             if obj.data.type == 'POINT':
                 found += 1
@@ -1044,7 +1044,7 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
     allow_multiple_emitters: BoolProperty(
             name = "Allow Multiple Emitters",
             description = (
-                "Export an acoustic scene holding more than one source. Their "
+                "Export an acoustic scene holding more than one emitter. Their "
                 "energy sums into a single energy-time curve. Acoustic mode "
                 "only: a visual render is free to have several emitters"
             ),
@@ -1108,11 +1108,11 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         layout.prop(self, 'axis_forward')
         layout.prop(self, 'axis_up')
 
-        if not acoustic or count_sources(context.scene) < 2:
+        if not acoustic or count_emitters(context.scene) < 2:
             return
 
         # Stays up once the box is ticked: the scene still holds several
-        # sources and the export still sums them.
+        # emitters and the export still sums them.
         box = layout.box()
         box.label(text="More than one emitter found.", icon='ERROR')
         draw_help_link(box, 'guide/exporting.html#multiple-emitters',

@@ -11,7 +11,7 @@ Both modes export under the misuka render engine, so every value below comes fro
 | Camera | `perspective` sensor | `microphone` sensor |
 | Film | `hdrfilm`, with the reconstruction filter chosen under Visual | `tape`, with `time_bins`, `frequencies` and the reconstruction filter chosen under Acoustic |
 | Principled BSDF | `principled` | `acousticbsdf`, wrapped in `twosided` |
-| Emission material on a mesh | `area` emitter on the shape, with a black `diffuse` BSDF that makes it shadeless | `area` emitter on the shape, with a `null` BSDF so the source does not absorb what reaches it |
+| Emission material on a mesh | `area` emitter on the shape, with a black `diffuse` BSDF that makes it shadeless | `area` emitter on the shape, with a `null` BSDF so the emitter does not absorb what reaches it |
 | Point light | `point` emitter | `sphere` shape with an `area` emitter and a `null` BSDF |
 
 ## Plugin ids

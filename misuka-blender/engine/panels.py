@@ -65,7 +65,7 @@ def export_notes(light):
     '''
     What each export mode does with this light.
 
-    Only a point light becomes an acoustic source, a sphere carrying an area
+    Only a point light becomes an acoustic emitter, a sphere carrying an area
     emitter, so the other types say plainly that an Acoustic export skips them.
     '''
     if light.type == 'POINT':

@@ -116,13 +116,13 @@ See [Multiple emitters](guide/exporting.md#multiple-emitters) and [Lights](refer
 **"This acoustic scene has N emitters"**
 
 Leave one and untick **Renders** for the rest, under **Show In** in **Properties** > **Object** > **Visibility**.
-To export them all on purpose, tick **Allow Multiple Emitters** and pick a source at render time.
+To export them all on purpose, tick **Allow Multiple Emitters** and pick an emitter at render time.
 See [Multiple emitters](guide/exporting.md#multiple-emitters).
 
 **Zeroing one emitter's radiance silences all of them**
 
 Load the scene with `mi.load_file(path, optimize=False)`.
-Loading a scene normally merges identical plugins, and two sources of the same **Power** share one radiance parameter.
+Loading a scene normally merges identical plugins, and two emitters of the same **Power** share one radiance parameter.
 See [Multiple emitters](guide/exporting.md#multiple-emitters).
 
 **"Name 'X' contains a '.', which misuka reserves as a path delimiter"**

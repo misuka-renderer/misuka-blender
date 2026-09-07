@@ -73,7 +73,7 @@ So give every surface you want to hear a Principled BSDF, which is what a new Bl
 | Spot | `spot` emitter | Skipped |
 | Area | `area` emitter on a rectangle or disk | Skipped |
 
-An acoustic source is a sphere carrying an `area` emitter, and only a point light builds one.
+An acoustic emitter is a sphere carrying an `area` emitter plugin, and only a point light builds one.
 The other three write radiance tinted by the light's color and shaped by its geometry, neither of which means anything to a sound simulation, so an Acoustic export skips them rather than exporting them wrong.
 Each one logs a warning naming it:
 
@@ -81,7 +81,7 @@ Each one logs a warning naming it:
 > An acoustic export only supports point lights, so it is skipped.
 > Use a point light, or give a mesh an Emission material to emit from its surface.
 
-Skipping every light this way can leave the scene with no source at all, which stops the export.
+Skipping every light this way can leave the scene with no emitter at all, which stops the export.
 See [Multiple emitters](../guide/exporting.md#multiple-emitters).
 
 Area lights support square, rectangle and disk shapes.

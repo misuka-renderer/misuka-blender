@@ -92,7 +92,7 @@ def convert_point_light(b_light, export_ctx):
         radius = 0.1  #Fallback
 
     # An area emitter of radiance L on a sphere of radius r emits
-    # pi * 4 * pi * r^2 * L in total, so this makes the source emit the
+    # pi * 4 * pi * r^2 * L in total, so this makes the emitter give out the
     # light's Power whatever the radius, the same as Blender does.
     radiance = b_light.data.energy / (4 * np.pi**2 * radius**2)
 
@@ -107,7 +107,7 @@ def convert_point_light(b_light, export_ctx):
                 'value': float(radiance)
             }
         },
-        #emitter as source and not reflecting
+        #emits, and does not reflect what reaches it
         'bsdf': {'type': 'null'}
     }
 
@@ -148,7 +148,7 @@ light_converters = {
     'SPOT': convert_spot_light
 }
 
-# An acoustic source is a sphere carrying an area emitter, which only
+# An acoustic emitter is a sphere carrying an area emitter plugin, which only
 # convert_point_light() builds. The other converters write radiance tinted by
 # the light's color and shaped by its geometry, neither of which means anything
 # in an acoustic scene, so they are skipped rather than exported wrong.
