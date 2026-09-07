@@ -97,6 +97,9 @@ The remaining bands are filled in using the scene's [interpolation axis](scene-s
 Third-octave data is kept at third-octave resolution.
 It is never averaged down to octaves, even when the scene is in Octave mode.
 
+Measured Sabine absorption coefficients can exceed 1, but misuka expects values between 0 and 1.
+Blender clamps coefficients to this interval on import.
+
 ### Messages
 
 `Variant applied`

@@ -94,7 +94,8 @@ See [Band matching](reference/acoustic-bands.md#band-matching).
 
 **Absorption above 1**
 
-Allowed, up to 2, because measured Sabine absorption coefficients do exceed 1.
+Not allowed. misuka expexts values between 0 and 1.
+Values outside that range are clampled.
 See [Absorption](guide/acoustic-materials.md#absorption).
 
 ## Export problems
