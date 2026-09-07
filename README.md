@@ -18,7 +18,7 @@ Rendering inside Blender is not supported.
 **[misuka-blender.readthedocs.io](https://misuka-blender.readthedocs.io/latest/)**
 
 - [Installation](https://misuka-blender.readthedocs.io/latest/installation.html)
-- [Acoustic export: shoebox room](https://misuka-blender.readthedocs.io/latest/tutorials/shoebox-room.html)
+- [Turorial: Build and export a shoebox room](https://misuka-blender.readthedocs.io/latest/tutorials/shoebox-room.html)
 - [Scene settings](https://misuka-blender.readthedocs.io/latest/guide/scene-settings.html)
 - [Contributing](https://misuka-blender.readthedocs.io/latest/contributing.html)
 
