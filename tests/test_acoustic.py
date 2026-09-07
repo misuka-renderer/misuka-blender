@@ -1832,7 +1832,7 @@ def test_the_export_panel_draws_every_option():
     assert shown == expected
 
 
-@pytest.mark.parametrize('operator', ['ExportMitsuba', 'ImportMistuba'])
+@pytest.mark.parametrize('operator', ['ExportMitsuba', 'ImportMitsuba'])
 def test_the_axis_dropdowns_do_not_repeat_their_own_label(operator):
     '''
     orientation_helper labels the entries "X Forward", "Y Forward" and so on,
