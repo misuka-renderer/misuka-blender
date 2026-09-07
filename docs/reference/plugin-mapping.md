@@ -14,6 +14,29 @@ Both modes export under the misuka render engine, so every value below comes fro
 | Emission material on a mesh | `area` emitter on the shape, with a black `diffuse` BSDF that makes it shadeless | `area` emitter on the shape, with a `null` BSDF so the source does not absorb what reaches it |
 | Point light | `point` emitter | `sphere` shape with an `area` emitter and a `null` BSDF |
 
+## Plugin ids
+
+Every plugin in the exported file carries an `id` naming the Blender object it
+came from, in both modes:
+
+| Plugin | id |
+|---|---|
+| Shape | `mesh-<object name>` |
+| Point light | `emit-<light name>` |
+| Camera | the camera's object name |
+| World background | `World` |
+| Material | `mat-<material name>` |
+| Integrator | `integrator` |
+
+A mesh split across several material slots exports one shape per slot, named
+`mesh-<object name>-<material name>`, with a numeric suffix when two slots share
+a material.
+
+The id is what a script addresses a plugin by after loading the file, and what
+the importer names Blender data from when the scene is read back in. A `.` in a
+Blender name is rewritten to `_`, because misuka reserves it as a path
+delimiter. See [Dots in names](../guide/exporting.md#dots-in-names).
+
 ## What each acoustic plugin does
 
 `acoustic_path`

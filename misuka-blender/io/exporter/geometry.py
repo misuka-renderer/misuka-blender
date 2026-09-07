@@ -172,11 +172,10 @@ def export_object(deg_instance, export_ctx, is_particle):
         for (name, mat_nr, mts_mesh) in converted_parts:
             name = name_clean if len(converted_parts) == 1 else name
             
-            #useful naming of shapes
-            if export_ctx.acoustic_mode:
-                mesh_id = name
-            else:
-                mesh_id = f"mesh-{name}"
+            # Every shape is prefixed, in both modes. Without it an acoustic
+            # mesh named Camera takes the same id as the camera, and the parser
+            # accepts the duplicate without a word.
+            mesh_id = f"mesh-{name}"
 
             # Save as binary ply
             mesh_folder = os.path.join(export_ctx.directory, export_ctx.subfolders['shape'])

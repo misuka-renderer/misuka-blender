@@ -96,7 +96,7 @@ With more than one, it stops and names them:
 > This acoustic scene has 2 emitters (emit-Point, emit-Point_001), and an impulse response runs from one source.
 > Leave one of them, and hide or remove the rest.
 
-The names in that list are the exported ids, not the Blender names: a light is listed as `emit-<light name>`, an emitting mesh under its own name, and the world background under the world's name.
+The names in that list are the exported ids, not the Blender names: a light is listed as `emit-<light name>`, an emitting mesh as `mesh-<object name>`, and the world background as `World`.
 
 Objects disabled for render do not count, so you do not have to delete anything.
 Untick **Renders**, under **Show In** in **Properties** > **Object** > **Visibility**, on every source but one.

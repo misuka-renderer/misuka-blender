@@ -1600,6 +1600,77 @@ def test_a_visual_mesh_emitter_stays_shadeless(tmp_path):
     assert root.find(".//bsdf[@id='empty-emitter-bsdf']") is not None
 
 
+@pytest.mark.parametrize('export_mode', ['ACOUSTIC', 'VISUAL'])
+def test_every_scene_plugin_carries_its_id(mat, tmp_path, export_mode):
+    '''
+    misuka's writer only emits an id for a plugin something references, so a
+    shape or a sensor reached the file with a name nothing could address.
+    '''
+    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+    add_point_light(100.0, 0.5)
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode=export_mode) == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+
+    for tag in ('shape', 'sensor', 'integrator'):
+        element = root.find(tag)
+        assert element is not None, f'no {tag} was exported'
+        assert element.get('id') == element.get('name')
+
+    # <default> declares a variable, not a plugin to address.
+    for element in root.findall('default'):
+        assert element.get('id') is None
+
+
+@pytest.mark.parametrize('export_mode', ['ACOUSTIC', 'VISUAL'])
+def test_a_shape_id_is_prefixed_in_both_modes(mat, tmp_path, export_mode):
+    '''
+    Acoustic shapes used to drop the 'mesh-' prefix, so a mesh named World took
+    the same id as the world emitter. Now that ids reach the file, misuka
+    refuses a duplicate outright rather than aliasing the two.
+    '''
+    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.name = 'World'
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+    add_point_light(100.0, 0.5)
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode=export_mode) == {'FINISHED'}
+
+    root = ET.parse(path).getroot()
+    assert root.find(".//shape[@id='mesh-World']") is not None
+
+
+def test_an_exported_scene_imports_under_its_own_names(mat, tmp_path):
+    '''
+    The importer names Blender data from the id it reads back. Without one it
+    fell through to '_unnamed_<n>', so a round trip lost every name.
+    '''
+    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.ops.mesh.primitive_cube_add()
+    bpy.context.active_object.data.materials.append(mat)
+    bpy.ops.object.camera_add()
+
+    path = os.path.join(str(tmp_path), 'scene.xml')
+    assert bpy.ops.export_scene.mitsuba(
+        filepath=path, export_mode='VISUAL') == {'FINISHED'}
+
+    assert bpy.ops.import_scene.mitsuba(filepath=path) == {'FINISHED'}
+
+    names = {obj.name for obj in bpy.context.scene.objects}
+    assert 'mesh-Cube' in names
+    assert not any(name.startswith('_unnamed_') for name in names)
+
+
 def test_an_acoustic_export_refuses_more_than_one_emitter(mat, tmp_path):
     '''
     An impulse response runs from one source to one receiver. Several emitters
