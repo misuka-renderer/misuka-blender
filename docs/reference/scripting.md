@@ -47,7 +47,8 @@ The index column is the position in the band table, which is also the index into
 31.5 Hz is the one preferred center that is not a whole number.
 A dot cannot appear in a Blender property name, so it becomes `31_5`.
 
-Absorption accepts 0 to 2, scattering 0 to 1.
+Both accept 0 to 1.
+Blender clamps to that, so a script assigning a higher number gets 1 back.
 See [Acoustic bands](acoustic-bands.md) for what the table is.
 
 ### Keep flags

@@ -482,11 +482,11 @@ def register_acoustic_properties():
             name=f"{freq} Hz",
             description=(
                 f"Fraction of incident sound energy absorbed at {freq} Hz. "
-                "0 reflects everything, 1 absorbs everything. Measured Sabine "
-                "coefficients can exceed 1, so up to 2 is accepted"
+                "0 reflects everything, 1 absorbs everything. A measured "
+                "Sabine coefficient above 1 has to be capped at 1"
             ),
             default=ACOUSTIC_DEFAULT,
-            min=0, max=2, soft_max=1.0,
+            min=0, max=1,
             update=make_band_update("acoustic_abs_keep", index),
         ))
 
