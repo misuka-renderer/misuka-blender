@@ -30,7 +30,7 @@ Fraction of incident sound energy absorbed at that band.
 Range 0 to 1.
 Values outside this range are clamped.
 
-### Scattering
+### Scattering coefficient
 
 Fraction of reflected sound energy scattered at that band.
 `0` reflects like a mirror, `1` scatters in all directions.

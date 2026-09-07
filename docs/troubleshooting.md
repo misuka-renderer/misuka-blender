@@ -94,9 +94,9 @@ See [Band matching](reference/acoustic-bands.md#band-matching).
 
 **Absorption above 1**
 
-Not allowed. misuka expexts values between 0 and 1.
-Values outside that range are clampled.
-See [Absorption](guide/acoustic-materials.md#absorption).
+Not allowed. misuka expects values between 0 and 1.
+Values outside that range are clamped.
+See [Absorption coefficient](guide/acoustic-materials.md#absorption-coefficient).
 
 ## Export problems
 
