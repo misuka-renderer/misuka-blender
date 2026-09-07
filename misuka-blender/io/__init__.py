@@ -1014,6 +1014,7 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
         self.converter.export_ctx.acoustic_max_time = mts_settings.acoustic_max_time
 
         self.converter.use_selection = self.use_selection
+        self.converter.ignore_background = self.ignore_background
 
         # Set path to scene .xml file
         self.converter.set_path(self.filepath)

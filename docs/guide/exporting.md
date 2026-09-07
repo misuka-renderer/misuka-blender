@@ -63,14 +63,6 @@ Default off, and forced on in Acoustic mode, where ids are how the scene is addr
 : Skip Blender's default constant grey world background.
 Default on.
 
-:::{warning}
-
-This checkbox currently has no effect.
-The exporter always ignores the default background, whatever the box says.
-Unticking it does not export the grey world.
-
-:::
-
 **Forward Axis** / **Up Axis**
 
 : Default `Y Forward` and `Z Up`, which is what makes Blender and misuka coordinates agree.
