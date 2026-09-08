@@ -167,6 +167,32 @@ Set the light's **Power** in **Object Data Properties** > **Light / Emitter**.
 That is the only thing that changes the level, and it goes over in watts.
 Changing the radius does not change the level.
 
+## Windows problems
+
+**Blender exits with code 11, 127 or 139 after a run that worked**
+
+Nothing failed.
+drjit faults while Python shuts down, after all the work is done.
+`python -c "import drjit"` triggers it on its own, with no add-on and no scene.
+Renders and exports have all finished by then, so the files on disk are complete.
+
+**The console fills with "Windows fatal exception: access violation"**
+
+Also harmless.
+Blender 5.2 bundles Python 3.13, whose faulthandler prints every access violation it sees before letting Windows carry on.
+Turning faulthandler off removes the messages and changes nothing else.
+
+**Checking your own machine**
+
+`scripts/win_crash_probe.py` runs each suspect in its own process and prints the exit codes.
+
+```bash
+python scripts/win_crash_probe.py
+```
+
+Paste the output into a bug report.
+It also lists which `MSVCP140.dll` and `VCRUNTIME140.dll` your process loaded, which is the first thing to check when a fault happens anywhere other than at exit.
+
 ## Where the console is
 
 **Windows**: **Window** > **Toggle System Console**.

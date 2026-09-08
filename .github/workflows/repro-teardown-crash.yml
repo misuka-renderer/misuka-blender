@@ -1,4 +1,4 @@
-# Reproduce the Windows PLY / struct-jit crash from issue #44.
+# Reproduce the Windows teardown crash behind issues #44 and #4.
 #
 # Manual only: this answers a question, it does not gate anything, so it has no
 # business running on every push.
@@ -9,7 +9,7 @@
 # struct-jit entirely. Blender and Miniconda matter because both ship their own
 # msvcp140.dll next to the executable, which can shadow the system one - and both
 # are what the reporter used.
-name: Repro PLY crash (#44)
+name: Repro teardown crash (#44, #4)
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ on:
   # so until this file lands on master a push trigger is the only way to run it.
   push:
     branches:
-      - windows-ply-crash
+      - windows-teardown-crash
 
 jobs:
   probe:

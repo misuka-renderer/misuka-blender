@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
-"""Probe the Windows PLY / struct-jit crash described in issue #44.
+"""Probe the Windows access violations behind issues #44 and #4.
 
-Two access violations were reported on Windows, both reached through
-``struct-jit.dll``: loading any PLY mesh kills the process, and
-``python -c "import misuka"`` faults during interpreter shutdown. Both crash
-sites touch one object, the process-wide converter cache in
-``struct-jit/src/converter.cpp``. ``make_converter`` and ``clear_cache`` are
-the only two ways to reach it.
+Every process that imports drjit exits with 0xC0000005 on Windows, whatever it
+did in between. The fault is in Python finalization: the same probe run through
+``os._exit(0)`` exits 0. ``import drjit`` on its own is enough to trigger it,
+with no renderer installed, so it is an upstream drjit fault rather than
+anything misuka or this add-on does.
 
-This script runs each suspect in its own subprocess and reports the exit code,
-so a native crash in one probe cannot hide the others.
+Issue #44 also reports that loading a PLY mesh kills the process outright. That
+one has never reproduced on a GitHub Windows runner, in misuka or in either
+mitsuba release, which is what the ``ply`` probe is here to check on a machine
+where it does happen.
+
+Each probe runs in its own subprocess and is reported by exit code, so a native
+crash in one cannot hide the others.
 
     python scripts/win_crash_probe.py                    # every probe, misuka
     python scripts/win_crash_probe.py --module mitsuba   # upstream control
+    python scripts/win_crash_probe.py --module drjit     # minimal reproducer
     python scripts/win_crash_probe.py --probe ply        # just one, in-process
 
 Exit code 0 means every probe survived.
@@ -331,6 +336,10 @@ def main():
     globals()[f"probe_{args.probe}"](args.module)
 
     if args.hard_exit:
+        # This run exists only to read back an exit code, so faulthandler has
+        # nothing useful left to say. Leaving it on prints a traceback that
+        # makes a clean result look like a failure in a pasted report.
+        faulthandler.disable()
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(0)
