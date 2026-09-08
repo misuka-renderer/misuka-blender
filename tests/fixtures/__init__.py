@@ -1,4 +1,5 @@
 import sys
+from contextlib import contextmanager
 
 import bpy
 import pytest
@@ -25,6 +26,36 @@ skip_on_windows = pytest.mark.skipif(
     reason='misuka faults when instantiating a scene under Blender < 5.2 on '
            'Windows. See '
            'https://github.com/misuka-renderer/misuka-blender/issues/4')
+
+############################
+##  Choosing a variant    ##
+############################
+
+# The add-on selects `scalar_rgb` when it loads, and `tests/test_mitsuba.py`
+# asserts that is what is live. A visual scene and an acoustic one need
+# different variants and are not interchangeable, so a test that touches an
+# acoustic scene has to switch and put it back.
+#
+# The tests pin `scalar_*` rather than following the tutorial's
+# `cuda_ad_*, metal_ad_*, llvm_ad_*` order. The backend a machine picks would
+# otherwise decide the numbers a render produces, and a reference recorded on
+# one backend says nothing on another.
+VISUAL_VARIANT = 'scalar_rgb'
+ACOUSTIC_VARIANT = 'scalar_acoustic'
+
+
+@contextmanager
+def misuka_variant(name):
+    '''Run a block under `name`, and restore the variant afterwards.'''
+    import misuka
+
+    previous = misuka.variant()
+    misuka.set_variant(name)
+    try:
+        yield
+    finally:
+        misuka.set_variant(previous)
+
 
 #############################
 ##  Building test scenes   ##
