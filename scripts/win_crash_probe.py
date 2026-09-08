@@ -457,7 +457,12 @@ def main():
                         help="run one probe in this process, or all in subprocesses")
     parser.add_argument("--hard-exit", action="store_true",
                         help="leave through os._exit(0), skipping finalization")
-    args = parser.parse_args()
+    # Blender puts its own command line in sys.argv and passes everything
+    # after "--" to the script, so slice that off when running inside it.
+    argv = sys.argv[1:]
+    if "--" in argv:
+        argv = argv[argv.index("--") + 1:]
+    args = parser.parse_args(argv)
 
     if args.probe == "all":
         return run_all(args.module)

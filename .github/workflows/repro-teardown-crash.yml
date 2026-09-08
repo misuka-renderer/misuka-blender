@@ -46,6 +46,13 @@ jobs:
             module: misuka
             host: blender
             blender: "4.2"
+          - label: "I - misuka, inside blender.exe 4.2 (windows)"
+            os: windows-latest
+            package: "misuka==0.1.0"
+            module: misuka
+            host: blender
+            blender: "4.2"
+            inside_blender: true
           - label: "C - mitsuba 3.9.0, system python (windows)"
             os: windows-latest
             package: "mitsuba==3.9.0"
@@ -127,9 +134,38 @@ jobs:
           "${{ matrix.module }}" || true
 
     - name: Probe
+      if: ${{ ! matrix.inside_blender }}
       shell: bash
       env:
         PROBE_LABEL: ${{ matrix.label }}
       run: |
         "${{ steps.host.outputs.PYTHON }}" scripts/win_crash_probe.py \
           --module "${{ matrix.module }}"
+
+    # Running through blender.exe rather than its bundled python.exe is the
+    # variable that matters: only inside Blender does load_file fault. Each
+    # probe is its own process, so a crash in one does not hide the rest.
+    - name: Probe inside Blender
+      if: ${{ matrix.inside_blender }}
+      shell: bash
+      env:
+        PROBE_LABEL: ${{ matrix.label }}
+      run: |
+        BLENDER=$(find blender/ -maxdepth 1 -regextype posix-extended \
+          -regex '.*blender(.exe)?' -print -quit)
+        echo "Blender is $BLENDER"
+        FAILED=0
+        for probe in import ply plybinst scene acoustic bitmap drjit numpy crt; do
+          echo "=============================================================="
+          echo "== $probe"
+          echo "=============================================================="
+          set +e
+          "./$BLENDER" -b -noaudio --factory-startup \
+            --python scripts/win_crash_probe.py -- \
+            --module "${{ matrix.module }}" --probe "$probe"
+          STATUS=$?
+          set -e
+          echo "-- $probe exited $STATUS"
+          [ "$STATUS" -eq 0 ] || FAILED=1
+        done
+        exit $FAILED
