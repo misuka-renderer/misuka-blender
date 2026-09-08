@@ -97,7 +97,9 @@ jobs:
             PYTHON="${CONDA//\\//}/python.exe"
             ;;
           *)
-            PYTHON=$(which python)
+            # `which python` on Windows returns an MSYS path with no .exe,
+            # which uv rejects. Ask the interpreter for its own location.
+            PYTHON=$(python -c "import sys; print(sys.executable.replace(chr(92), '/'))")
             ;;
         esac
         echo "Host interpreter is $PYTHON"

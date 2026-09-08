@@ -127,24 +127,32 @@ def _loaded_modules():
     psapi = ctypes.WinDLL("psapi", use_last_error=True)
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
+    # Without argtypes, ctypes narrows a module handle to a C int and raises
+    # OverflowError on any handle above 2 GB.
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    psapi.EnumProcessModules.argtypes = [
+        wintypes.HANDLE, ctypes.POINTER(wintypes.HMODULE),
+        wintypes.DWORD, ctypes.POINTER(wintypes.DWORD),
+    ]
+    psapi.EnumProcessModules.restype = wintypes.BOOL
+    psapi.GetModuleFileNameExW.argtypes = [
+        wintypes.HANDLE, wintypes.HMODULE, wintypes.LPWSTR, wintypes.DWORD,
+    ]
+    psapi.GetModuleFileNameExW.restype = wintypes.DWORD
+
     handle = kernel32.GetCurrentProcess()
     count = 4096
     array = (wintypes.HMODULE * count)()
     needed = wintypes.DWORD()
     if not psapi.EnumProcessModules(
-        wintypes.HANDLE(handle),
-        ctypes.byref(array),
-        ctypes.sizeof(array),
-        ctypes.byref(needed),
+        handle, array, ctypes.sizeof(array), ctypes.byref(needed)
     ):
         return []
 
     buf = ctypes.create_unicode_buffer(32768)
     paths = []
     for i in range(min(count, needed.value // ctypes.sizeof(wintypes.HMODULE))):
-        if psapi.GetModuleFileNameExW(
-            wintypes.HANDLE(handle), array[i], buf, len(buf)
-        ):
+        if psapi.GetModuleFileNameExW(handle, array[i], buf, len(buf)):
             paths.append(buf.value)
     return sorted(paths, key=str.lower)
 
@@ -180,19 +188,31 @@ def _file_version(path):
 
     try:
         version = ctypes.WinDLL("version", use_last_error=True)
+        version.GetFileVersionInfoSizeW.argtypes = [
+            wintypes.LPCWSTR, ctypes.POINTER(wintypes.DWORD)]
+        version.GetFileVersionInfoSizeW.restype = wintypes.DWORD
+        version.GetFileVersionInfoW.argtypes = [
+            wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p]
+        version.GetFileVersionInfoW.restype = wintypes.BOOL
+        version.VerQueryValueW.argtypes = [
+            ctypes.c_void_p, wintypes.LPCWSTR,
+            ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_uint)]
+        version.VerQueryValueW.restype = wintypes.BOOL
+
         size = version.GetFileVersionInfoSizeW(path, None)
         if not size:
             return "-"
         data = ctypes.create_string_buffer(size)
         if not version.GetFileVersionInfoW(path, 0, size, data):
             return "-"
-        info = ctypes.POINTER(FixedFileInfo)()
+        block = ctypes.c_void_p()
         length = ctypes.c_uint()
         if not version.VerQueryValueW(
-            data, "\\", ctypes.byref(info), ctypes.byref(length)
+            data, "\\", ctypes.byref(block), ctypes.byref(length)
         ):
             return "-"
-        ms, ls = info.contents.dwFileVersionMS, info.contents.dwFileVersionLS
+        info = ctypes.cast(block, ctypes.POINTER(FixedFileInfo)).contents
+        ms, ls = info.dwFileVersionMS, info.dwFileVersionLS
         return f"{ms >> 16}.{ms & 0xFFFF}.{ls >> 16}.{ls & 0xFFFF}"
     except Exception:  # noqa: BLE001 - diagnostics only
         return "-"
@@ -201,34 +221,43 @@ def _file_version(path):
 def _verdict(code):
     if code == 0:
         return "ok"
-    # Python reports a native fault as a negative signal on POSIX and as the
-    # raw status on Windows; 139 is the shell's 128 + SIGSEGV convention.
-    if code < 0 or code >= 128 or code > 0xFFFF:
-        return "CRASHED"
+    # A Windows access violation surfaces as 3221225477, which is 0xC0000005.
+    # POSIX reports a native fault as a negative signal number instead.
+    if code < 0 or code > 0xFFFF:
+        return f"CRASHED 0x{code & 0xFFFFFFFF:08X}"
     return "failed"
 
 
 def run_all(module):
-    """Run every probe as its own subprocess and tabulate the exit codes."""
+    """Run every probe twice as its own subprocess and tabulate the exit codes.
+
+    The second run ends with ``os._exit(0)``, which skips Python finalization
+    and therefore skips misuka's atexit handler, where ``clear_cache()`` lives.
+    A probe that faults normally but exits cleanly with a hard exit puts the
+    fault in teardown, not in the work the probe did.
+    """
     results = []
     for probe in PROBES:
-        print(f"\n{'=' * 68}\n== {probe}\n{'=' * 68}", flush=True)
-        completed = subprocess.run(
-            [sys.executable, os.path.abspath(__file__),
-             "--module", module, "--probe", probe],
-            check=False,
-        )
-        results.append((probe, completed.returncode))
+        row = [probe]
+        for hard in (False, True):
+            mode = "hard exit" if hard else "normal exit"
+            print(f"\n{'=' * 68}\n== {probe} ({mode})\n{'=' * 68}", flush=True)
+            cmd = [sys.executable, os.path.abspath(__file__),
+                   "--module", module, "--probe", probe]
+            if hard:
+                cmd.append("--hard-exit")
+            row.append(subprocess.run(cmd, check=False).returncode)
+        results.append(tuple(row))
 
     label = os.environ.get("PROBE_LABEL", sys.platform)
     print(f"\n{'=' * 68}")
     print(f"{module} on {label}, python {sys.version.split()[0]}")
-    print(f"{'probe':<10}{'exit':>8}  verdict")
-    for probe, code in results:
-        print(f"{probe:<10}{code:>8}  {_verdict(code)}")
+    print(f"{'probe':<10}{'normal':>12}{'hard exit':>12}  verdict")
+    for probe, normal, hard in results:
+        print(f"{probe:<10}{normal:>12}{hard:>12}  {_verdict(normal)}")
 
     _write_summary(module, label, results)
-    return 0 if all(code == 0 for _, code in results) else 1
+    return 0 if all(n == 0 for _, n, _ in results) else 1
 
 
 def _write_summary(module, label, results):
@@ -239,9 +268,9 @@ def _write_summary(module, label, results):
     with open(path, "a", encoding="utf-8") as f:
         f.write(f"\n### `{module}` on {label}\n\n")
         f.write(f"Python {sys.version.split()[0]}, `{sys.executable}`\n\n")
-        f.write("| probe | exit | verdict |\n|---|---|---|\n")
-        for probe, code in results:
-            f.write(f"| {probe} | {code} | {_verdict(code)} |\n")
+        f.write("| probe | normal exit | hard exit | verdict |\n|---|---|---|---|\n")
+        for probe, normal, hard in results:
+            f.write(f"| {probe} | {normal} | {hard} | {_verdict(normal)} |\n")
 
 
 def main():
@@ -250,6 +279,8 @@ def main():
                         help="renderer module to probe (misuka or mitsuba)")
     parser.add_argument("--probe", default="all", choices=("all",) + PROBES,
                         help="run one probe in this process, or all in subprocesses")
+    parser.add_argument("--hard-exit", action="store_true",
+                        help="leave through os._exit(0), skipping finalization")
     args = parser.parse_args()
 
     if args.probe == "all":
@@ -259,6 +290,11 @@ def main():
 
     faulthandler.enable()
     globals()[f"probe_{args.probe}"](args.module)
+
+    if args.hard_exit:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
     return 0
 
 
