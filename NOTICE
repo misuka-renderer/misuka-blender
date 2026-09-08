@@ -45,17 +45,3 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-Vendored portions - GNU General Public License v2.0 or later
-============================================================
-
-The mesh importers below are vendored from Blender and carry their own GPL
-notices. Their "or later" clause is what permits their distribution as part of
-this GPL-3.0-or-later work.
-
-    misuka-blender/io/importer/bl_import_obj.py
-    misuka-blender/io/importer/bl_import_ply.py
-
-Script copyright (C) Campbell Barton
-Contributors: Campbell Barton, Jiri Hnidek, Paolo Ciccone

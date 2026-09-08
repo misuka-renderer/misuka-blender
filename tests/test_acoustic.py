@@ -15,6 +15,8 @@ import bpy
 import numpy as np
 import pytest
 
+from fixtures import add_emission_mesh, add_point_light
+
 
 io_module = importlib.import_module('misuka-blender.io')
 bands = importlib.import_module('misuka-blender.io.acoustic_bands')
@@ -255,30 +257,6 @@ def read_spectrum(bsdf, name):
         (float(f), float(v))
         for f, v in (pair.split(':') for pair in node.get('value').split(','))
     ]
-
-
-def add_point_light(power, radius):
-    bpy.ops.object.light_add(type='POINT')
-    light = bpy.context.active_object
-    light.data.energy = power
-    light.data.shadow_soft_size = radius
-    return light
-
-
-def add_emission_mesh(name='Emitter'):
-    '''A sphere carrying a material whose only shader is an Emission node.'''
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5)
-    emissive = bpy.data.materials.new(name)
-    emissive.use_nodes = True
-    tree = emissive.node_tree
-    for node in list(tree.nodes):
-        if node.type != 'OUTPUT_MATERIAL':
-            tree.nodes.remove(node)
-    emission = tree.nodes.new('ShaderNodeEmission')
-    tree.links.new(emission.outputs[0],
-                   tree.get_output_node('ALL').inputs['Surface'])
-    bpy.context.active_object.data.materials.append(emissive)
-    return bpy.context.active_object
 
 
 def export_scene(mat, tmp_path, export_mode='ACOUSTIC', camera_setup=None,
@@ -1756,10 +1734,11 @@ def test_a_shape_id_is_prefixed_in_both_modes(mat, tmp_path, export_mode):
     assert root.find(".//shape[@id='mesh-World']") is not None
 
 
-def test_an_exported_scene_imports_under_its_own_names(mat, tmp_path):
+def test_every_exported_plugin_carries_its_own_name(mat, tmp_path):
     '''
-    The importer names Blender data from the id it reads back. Without one it
-    fell through to '_unnamed_<n>', so a round trip lost every name.
+    misuka only writes an id for a plugin something else references. Without
+    the exporter copying the export name across, a shape or a sensor reaches
+    the file unnamed and nothing downstream can address it.
     '''
     bpy.context.scene.render.engine = 'MITSUBA'
     bpy.ops.mesh.primitive_cube_add()
@@ -1770,11 +1749,9 @@ def test_an_exported_scene_imports_under_its_own_names(mat, tmp_path):
     assert bpy.ops.export_scene.mitsuba(
         filepath=path, export_mode='VISUAL') == {'FINISHED'}
 
-    assert bpy.ops.import_scene.mitsuba(filepath=path) == {'FINISHED'}
-
-    names = {obj.name for obj in bpy.context.scene.objects}
-    assert 'mesh-Cube' in names
-    assert not any(name.startswith('_unnamed_') for name in names)
+    root = ET.parse(path).getroot()
+    assert root.find(".//shape[@id='mesh-Cube']") is not None
+    assert root.find(".//sensor[@id='Camera']") is not None
 
 
 def two_emitter_scene(mat):
@@ -1931,15 +1908,14 @@ def test_the_export_panel_draws_every_option():
     assert shown == expected
 
 
-@pytest.mark.parametrize('operator', ['ExportMitsuba', 'ImportMitsuba'])
-def test_the_axis_dropdowns_do_not_repeat_their_own_label(operator):
+def test_the_axis_dropdowns_do_not_repeat_their_own_label():
     '''
     orientation_helper labels the entries "X Forward", "Y Forward" and so on,
     repeating the field's label in every line of the menu. Only the label is
     shortened: the values are what axis_conversion reads.
     '''
     io = importlib.import_module('misuka-blender.io')
-    cls = getattr(io, operator)
+    cls = io.ExportMitsuba
 
     for attr, word in (('axis_forward', 'Forward'), ('axis_up', 'Up')):
         keywords = cls.__annotations__[attr].keywords

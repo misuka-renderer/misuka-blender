@@ -147,5 +147,5 @@ There is no `blender_manifest.toml`: this is a legacy add-on, not a Blender 4.2 
 ## License
 
 The add-on as a whole is under [GPL-3.0-or-later](https://github.com/misuka-renderer/misuka-blender/blob/master/LICENSE).
-Code inherited from `mitsuba-blender` stays under its BSD 3-Clause notice, and the vendored Blender mesh importers under their GPL-2.0-or-later notices.
+Code inherited from `mitsuba-blender` stays under its BSD 3-Clause notice.
 See [NOTICE](https://github.com/misuka-renderer/misuka-blender/blob/master/NOTICE).

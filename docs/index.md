@@ -16,7 +16,7 @@ It exports Blender scenes to the [misuka renderer](https://github.com/misuka-ren
 
 - **Setting up:** [Installation](installation.md) covers the add-on, its dependencies, and the Acoustic Index API key.
 - **Tutorials:** [Tutorials: Shoebox room](tutorials/shoebox-room/shoebox-room.md) builds a room and exports it in about ten minutes.
-- **Guides:** [Scene settings](guide/scene-settings.md), [Acoustic materials](guide/acoustic-materials.md), [Acoustic Index](guide/acousticindex.md), [Exporting](guide/exporting.md) and [Importing](guide/importing.md) document every panel in detail.
+- **Guides:** [Scene settings](guide/scene-settings.md), [Acoustic materials](guide/acoustic-materials.md), [Acoustic Index](guide/acousticindex.md) and [Exporting](guide/exporting.md) document every panel in detail.
   See [Troubleshooting](troubleshooting.md) if you run into problems.
 - **Reference:** [Plugin Mapping](reference/plugin-mapping.md), [Supported Features](reference/supported-features.md), [Acoustic Bands](reference/acoustic-bands.md), document implementation details.
   See [Scripting](reference/scripting.md) if you want to use the Python API.
@@ -63,7 +63,6 @@ guide/scene-settings
 guide/acoustic-materials
 guide/acousticindex
 guide/exporting
-guide/importing
 troubleshooting
 ```
 

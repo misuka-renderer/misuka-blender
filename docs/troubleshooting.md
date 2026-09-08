@@ -167,24 +167,6 @@ Set the light's **Power** in **Object Data Properties** > **Light / Emitter**.
 That is the only thing that changes the level, and it goes over in watts.
 Changing the radius does not change the level.
 
-## Import problems
-
-**"Failed to load misuka scene. See error log."**
-
-Open Blender's console for the detail.
-Usually an unsupported plugin.
-See [Messages](guide/importing.md#messages).
-
-**Acoustic materials did not come back**
-
-They do not.
-See [Acoustic scenes](guide/importing.md#acoustic-scenes).
-
-**The integrator is wrong after importing**
-
-A scene whose integrator the importer does not recognize leaves the property at its default, `acoustic_path`.
-Set it explicitly before a visual re-export.
-
 ## Where the console is
 
 **Windows**: **Window** > **Toggle System Console**.
