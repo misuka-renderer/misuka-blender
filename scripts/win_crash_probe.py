@@ -24,7 +24,7 @@ import subprocess
 import sys
 import tempfile
 
-PROBES = ("import", "ply", "bitmap", "crt")
+PROBES = ("import", "ply", "bitmap", "drjit", "noatexit", "numpy", "crt")
 
 # A hand-written four-vertex quad, straight from issue #44. Deliberately not
 # something an exporter produced, so the file itself is never in question.
@@ -84,6 +84,40 @@ def probe_bitmap(module):
     bmp = mi.Bitmap(mi.Bitmap.PixelFormat.RGB, mi.Struct.Type.Float32, [4, 4])
     out = bmp.convert(mi.Bitmap.PixelFormat.RGB, mi.Struct.Type.UInt8, True)
     print(f"converted {bmp.component_format()} -> {out.component_format()}")
+
+
+def probe_drjit(module):
+    """Import only drjit, the layer below. Does the renderer matter at all?"""
+    del module
+    import drjit
+
+    print(f"imported drjit {drjit.__version__} at {drjit.__file__}")
+
+
+def probe_noatexit(module):
+    """Import, then drop every registered atexit callback.
+
+    misuka registers exactly one, in src/python/main.cpp, and clear_cache() is
+    inside it. If this exits cleanly while the plain import probe faults, the
+    fault is in a registered callback rather than anywhere else in teardown.
+
+    Read it in one direction only. Skipping the callback also skips misuka's
+    own shutdown, which aborts on macOS and Linux, so a nonzero result here
+    proves nothing. A zero result does.
+    """
+    import atexit
+
+    __import__(module)
+    atexit._clear()
+    print(f"imported {module} and cleared every atexit callback")
+
+
+def probe_numpy(module):
+    """Control: an ordinary compiled extension that is not nanobind or misuka."""
+    del module
+    import numpy
+
+    print(f"imported numpy {numpy.__version__}")
 
 
 def probe_crt(module):

@@ -110,7 +110,7 @@ jobs:
       shell: bash
       run: |
         uv pip install --python "${{ steps.host.outputs.PYTHON }}" \
-          --reinstall "${{ matrix.package }}"
+          --reinstall "${{ matrix.package }}" numpy
         uv pip show --python "${{ steps.host.outputs.PYTHON }}" \
           "${{ matrix.module }}" || true
 
