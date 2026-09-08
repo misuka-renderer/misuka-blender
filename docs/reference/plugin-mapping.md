@@ -29,7 +29,7 @@ Every plugin in the exported file carries an `id` naming the Blender object it c
 
 A mesh split across several material slots exports one shape per slot, named `mesh-<object name>-<material name>`, with a numeric suffix when two slots share a material.
 
-The id is what a script addresses a plugin by after loading the file, and what the importer names Blender data from when the scene is read back in.
+The id is what a script addresses a plugin by after loading the file.
 A `.` in a Blender name is rewritten to `_`, because misuka reserves it as a path delimiter.
 See [Dots in names](../guide/exporting.md#dots-in-names).
 

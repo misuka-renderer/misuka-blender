@@ -73,7 +73,7 @@ def test_an_unknown_query_reports_no_material():
 
 def test_the_measurement_keys_we_read_still_exist(material):
     '''
-    The variant keys the importer reads. A material need not carry every kind,
+    The variant keys the Acoustic Index lookup reads. A material need not carry every kind,
     so this checks the ones present rather than demanding all of them.
     '''
     measurements = material.get('measurements', {})

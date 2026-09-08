@@ -1,7 +1,0 @@
-<scene version="2.1.0">
-
-    <sensor type="perspective">
-        <rfilter type="box" />
-    </sensor>
-
-</scene>

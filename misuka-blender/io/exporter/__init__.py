@@ -179,10 +179,10 @@ def name_scene_plugins(path):
 
     misuka's writer only emits an `id` for a plugin something else references,
     and writes the export name as a `name` attribute otherwise. Nothing reads
-    that back: `mi.traverse()` keys such a plugin by its memory address, and
-    the importer falls back to `_unnamed_<n>`. Copying the name across is what
-    lets a script address a shape, a sensor or an emitter by the name it has in
-    Blender.
+    that back: `mi.traverse()` keys such a plugin by its memory address.
+    Copying the name across is what lets a script address a shape, a sensor or
+    an emitter by the name it has in Blender, which is how a scene with several
+    emitters or several receivers is worked with at all.
 
     Only the direct children of `<scene>` are plugins in their own right. A
     nested element's `name` is the parameter it fills, such as the `bsdf` of a

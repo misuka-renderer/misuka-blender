@@ -1,11 +1,7 @@
 if "bpy" in locals():
     import importlib
-    if "bl_utils" in locals():
-        importlib.reload(bl_utils)
     if "acoustic_bands" in locals():
         importlib.reload(acoustic_bands)
-    if "importer" in locals():
-        importlib.reload(importer)
     if "exporter" in locals():
         importlib.reload(exporter)
 
@@ -19,15 +15,12 @@ from bpy.props import (
         FloatProperty,
     )
 from bpy_extras.io_utils import (
-        ImportHelper,
         ExportHelper,
         orientation_helper,
         axis_conversion
     )
 
-from . import bl_utils
 from . import acoustic_bands
-from . import importer
 from . import exporter
 from ..docs import draw_help_button, draw_help_link
 from .acoustic_bands import (
@@ -917,55 +910,6 @@ def short_axis_labels(cls):
     return cls
 
 
-@short_axis_labels
-@orientation_helper(axis_forward='-Z', axis_up='Y')
-class ImportMitsuba(bpy.types.Operator, ImportHelper):
-    """Import a misuka scene"""
-    bl_idname = "import_scene.mitsuba"
-    bl_label = "misuka Import"
-
-    filename_ext = ".xml"
-    filter_glob: StringProperty(default="*.xml", options={'HIDDEN'})
-
-    override_scene: BoolProperty(
-        name = 'Override Current Scene',
-        description = 'Override the current scene with the imported misuka scene. '
-                      'Otherwise, creates a new scene for misuka objects.',
-        default = True,
-    )
-
-    def execute(self, context):
-        # Set blender to object mode
-        if bpy.ops.object.mode_set.poll():
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-        axis_mat = axis_conversion(
-            to_forward=self.axis_forward,
-            to_up=self.axis_up,
-        ).to_4x4()
-
-        if self.override_scene:
-            # Clear the current scene
-            scene = bl_utils.init_empty_scene(context, name=bpy.context.scene.name)
-        else:
-            # Create a new scene for misuka objects
-            scene = bl_utils.init_empty_scene(context, name='misuka')
-        collection = scene.collection
-
-        try:
-            importer.load_mitsuba_scene(context, scene, collection, self.filepath, axis_mat)
-        except (RuntimeError, NotImplementedError) as e:
-            print(e)
-            self.report({'ERROR'}, "Failed to load misuka scene. See error log.")
-            return {'CANCELLED'}
-
-        bpy.context.window.scene = scene
-
-        self.report({'INFO'}, "Scene imported successfully.")
-
-        return {'FINISHED'}
-
-
 def count_emitters(scene, limit=2):
     '''
     How many acoustic emitters `scene` holds, counting no further than `limit`.
@@ -1163,12 +1107,8 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
 def menu_export_func(self, context):
     self.layout.operator(ExportMitsuba.bl_idname, text="misuka (.xml)")
 
-def menu_import_func(self, context):
-    self.layout.operator(ImportMitsuba.bl_idname, text="misuka (.xml)")
-
 
 classes = (
-    ImportMitsuba,
     ExportMitsuba,
     ACOUSTIC_PT_material,
     ACOUSTIC_PT_database,
@@ -1191,7 +1131,6 @@ def register():
     register_acoustic_properties()
 
     bpy.types.TOPBAR_MT_file_export.append(menu_export_func)
-    bpy.types.TOPBAR_MT_file_import.append(menu_import_func)
 
 def unregister():
     for cls in classes:
@@ -1200,4 +1139,3 @@ def unregister():
     unregister_acoustic_properties()
 
     bpy.types.TOPBAR_MT_file_export.remove(menu_export_func)
-    bpy.types.TOPBAR_MT_file_import.remove(menu_import_func)

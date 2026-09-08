@@ -98,58 +98,10 @@ See [Radius limits](plugin-mapping.md#radius-limits).
 A light type with no converter logs `Could not export 'X', light type Y is not supported`.
 Blender has only the four types above, all of which convert, so this is a guard against a type a future Blender adds rather than something you can trigger today.
 
-## Import
-
-### Shapes
-
-- `ply`
-- `obj`
-- `sphere`
-- `disk`
-- `rectangle`
-- `cube`
-
-`serialized` meshes are not imported.
-
-### BSDFs
-
-- `principled`
-- `diffuse`
-- `twosided`
-- `dielectric`, `roughdielectric`, `thindielectric`
-- `conductor`, `roughconductor`
-- `plastic`, `roughplastic`
-- `blendbsdf`
-- `mask`
-- `bumpmap`, `normalmap`
-- `null`
-
-`acousticbsdf` is **not** imported.
-Acoustic materials do not round-trip back into the coefficient table.
-
-### Sensors
-
-- `perspective`
-
-`microphone` is not imported.
-
-### Emitters
-
-- `point`
-- `directional`
-
-Environment and constant emitters become the Blender world.
-A scene with more than one raises "Multiple Blender worlds is not supported."
-
-### Textures
-
-- `bitmap`
-
 ### Scene settings
 
-The integrator, sampler, reconstruction filter and film settings are written onto the Blender render settings, so a re-export reproduces them.
-
-Integrators known to the add-on: `acoustic_path`, `path`, `direct`, `aov`, `moment`, `stokes`, `depth`.
+Integrators the add-on can export: `acoustic_path`, `path`, `direct`, `aov`, `moment`, `stokes`, `depth`.
+Each export mode has its own dropdown, and neither offers the other's integrators.
 
 Samplers: `independent`, `stratified`, `multijitter`.
 Each export mode picks its own, in its own panel, and keeps its own sample count for it.
@@ -158,10 +110,13 @@ Reconstruction filters: `box`, `tent`, `gaussian`, `mitchell`, `catmullrom`, `la
 Each export mode picks its own, in its own panel, and keeps its own settings for it.
 Both start on `gaussian` with a standard deviation of `0.25`, which is a little sharper than misuka's own default.
 
-:::{note}
+Sampler and reconstruction filter live on the camera, so every receiver in a scene carries its own.
+The integrator and the film settings are scene-wide.
 
-The importer has no Blender equivalent for the `moment` integrator.
-A scene using it keeps the property default, which is `acoustic_path`.
-Set the integrator explicitly before a visual re-export.
+## Import
 
-:::
+The add-on does not import misuka or Mitsuba scenes.
+It writes them.
+
+Blender's own importers cover the geometry in an exported scene: the meshes are plain `.ply` files in the `meshes` directory beside the `.xml`.
+Materials, emitters, receivers and the acoustic settings have to be rebuilt in Blender.

@@ -10,7 +10,7 @@
 
 A Blender add-on for room acoustics.
 It exports Blender scenes to the misuka renderer, where materials carry frequency-dependent absorption and scattering and the result is an energy-time curve rather than an image.
-It also imports and exports visual scenes compatible with misuka 0.1 and mitsuba 3.9.1.
+It also exports visual scenes compatible with misuka 0.1 and mitsuba 3.9.1.
 Rendering inside Blender is not supported.
 
 ## Documentation
@@ -29,7 +29,7 @@ Blender `3.6+`, tested up to `5.2`.
 ## License
 
 This add-on as a whole is distributed under the [GNU General Public License v3.0 or later](LICENSE).
-Code inherited from the `mitsuba-blender` add-on remains under its original BSD 3-Clause notice, and the vendored Blender mesh importers under their original GPL-2.0-or-later notices.
+Code inherited from the `mitsuba-blender` add-on remains under its original BSD 3-Clause notice.
 See [NOTICE](NOTICE) for the details.
 
 The misuka renderer it exports to is licensed separately, under [PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
