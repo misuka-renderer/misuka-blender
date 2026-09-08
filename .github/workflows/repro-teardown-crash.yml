@@ -154,6 +154,15 @@ jobs:
         BLENDER=$(find blender/ -maxdepth 1 -regextype posix-extended \
           -regex '.*blender(.exe)?' -print -quit)
         echo "Blender is $BLENDER"
+
+        echo "== C++ runtime DLLs Blender ships =="
+        find blender/ -iname "msvcp*.dll" -o -iname "vcruntime*.dll" | while read -r dll; do
+          echo "  $(stat -c%s "$dll" 2>/dev/null || stat -f%z "$dll") $dll"
+        done
+        echo "== system copies =="
+        ls -l /c/Windows/System32/MSVCP140.dll /c/Windows/System32/VCRUNTIME140.dll || true
+
+        export CRT_REPORT="$PWD/crt-report.txt"
         FAILED=0
         for probe in crt preload ply plybinst scene acoustic import drjit numpy; do
           echo "=============================================================="
@@ -167,5 +176,9 @@ jobs:
           set -e
           echo "-- $probe exited $STATUS"
           [ "$STATUS" -eq 0 ] || FAILED=1
+          if [ "$probe" = "crt" ] && [ -f "$CRT_REPORT" ]; then
+            echo "-- loaded modules, recovered from $CRT_REPORT"
+            cat "$CRT_REPORT"
+          fi
         done
         exit $FAILED

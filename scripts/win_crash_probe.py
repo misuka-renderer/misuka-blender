@@ -302,11 +302,21 @@ def probe_crt(module):
         return
 
     keywords = ("msvcp", "vcruntime", "struct-jit", "drjit", "mitsuba", "misuka")
-    print(f"\n{'version':<20}{'bytes':>14}  path")
+    lines = [f"{'version':<20}{'bytes':>14}  path"]
     for path in _loaded_modules():
         base = os.path.basename(path).lower()
         if any(k in base for k in keywords):
-            print(f"{_file_version(path):<20}{_size(path):>14}  {path}")
+            lines.append(f"{_file_version(path):<20}{_size(path):>14}  {path}")
+
+    report = "\n".join(lines)
+    print("\n" + report)
+
+    # Blender drops buffered stdout when it faults on the way out, so keep a
+    # copy on disk. CRT_REPORT names the file to write.
+    out = os.environ.get("CRT_REPORT")
+    if out:
+        with open(out, "w", encoding="utf-8") as f:
+            f.write(f"{sys.executable}\n{sys.version}\n\n{report}\n")
 
 
 def _loaded_modules():
