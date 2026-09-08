@@ -270,8 +270,13 @@ def run_all(module):
     A probe that faults normally but exits cleanly with a hard exit puts the
     fault in teardown, not in the work the probe did.
     """
+    # ply and bitmap are renderer plugins, and noatexit targets the renderer's
+    # own atexit callback. None of them mean anything when drjit is the module
+    # under test.
+    probes = PROBES if module != "drjit" else ("import", "drjit", "numpy", "crt")
+
     results = []
-    for probe in PROBES:
+    for probe in probes:
         row = [probe]
         for hard in (False, True):
             mode = "hard exit" if hard else "normal exit"

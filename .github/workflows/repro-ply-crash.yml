@@ -54,6 +54,11 @@ jobs:
             package: "misuka==0.1.0"
             module: misuka
             host: conda
+          - label: "G - drjit alone, system python (windows)"
+            os: windows-latest
+            package: "drjit==1.5.0"
+            module: drjit
+            host: system
           - label: "F - misuka, system python (linux control)"
             os: ubuntu-latest
             package: "misuka==0.1.0"
