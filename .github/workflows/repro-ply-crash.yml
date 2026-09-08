@@ -13,6 +13,12 @@ name: Repro PLY crash (#44)
 
 on:
   workflow_dispatch:
+  # Temporary, and removed before this branch merges. `workflow_dispatch` can
+  # only be triggered for a workflow that already exists on the default branch,
+  # so until this file lands on master a push trigger is the only way to run it.
+  push:
+    branches:
+      - windows-ply-crash
 
 jobs:
   probe:
