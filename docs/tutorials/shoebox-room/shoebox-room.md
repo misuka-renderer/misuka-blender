@@ -28,7 +28,7 @@ First, we will scale up the cube and flip its normals so it becomes the room.
    This changes the Blender viewport only, not the export.
 
 ```{image} viewport-shading.png
-:alt: The Acoustic Index Database panel after a successful load
+:alt: Viewport Shading Preferences
 :width: 40%
 :align: center
 ```
@@ -47,7 +47,7 @@ They are several meters apart, which is what you want.
 
 **Properties** > **Render** > **Render Engine** > **misuka**.
 
-All acoustic setting are only visible when this render engine is selected, and an export from another engine is refused with:
+All acoustic settings are only visible when this render engine is selected, and an export from another engine is refused with:
 
 > A misuka export needs the misuka render engine.
 > Set Render Properties > Render Engine to misuka.
@@ -115,20 +115,16 @@ For more information about these settings, see [Scene settings](../../guide/scen
 ## Give the room a material
 
 1. Select the cube and open **Properties** > **Material**.
-2. Add a material if the cube has none.
-   The default startup cube usually has one already.
+2. The startup cube already has a material. Add one if yours does not.
 3. Find the **Acoustic Material** panel and expand **Coefficients**.
 
-You get a table with one row per band.
-The frequency is on the left, then **Absorption** and **Scattering** coefficients.
-In Octave mode the rows that octave bands do not use are greyed out, but they keep their values.
+In Octave mode the coefficient rows that octave bands do not use are grayed out, but they keep their values.
 
 Set two absorption values:
 
 1. In the `125 Hz` row, set **Absorption** to `0.1`.
    Notice that its **Keep** box ticks itself.
 2. In the `4000 Hz` row, set **Absorption** to `0.9`.
-   Its **Keep** box ticks too.
 
 Now press **Interpolate** under the Absorption column.
 Every band that is not ticked gets a value interpolated between your two.
@@ -192,7 +188,7 @@ See [Exporting](../../guide/exporting.md#export-mode).
 
 :::
 
-## Check out the `.xml` files
+## Read the exported `.xml` files
 
 The export generated two misuka scenes in the `.xml` file format.
 See the [Mitsuba documentation](https://mitsuba.readthedocs.io/en/v3.9.1/src/key_topics/scene_format.html) for more information about the scene format.
@@ -245,7 +241,6 @@ def read_rendered_frequencies(xml_path):
         return []
     return [float(f) for f in element.get('value').split(',')]
 
-
 # visual rendering
 mi.set_variant('cuda_ad_rgb', 'metal_ad_rgb', 'llvm_ad_rgb')
 scene = mi.load_file('visual.xml')
@@ -290,8 +285,7 @@ plt.show()
 Note how the point emitter is invisible in the visual rendering (it is placed right in the center of the image).
 Point emitters are infinitely small, so the probability of a ray hitting them is 0.
 In visual rendering, this is intended behavior.
-In acoustic rendering, this would discard the direct sound contribution, which is not intended behavior in most cases
-
+In acoustic rendering, this would discard the direct sound contribution, which is not intended behavior in most cases.
 
 ### Things worth knowing
 
@@ -305,33 +299,3 @@ In acoustic rendering, this would discard the direct sound contribution, which i
 - The `log_prefix` must be set to `10`. misuka renders an energy-time curve (ETC), which corresponds to the **squared** impulse response and is an energy quantity.
   Using the default of 20 will produce wrong decay tails.
   See the [misuka documentation](https://misuka.readthedocs.io/latest/src/key_topics/acoustic_rendering.html) for more information on acoustic rendering.
-- Pass `spp=` to `mi.render` to override the number of rays used per pixel (visual) or per frequency (acoustic), or change the setting in Blender.
-  When rendering images, misuka produces adequate quality at low values, even rendering with one ray per pixel produces noisy, but usable images.
-  For acoustic rendering, the `spp` needs to be set much higher.
-  Because a microphone is essentially a 1x1 pixel sensor, acoustic rendering is fast with `spp` values up to 1 million and more.
-  See [Sampler](../../guide/scene-settings.md#sampler).
-- A material with no acoustic values set still exports, with every band at `0.5`, which is a half-absorbing, half-scattering surface.
-  That is rarely what you want, so check every material before a real run.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

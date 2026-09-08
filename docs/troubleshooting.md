@@ -18,10 +18,6 @@ Your Blender build uses the system Python instead of bundling its own, so the ad
 Install an official build from [blender.org](https://www.blender.org/download/).
 See the warning at the top of [Installation](installation.md).
 
-**"A restart is required to apply the changes."**
-
-Restart Blender.
-
 **The pip install fails**
 
 A dialog shows pip's own error output and offers to retry from TestPyPI.
@@ -61,7 +57,7 @@ See [How the lookup works](guide/acousticindex.md#how-the-lookup-works).
 
 **Any other database message**
 
-See [Errors](guide/acousticindex.md#errors) and [Messages](guide/acousticindex.md#messages).
+See [Errors](guide/acousticindex.md#errors).
 
 **The status box says 'Loaded for "..."'**
 
@@ -74,9 +70,9 @@ See [The status box](guide/acousticindex.md#the-status-box).
 
 Interpolation needs at least one anchor.
 Tick a Keep box, or type a value into a band, which ticks it for you.
-See [Interpolate](guide/acoustic-materials.md#interpolate).
+See [Interpolate](#interpolate).
 
-**Rows are greyed out**
+**Rows are grayed out**
 
 The scene is in Octave mode, so the 20 third-octave-only rows are inactive.
 Their values are still there.
@@ -90,13 +86,13 @@ See [Apply Variant](guide/acousticindex.md#apply-variant).
 **"Variant applied, N value(s) outside the band table ignored"**
 
 The variant reported frequencies that do not line up with any of the standard bands.
-See [Band matching](reference/acoustic-bands.md#band-matching).
+See [Band matching](guide/acousticindex.md#band-matching).
 
 **Absorption above 1**
 
 Not allowed. misuka expects values between 0 and 1.
 Values outside that range are clamped.
-See [Absorption coefficient](guide/acoustic-materials.md#absorption-coefficient).
+See [Absorption coefficient](#absorption-coefficient).
 
 ## Export problems
 
@@ -111,7 +107,7 @@ See [Export Mode](guide/exporting.md#export-mode).
 Add a point light, or give a mesh an Emission material.
 A scene lit only by sun, spot or area lights ends up here, because an Acoustic export skips all three.
 Coloring the world does not help: an acoustic export writes no background.
-See [Multiple emitters](guide/exporting.md#multiple-emitters) and [Lights](reference/supported-features.md#lights).
+See [Multiple emitters](guide/exporting.md#multiple-emitters) and [Lights](reference/plugin-mapping.md#lights).
 
 **"This acoustic scene has N emitters"**
 
@@ -136,7 +132,7 @@ See [Dots in names](guide/exporting.md#dots-in-names).
 Check Blender's console for the reason it was skipped.
 See [What gets skipped](guide/exporting.md#what-gets-skipped).
 
-**A material came out as plain grey**
+**A material came out as plain gray**
 
 The exporter could not convert its shader node and fell back to `diffuse`.
 The console says which node type it choked on.
@@ -161,7 +157,7 @@ Check the point light's **Radius** in **Object Data Properties** > **Light / Emi
 In Acoustic mode that value is the radius of the emitter sphere, and nothing caps it.
 See [Radius limits](reference/plugin-mapping.md#radius-limits).
 
-**The acoustic emitter is far too loud or too quiet**
+**The acoustic emitter level is far too high or too low**
 
 Set the light's **Power** in **Object Data Properties** > **Light / Emitter**.
 That is the only thing that changes the level, and it goes over in watts.
@@ -171,11 +167,11 @@ Changing the radius does not change the level.
 
 On Windows, under Blender 3.6, 4.2 and 4.5 only.
 `mi.load_file()` inside Blender's scripting console kills the process outright: misuka's Windows build needs a newer Microsoft C++ runtime than those versions ship in `blender.crt`, and Blender forces its own copy on everything running inside it.
-Blender 5.2 ships a new enough one and is unaffected.
+Blender 5.2 ships a newer version and is unaffected.
 
 Open the scene in a Python outside Blender instead, which is where an exported scene is meant to be rendered.
 Exporting is not affected on any version.
-See [issue #4](https://github.com/misuka-renderer/misuka-blender/issues/4).
+See [issue #72](https://github.com/misuka-renderer/misuka-blender/issues/72).
 
 ## Where the console is
 

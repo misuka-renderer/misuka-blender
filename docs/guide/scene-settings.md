@@ -9,13 +9,12 @@ See [The acoustic panels are missing](#acoustic-panels-missing).
 
 :::
 
-
 ## Rendering settings
 
 The rendering settings live in **Properties** > **Render**.
 Each setting can be set independently for visual and acoustic export.
 
-::: {note}
+:::{note}
 
 When rendering a misuka scene in Python, you can override all settings listed on this page.
 
@@ -36,6 +35,9 @@ You can also modify the scene geometry by applying transformations, but you can 
 ### Integrator
 
 The integrator misuka renders with.
+Integrators the add-on can export: `acoustic_path`, `path`, `direct`, `aov`, `moment`, `stokes`, `depth`.
+Each export mode has its own dropdown, and neither offers the other's integrators.
+
 The acoustic setting defaults to the [Acoustic Path Tracer](https://misuka.readthedocs.io/latest/src/generated/plugins_integrators.html#acoustic-path-tracer-acoustic-path).
 The visual setting defaults to the [Path Tracer](https://mitsuba.readthedocs.io/en/latest/src/generated/plugins_integrators.html#path-tracer-path).
 
@@ -57,6 +59,9 @@ The slider stops at `2**28`, and you can type up to `2**31 - 1`.
 : Rays traced per pixel.
 Default `64`, minimum `1`.
 
+Sampler and reconstruction filter live on the camera, so every receiver in a scene carries its own.
+The integrator and the film settings are scene-wide.
+
 An acoustic run needs far more samples than an image does, which is why the two panels are separate.
 The ray contributions are spread over many time bins, so a sample count that gives a clean image can give a noisy energy-time curve.
 
@@ -67,15 +72,14 @@ See [Reconstruction filters](https://mitsuba.readthedocs.io/en/latest/src/genera
 
 **Acoustic** > **Reconstruction Filter** > **Filter**
 
-: Spreads each contributions over neighboring time bins.
+: Spreads each contribution over neighboring time bins.
 You don't need this for forward rendering and can disable it by selecting the **Box** filter.
-However, misuka needs a differentiable reconstruction filter in order to compute *derivatives* of moving geometry with respect to time.
+However, misuka needs a differentiable reconstruction filter to compute *derivatives* of moving geometry with respect to time.
 The default, a Gaussian reconstruction filter with a standard deviation of 0.25 time bins enables these derivatives to be tracked and produces no significant smoothing.
 
 **Visual** > **Reconstruction Filter** > **Filter**
 
 : Spreads each sample over neighboring pixels, in both directions.
-
 
 ## Output settings
 
@@ -88,28 +92,29 @@ It is the acoustic counterpart to Blender's own Format panel.
 :width: 60%
 ```
 
-## Band Resolution
+### Band Resolution
 
 Which frequency bands the simulation runs at.
 Material coefficients are sampled at these centers.
+The frequencies are the ISO 266 preferred centers.
 
 **Octave Bands**
 
 : The 10 octave centers, 31.5 Hz to 16 kHz.
+They are every third third-octave center, starting at 31.5 Hz, which is the one preferred center that is not a whole number.
 The default.
 
 **Third Octave Bands**
 
 : All 30 third-octave centers, 25 Hz to 20 kHz.
 
-
 Material values are always stored on the full 30-band third-octave table, whichever you pick.
 Switching to Octave does not lose the third-octave values.
-It greys their rows out in the coefficient table and leaves them there.
+It grays their rows out in the coefficient table and leaves them there.
 
-See [Acoustic bands](../reference/acoustic-bands.md) for the list of center frequencies.
+The full list of centers is the table in [Scripting](../reference/scripting.md#material-properties).
 
-::: {note}
+:::{note}
 
 In misuka, you can change the rendered frequencies to your choosing.
 See [Tape](https://misuka.readthedocs.io/latest/src/generated/plugins_films.html#tape-tape).
@@ -118,7 +123,7 @@ Logarithmic interpolation in misuka is planned, the progress is tracked in [#42]
 
 :::
 
-## Interpolation
+### Interpolation
 
 The frequency axis that the material **Interpolate** buttons work along.
 
@@ -134,14 +139,14 @@ The default.
 Logarithmic is the default because band centers are evenly spaced on that axis.
 With anchors at 500 Hz and 2 kHz, the logarithmic axis puts 1 kHz exactly halfway between their values, while the linear axis puts it a third of the way.
 
-## Max Time
+### Max Time
 
 The cut-off time for the simulated energy-time curve, in seconds.
 Default `2.0`, minimum `0.001`.
 
 This is also written into the exported `acoustic_path` integrator as its `max_time`.
 
-## Sampling Rate
+### Sampling Rate
 
 How finely the energy-time curve is sampled in time, in Hz.
 Default `1000.0`, minimum `1.0`.

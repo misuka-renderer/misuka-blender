@@ -18,61 +18,54 @@ See [The acoustic panels are missing](#acoustic-panels-missing).
 :align: center
 ```
 
-In Octave mode the 20 rows that octave bands do not use are greyed out (see screenshot above), but they keep their values.
+In Octave mode the 20 rows that octave bands do not use are grayed out, but they keep their values.
 Switching band resolution never discards values.
 You can drag a value down an aligned column to set several bands at once.
 
-### Absorption coefficient
+(absorption-coefficient)=
 
-Fraction of incident sound energy absorbed at that band.
-`0` reflects everything, `1` absorbs everything.
+**Absorption coefficient**
 
-Range 0 to 1.
+: Fraction of incident sound energy absorbed.
+Range {math}`[0, 1]`. 0 reflects everything, 1 absorbs everything.
 Values outside this range are clamped.
 
-### Scattering coefficient
+**Scattering coefficient**
 
-Fraction of reflected sound energy scattered at that band.
-`0` reflects like a mirror, `1` scatters in all directions.
-
-Range 0 to 1.
+: Fraction of reflected sound energy scattered.
+Range {math}`[0, 1]`. 0 reflects like a mirror, 1 scatters in all directions.
 Values outside this range are clamped.
 
-### Keep
+**Keep**
 
-A per-band, per-quantity checkbox meaning "this value is claimed".
+: A per-band, per-quantity checkbox meaning "this value is claimed".
 **Interpolate** preserves ticked bands and overwrites the rest.
-
 Editing a band's value ticks its Keep box automatically.
-Interpolate, Reset and Apply Variant set the boxes themselves.
 
-## Interpolate
+(interpolate)=
 
-One button per quantity, at the bottom of its column.
+**Interpolate**
 
-It fills every **unticked** band by interpolating between the ticked ones, the anchors the result has to pass through:
+: Fills every **unticked** band by interpolating between the ticked ones:
 
-- Bands between two ticked bands get a value interpolated between them.
-- Bands below the lowest ticked band take that band's value.
-- Bands above the highest ticked band take that band's value.
-- Ticked bands are left alone.
+  - Bands between two ticked bands get a value interpolated between them.
+  - Bands outside the lowest and highest ticked band take that band's value.
+  - Ticked bands are left alone.
 
-The axis, logarithmic or linear, comes from **Interpolation** in the [Output properties](scene-settings.md#interpolation).
+  The axis, logarithmic or linear, comes from **Interpolation** in the [Output properties](scene-settings.md#interpolation).
 
-## Reset to 0.5
+**Reset to 0.5**
 
-One button per quantity.
-Sets every band of that quantity back to `0.5` and unticks every Keep box.
+: Sets every band of that quantity back to `0.5` and unticks every Keep box.
 
 (specular-reflection)=
 ## Specular Reflection
 
-**Specular Lobe Width** sets the angular width of the specular reflection lobe.
+**Specular Lobe Width**
+
+: Sets the angular width of the specular reflection lobe.
 See [acousticbsdf](https://misuka.readthedocs.io/latest/src/generated/plugins_bsdfs.html#acoustic-material-acousticbsdf) in the misuka documentation.
-
 Default `0.001`, range `0.001` to `1.0`.
-
-Leave this at the default value unless you know what you're doing.
 
 ## What gets exported
 
@@ -97,5 +90,3 @@ The exported BSDF looks like this:
 ```
 
 The `twosided` wrapper assigns the Acoustic BSDF to both sides of every surface.
-You don't need to ensure that all normals point inward.
-

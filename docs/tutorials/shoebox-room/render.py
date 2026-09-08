@@ -15,7 +15,7 @@ HERE = Path(__file__).resolve().parent
 # dark background alike. The scene renders ten octave bands, so the cycle
 # would wrap and give 8 kHz and 16 kHz the colors of 31.5 Hz and 63 Hz. The
 # last two continue the same palette: a pink taken from the CARTOColors Prism
-# set pyfar draws on, lightened the way pyfar lightened the others, and a grey
+# set pyfar draws on, lightened the way pyfar lightened the others, and a gray
 # light enough to stay visible on black.
 BAND_COLORS = [
     '#1471B9', '#D83C27', '#ECAD20', '#5F4690', '#078554',

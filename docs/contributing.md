@@ -34,7 +34,7 @@ python scripts/blender_downloader.py 4.2 -o blender
 :::{note}
 
 Blender faults on Windows while tearing misuka down, after every test has already run.
-See [issue #4](https://github.com/misuka-renderer/misuka-blender/issues/4).
+See [issue #72](https://github.com/misuka-renderer/misuka-blender/issues/72).
 CI judges the run on pytest's own report through `scripts/check_pytest_report.py`, not on Blender's exit code.
 
 The same issue makes misuka fault on Windows as soon as a scene is instantiated, so tests that load an exported scene carry the `skip_on_windows` mark from `tests/fixtures/__init__.py`.
@@ -49,7 +49,7 @@ They hand the misuka half to `tests/misuka_worker.py`, which runs under the inte
 
 Instantiating a misuka scene inside `blender.exe` faults on Windows under Blender 3.6, 4.2 and 4.5: misuka needs a newer Microsoft C++ runtime than those versions ship in `blender.crt`, and Blender forces its own copy on everything in its process.
 Blender's bundled `python.exe` is a separate process and loads the system runtime, so it is unaffected on every version.
-See [issue #4](https://github.com/misuka-renderer/misuka-blender/issues/4).
+See [issue #72](https://github.com/misuka-renderer/misuka-blender/issues/72).
 
 The worker never imports `bpy`, and `tests/shoebox.py` never imports misuka.
 Renders cross the boundary as `.npy` files rather than through the pipe, and the aggregate comparison stays on the Blender side, so the numbers a reference is judged by are computed in one place.
