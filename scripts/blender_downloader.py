@@ -1,7 +1,10 @@
 import argparse
 import os
+import platform
+import subprocess
 import sys
 import requests
+import tempfile
 import zipfile
 import tarfile
 import shutil
@@ -46,8 +49,50 @@ def get_platform_suffix_pattern():
         return 'linux(-x64|64).tar.(xz|gz|bz2)'
     elif sys.platform.startswith('win64') or sys.platform.startswith('win32'):
         return 'windows(-x64|64).zip'
+    elif sys.platform == 'darwin':
+        # Apple silicon reports arm64, Rosetta and Intel report x86_64. Blender
+        # names the two builds arm64 and x64.
+        arch = 'arm64' if platform.machine() == 'arm64' else 'x64'
+        return f'macos-{arch}.dmg'
     else:
         raise RuntimeError(f'Unsupported platform: {sys.platform}')
+
+
+def extract_dmg(archive_file_name):
+    '''
+    Copy Blender.app out of a macOS disk image, and return the directory it
+    was copied into.
+
+    macOS ships Blender as a disk image rather than an archive, so there is
+    nothing to extract: the image has to be mounted, read and unmounted. The
+    caller then treats the returned directory the way it treats the directory
+    an archive unpacks into.
+    '''
+    staging_dir = os.path.join(os.getcwd(), 'blender-dmg')
+    if os.path.exists(staging_dir):
+        shutil.rmtree(staging_dir)
+    os.makedirs(staging_dir)
+
+    mount_point = tempfile.mkdtemp(prefix='blender-dmg-mount-')
+    subprocess.run(
+        ['hdiutil', 'attach', '-nobrowse', '-quiet',
+         '-mountpoint', mount_point, archive_file_name],
+        check=True)
+    try:
+        app_path = os.path.join(mount_point, 'Blender.app')
+        if not os.path.isdir(app_path):
+            raise RuntimeError(
+                f'{archive_file_name} holds no Blender.app: '
+                f'{os.listdir(mount_point)}')
+        # symlinks=True: an .app bundle uses them for its framework versions,
+        # and following them copies each framework several times over.
+        shutil.copytree(app_path, os.path.join(staging_dir, 'Blender.app'),
+                        symlinks=True)
+    finally:
+        subprocess.run(['hdiutil', 'detach', '-quiet', mount_point], check=True)
+        os.rmdir(mount_point)
+
+    return staging_dir
 
 def _version_sort_key(link):
     '''Numeric sort key for a 'blender-X.Y.Z-platform...' archive link.'''
@@ -146,22 +191,25 @@ def main(args):
         archive_file.close()
 
     print(f'Extracting archive')
-    if archive_file_name.endswith('zip'):
-        z = zipfile.ZipFile(archive_file_name, 'r')
-        zfiles = z.namelist()
-        zdir = zfiles[0].split('/')[0]
-    elif archive_file_name.endswith('tar.bz2') or archive_file_name.endswith('tar.gz') or archive_file_name.endswith('tar.xz'):
-        z = tarfile.open(archive_file_name)
-        zfiles = z.getnames()
-        zdir = zfiles[0].split('/')[0]
+    if archive_file_name.endswith('.dmg'):
+        extracted_dir = extract_dmg(archive_file_name)
     else:
-        raise RuntimeError(f'Unknown archive extension: {archive_file_name}')
+        if archive_file_name.endswith('zip'):
+            z = zipfile.ZipFile(archive_file_name, 'r')
+            zfiles = z.namelist()
+            zdir = zfiles[0].split('/')[0]
+        elif archive_file_name.endswith('tar.bz2') or archive_file_name.endswith('tar.gz') or archive_file_name.endswith('tar.xz'):
+            z = tarfile.open(archive_file_name)
+            zfiles = z.getnames()
+            zdir = zfiles[0].split('/')[0]
+        else:
+            raise RuntimeError(f'Unknown archive extension: {archive_file_name}')
 
-    z.extractall()
-    z.close()
+        z.extractall()
+        z.close()
+        extracted_dir = os.path.join(os.getcwd(), zdir)
 
     if args.out != '':
-        extracted_dir = os.path.join(os.getcwd(), zdir)
         output_dir = os.path.join(os.getcwd(), args.out)
 
         os.makedirs(output_dir, exist_ok=True)

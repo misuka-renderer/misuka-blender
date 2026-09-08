@@ -6,6 +6,9 @@
 
 # Blender
 *.blend*
+# ...except the pipeline test's fixture, which is a committed input rather than
+# somebody's working file. Its .blend1 backup stays ignored.
+!tests/res/shoebox.blend
 
 # Python
 __pycache__*
