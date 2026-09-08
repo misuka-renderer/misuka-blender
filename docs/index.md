@@ -10,9 +10,9 @@ It exports Blender scenes to the [misuka renderer](https://github.com/misuka-ren
   Bands you set are marked, so measured values stay distinguishable from filled-in ones.
 - **Acoustic Index lookup.** Name a material after a database entry on [acousticindex.com](https://acousticindex.com) and pull its measured coefficients straight into Blender.
 
-Rendering inside Blender is not supported.
-Set the render engine to misuka so the acoustic panels appear, then export the scene and render it with misuka.
-See [Rendering](reference/supported-features.md#rendering).
+Rendering inside Blender is not supported, and neither is importing a misuka scene.
+The add-on writes scenes; misuka renders them.
+Set the render engine to misuka so the acoustic panels appear, then export the scene and render it with misuka the way [the shoebox tutorial](tutorials/shoebox-room/shoebox-room.md) does.
 
 ## Where to go next
 
@@ -20,8 +20,8 @@ See [Rendering](reference/supported-features.md#rendering).
 - **Tutorials:** [Tutorials: Shoebox room](tutorials/shoebox-room/shoebox-room.md) builds a room and exports it in about ten minutes.
 - **Guides:** [Scene settings](guide/scene-settings.md), [Acoustic materials](guide/acoustic-materials.md), [Acoustic Index](guide/acousticindex.md) and [Exporting](guide/exporting.md) document every panel in detail.
   See [Troubleshooting](troubleshooting.md) if you run into problems.
-- **Reference:** [Plugin Mapping](reference/plugin-mapping.md), [Supported Features](reference/supported-features.md), [Acoustic Bands](reference/acoustic-bands.md), document implementation details.
-  See [Scripting](reference/scripting.md) if you want to use the Python API.
+- **Reference:** [Plugin mapping](reference/plugin-mapping.md) documents what the exporter writes for each Blender component.
+  [Scripting](reference/scripting.md) names the Blender properties behind every panel.
   See [Contributing](contributing.md) if you want to contribute to the project.
 
 ## Project links
@@ -74,8 +74,6 @@ troubleshooting
 :hidden:
 
 reference/plugin-mapping
-reference/supported-features
-reference/acoustic-bands
 reference/scripting
 contributing
 ```

@@ -49,14 +49,18 @@ There are two ways to supply the module.
 
 ### With pip
 
-Press **Install dependencies**.
-This installs the `misuka` module, version 0.1.0.
+**Install dependencies**
 
+: Installs the `misuka` module, version 0.1.0.
 
-**Upgrade dependencies** Reinstalls the pinned version.
+**Upgrade dependencies**
+
+: Reinstalls the pinned version.
 Use this when the status line says the found version is wrong.
 
-**Uninstall dependencies** Removes the module.
+**Uninstall dependencies**
+
+: Removes the module.
 This one needs a Blender restart to take effect.
 
 :::{note}
@@ -87,6 +91,21 @@ A mismatch shows up as "Failed to load custom misuka. Please verify the path to 
 
 :::
 
+### Blender and Python versions
+
+This only matters for the custom misuka path option.
+A pip install always targets the right interpreter on its own.
+
+| Blender version | Python version |
+|---|---|
+| 3.6 LTS | 3.10 |
+| 4.2 LTS | 3.11 |
+| 4.5 LTS | 3.11 |
+| 5.2 | 3.13 |
+
+These are the four versions the add-on is tested on.
+Every Blender from 4.0 to 5.0 bundles Python 3.11, and 5.1 bundles 3.13.
+
 ## Add an Acoustic Index API key
 
 Optional, and only needed if you want to pull measured coefficients from [acousticindex.com](https://acousticindex.com).
@@ -98,26 +117,6 @@ In the preferences, find the **Acoustic Index Database** box and paste your key 
 Without a key, everything else still works.
 You can still manually edit absorption and scattering coefficients yourself.
 See [Acoustic export: shoebox room](tutorials/shoebox-room/shoebox-room.md).
-
-
-(blender-and-python-versions)=
-### Blender and Python versions
-
-This only matters for the custom misuka path option.
-A pip install always targets the right interpreter on its own.
-
-| Blender version | Python version |
-|---|---|
-| 3.6 LTS | 3.10 |
-| 4.0 | 3.11 |
-| 4.1 | 3.11 |
-| 4.2 LTS | 3.11 |
-| 4.3 | 3.11 |
-| 4.4 | 3.11 |
-| 4.5 LTS | 3.11 |
-| 5.0 | 3.11 |
-| 5.1 | 3.13 |
-| 5.2 | 3.13 |
 
 ## Update
 

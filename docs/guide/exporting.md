@@ -11,39 +11,21 @@ The exporter writes a misuka scene XML, with mesh data in binary PLY files besid
 
 ## Export Mode
 
-Two whole scenes, not a modifier on one scene.
+The export dialog can be used to export to acoustic as well as visual scenes.
 
 **Acoustic** (the default)
 
-: An acoustic simulation.
-The `acoustic_path` integrator, a `microphone` sensor, a `tape` film, and `acousticbsdf` materials.
-Point lights become spheres with area emitters.
+: An acoustic scene.
+Uses the integrator chosen in the [rendering settings](./scene-settings.md#rendering-settings), a `microphone` sensor, a `tape` film, and `acousticbsdf` materials.
+Point lights become spheres with `area` emitters.
 
 **Visual**
 
-: An image render.
-The integrator, sensor and materials chosen in the misuka panels.
+: A visual scene.
+Uses the integrator, sensor and materials chosen in the misuka panels.
 
 Both modes need the **misuka** render engine.
-Every setting an export writes lives on that engine, so an export from EEVEE or Cycles is refused:
-
-> A misuka export needs the misuka render engine.
-> Set Render Properties > Render Engine to misuka.
-
-:::{note}
-
-**Properties** > **Render** has a section per mode, **Acoustic** above **Visual**, with the same three panels under each:
-
-- **Integrator**, starting on `acoustic_path` under Acoustic and `path` under Visual.
-  Neither dropdown offers the other's integrators, so a mode cannot be pointed at one it would reject.
-- **Sampler**, both starting on `independent`, each with a sample count of its own.
-  See [Sampler](scene-settings.md#sampler).
-- **Reconstruction Filter**, both starting on `gaussian` with a standard deviation of `0.25`.
-
-Both sections are set up at once, so you can see what either export would write.
-
-:::
-
+Every setting an export writes lives on that engine, so an export from EEVEE or Cycles is refused.
 See [Plugin mapping](../reference/plugin-mapping.md) for the full substitution table, and [Acoustic rendering](https://misuka.readthedocs.io/latest/src/key_topics/acoustic_rendering.html) in the misuka documentation for what these plugins do.
 
 ## Options
@@ -57,14 +39,14 @@ Default off.
 
 : Export an acoustic scene holding more than one emitter.
 Default off, and Acoustic mode only.
-A visual render is free to have several emitters, so the option is greyed out there.
+A visual render is free to have several emitters, so the option is grayed out there.
 See [Multiple emitters](#multiple-emitters).
 
 **Ignore Default Background**
 
-: Skip Blender's default constant grey world background.
+: Skip Blender's default constant gray world background.
 Default on, and Visual mode only.
-An acoustic export writes no background at all, so the option is greyed out there.
+An acoustic export writes no background at all, so the option is grayed out there.
 See [The world background](#the-world-background).
 
 **Forward Axis** / **Up Axis**
@@ -72,27 +54,17 @@ See [The world background](#the-world-background).
 : Default `Y` forward and `Z` up, which is what makes Blender and misuka coordinates agree.
 Change these only when fitting an export into an existing scene that uses a different convention.
 
-## What the acoustic scene contains
-
-The full Blender-to-misuka substitution table is [Plugin mapping](../reference/plugin-mapping.md#scene-components).
-Light handling is [Lights](../reference/supported-features.md#lights), and the emitter sphere's size is [Radius limits](../reference/plugin-mapping.md#radius-limits).
-
-One value comes from outside those tables.
-The sensor's sampler carries `sample_count` from the active camera's Sampler panel for that mode, defaulting to `262144` under Acoustic and `64` under Visual.
-See [Sampler](scene-settings.md#sampler).
-
 ## Multiple emitters
 
-An acoustic export expects one emitter by default, because an energy-time curve runs from one emitter to one receiver.
+An acoustic export expects one emitter by default, because an energy-time curve is commonly used to describe the propagation from one emitter to one receiver.
 
-Two things count as an emitter:
+Two things count as an emitter in acoustic export mode:
 
-- A point light. Its level is the light's **Power**, held fixed whatever the **Radius**.
-- A mesh with an Emission material. Its level is the Emission node's **Strength**, which is a radiance, so a bigger mesh emits more. **Color** is Visual-only.
+- A point light.
+- A mesh with an Emission material.
 
 A sun, spot or area light does not, and an acoustic export skips all three.
 Neither does the world background.
-See [The world background](#the-world-background).
 
 Objects disabled for render do not count, so you do not have to delete anything.
 Untick **Renders**, under **Show In** in **Properties** > **Object** > **Visibility**, on every emitter but one.
@@ -101,11 +73,11 @@ Untick **Renders**, under **Show In** in **Properties** > **Object** > **Visibil
 
 An acoustic export writes no world background, whatever the world is set to.
 
-In Visual mode a colored world becomes a `constant` emitter surrounding the scene, and Blender's default grey one is skipped unless you untick **Ignore Default Background**.
+In Visual mode a colored world becomes a `constant` emitter surrounding the scene, and Blender's default gray one is skipped unless you untick **Ignore Default Background**.
 
 ### Why rendering multiple acoustic emitters is disabled by default
 
-When a misuka scene contains multiple emitters, their contributions are simply added together.
+When a misuka scene contains multiple emitters, their contributions are added together.
 When rendering energy impulse responses that is almost never what you want, so the export refuses it by default.
 Scripted exports are executed literally and do not refuse multiple emitters.
 
@@ -142,12 +114,11 @@ Emitters at the same level are the usual case, which is what makes this easy to 
 
 :::
 
-## Multiple Receivers
+## Multiple receivers
 
 Receivers need no such trick: export as many cameras as you like and choose one by passing a sensor index to the render function.
 
-The following code renders the first receiver (index `0`).
-`1` renders the second receiver, and so on.
+`0` is the first receiver.
 
 ```python
 mi.render(scene, sensor=0)
@@ -165,9 +136,7 @@ Rename the object or material in Blender if you want the id to match exactly.
 ## What gets skipped
 
 The exporter writes warnings to Blender's console rather than stopping, so a skipped object is easy to miss.
-You only see them if Blender is showing its console: **Window** > **Toggle System Console** on Windows, or by starting Blender from a terminal on macOS and Linux.
-
-Watch for:
+See [Where the console is](../troubleshooting.md#where-the-console-is).
 
 `Object: X is hidden for render. Ignoring it.`
 
@@ -175,7 +144,7 @@ Watch for:
 
 `Object: X of type 'Y' is not supported!`
 
-: See [Supported features](../reference/supported-features.md).
+: See [Objects](../reference/plugin-mapping.md#objects).
 
 `Mesh: X has no faces. Skipping.`
 
@@ -184,7 +153,3 @@ Watch for:
 `Mesh: X has multiple UV layers. misuka only supports one. Exporting the one set active for render.`
 
 : Only relevant to visual exports.
-
-`Could not export 'X', light type Y is not supported`
-
-: See [Supported features](../reference/supported-features.md).

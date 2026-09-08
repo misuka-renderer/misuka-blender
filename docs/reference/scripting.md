@@ -11,45 +11,45 @@ Reach for these when you are doing the same thing to many materials at once.
 Every Blender material carries all 30 third-octave bands, whatever the scene's [band resolution](../guide/scene-settings.md#band-resolution) is.
 The index column is the position in the band table, which is also the index into the Keep flags below.
 
-| Index | Center frequency in Hz | Absorption | Scattering |
-|---|---|---|---|
-| 0 | 25 | `acoustic_abs_25` | `acoustic_scat_25` |
-| 1 | 31.5 | `acoustic_abs_31_5` | `acoustic_scat_31_5` |
-| 2 | 40 | `acoustic_abs_40` | `acoustic_scat_40` |
-| 3 | 50 | `acoustic_abs_50` | `acoustic_scat_50` |
-| 4 | 63 | `acoustic_abs_63` | `acoustic_scat_63` |
-| 5 | 80 | `acoustic_abs_80` | `acoustic_scat_80` |
-| 6 | 100 | `acoustic_abs_100` | `acoustic_scat_100` |
-| 7 | 125 | `acoustic_abs_125` | `acoustic_scat_125` |
-| 8 | 160 | `acoustic_abs_160` | `acoustic_scat_160` |
-| 9 | 200 | `acoustic_abs_200` | `acoustic_scat_200` |
-| 10 | 250 | `acoustic_abs_250` | `acoustic_scat_250` |
-| 11 | 315 | `acoustic_abs_315` | `acoustic_scat_315` |
-| 12 | 400 | `acoustic_abs_400` | `acoustic_scat_400` |
-| 13 | 500 | `acoustic_abs_500` | `acoustic_scat_500` |
-| 14 | 630 | `acoustic_abs_630` | `acoustic_scat_630` |
-| 15 | 800 | `acoustic_abs_800` | `acoustic_scat_800` |
-| 16 | 1000 | `acoustic_abs_1000` | `acoustic_scat_1000` |
-| 17 | 1250 | `acoustic_abs_1250` | `acoustic_scat_1250` |
-| 18 | 1600 | `acoustic_abs_1600` | `acoustic_scat_1600` |
-| 19 | 2000 | `acoustic_abs_2000` | `acoustic_scat_2000` |
-| 20 | 2500 | `acoustic_abs_2500` | `acoustic_scat_2500` |
-| 21 | 3150 | `acoustic_abs_3150` | `acoustic_scat_3150` |
-| 22 | 4000 | `acoustic_abs_4000` | `acoustic_scat_4000` |
-| 23 | 5000 | `acoustic_abs_5000` | `acoustic_scat_5000` |
-| 24 | 6300 | `acoustic_abs_6300` | `acoustic_scat_6300` |
-| 25 | 8000 | `acoustic_abs_8000` | `acoustic_scat_8000` |
-| 26 | 10000 | `acoustic_abs_10000` | `acoustic_scat_10000` |
-| 27 | 12500 | `acoustic_abs_12500` | `acoustic_scat_12500` |
-| 28 | 16000 | `acoustic_abs_16000` | `acoustic_scat_16000` |
-| 29 | 20000 | `acoustic_abs_20000` | `acoustic_scat_20000` |
+| Index | Center frequency in Hz | In octave mode | Absorption | Scattering |
+|---|---|---|---|---|
+| 0 | 25 |  | `acoustic_abs_25` | `acoustic_scat_25` |
+| 1 | 31.5 | yes | `acoustic_abs_31_5` | `acoustic_scat_31_5` |
+| 2 | 40 |  | `acoustic_abs_40` | `acoustic_scat_40` |
+| 3 | 50 |  | `acoustic_abs_50` | `acoustic_scat_50` |
+| 4 | 63 | yes | `acoustic_abs_63` | `acoustic_scat_63` |
+| 5 | 80 |  | `acoustic_abs_80` | `acoustic_scat_80` |
+| 6 | 100 |  | `acoustic_abs_100` | `acoustic_scat_100` |
+| 7 | 125 | yes | `acoustic_abs_125` | `acoustic_scat_125` |
+| 8 | 160 |  | `acoustic_abs_160` | `acoustic_scat_160` |
+| 9 | 200 |  | `acoustic_abs_200` | `acoustic_scat_200` |
+| 10 | 250 | yes | `acoustic_abs_250` | `acoustic_scat_250` |
+| 11 | 315 |  | `acoustic_abs_315` | `acoustic_scat_315` |
+| 12 | 400 |  | `acoustic_abs_400` | `acoustic_scat_400` |
+| 13 | 500 | yes | `acoustic_abs_500` | `acoustic_scat_500` |
+| 14 | 630 |  | `acoustic_abs_630` | `acoustic_scat_630` |
+| 15 | 800 |  | `acoustic_abs_800` | `acoustic_scat_800` |
+| 16 | 1000 | yes | `acoustic_abs_1000` | `acoustic_scat_1000` |
+| 17 | 1250 |  | `acoustic_abs_1250` | `acoustic_scat_1250` |
+| 18 | 1600 |  | `acoustic_abs_1600` | `acoustic_scat_1600` |
+| 19 | 2000 | yes | `acoustic_abs_2000` | `acoustic_scat_2000` |
+| 20 | 2500 |  | `acoustic_abs_2500` | `acoustic_scat_2500` |
+| 21 | 3150 |  | `acoustic_abs_3150` | `acoustic_scat_3150` |
+| 22 | 4000 | yes | `acoustic_abs_4000` | `acoustic_scat_4000` |
+| 23 | 5000 |  | `acoustic_abs_5000` | `acoustic_scat_5000` |
+| 24 | 6300 |  | `acoustic_abs_6300` | `acoustic_scat_6300` |
+| 25 | 8000 | yes | `acoustic_abs_8000` | `acoustic_scat_8000` |
+| 26 | 10000 |  | `acoustic_abs_10000` | `acoustic_scat_10000` |
+| 27 | 12500 |  | `acoustic_abs_12500` | `acoustic_scat_12500` |
+| 28 | 16000 | yes | `acoustic_abs_16000` | `acoustic_scat_16000` |
+| 29 | 20000 |  | `acoustic_abs_20000` | `acoustic_scat_20000` |
 
 31.5 Hz is the one preferred center that is not a whole number.
 A dot cannot appear in a Blender property name, so it becomes `31_5`.
 
 Both accept 0 to 1.
 Blender clamps to that, so a script assigning a higher number gets 1 back.
-See [Acoustic bands](acoustic-bands.md) for what the table is.
+See [Band Resolution](../guide/scene-settings.md#band-resolution) for which of the 30 bands a scene simulates.
 
 ### Keep flags
 
@@ -69,7 +69,7 @@ Set the flags after the values, not before.
 
 :::
 
-### Specular reflection
+### Specular Reflection
 
 `acoustic_specular_lobe_width`
 
@@ -151,7 +151,8 @@ They act on the active material, so set `context.material` or run them from a co
 ## Switching between emitters
 
 An acoustic scene exported with **Allow Multiple Emitters** holds every emitter
-at once. Pick one at render time by zeroing the radiance of the others.
+at once.
+Pick one at render time by zeroing the radiance of the others.
 See [Multiple emitters](../guide/exporting.md#multiple-emitters).
 
 ## Example

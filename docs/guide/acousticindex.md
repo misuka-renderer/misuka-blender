@@ -1,14 +1,15 @@
 # Acoustic Index
 
-[Acoustic Index](https://acousticindex.com) is a database of measured acoustic material data.
-The add-on can look a material up there and write its coefficients straight into the table.
-
+[acousticindex.com](https://acousticindex.com) is a database of measured acoustic material data.
+The add-on can look a material up there and write its coefficients straight into Blender.
 This feature is entirely optional.
 
-```{image} ../_static/img/database-panel.png
+```{figure} ../_static/img/database-panel.png
 :alt: The Acoustic Index Database panel after a successful load
 :width: 60%
 :align: center
+
+The Acoustic Index Database panel after a successful load
 ```
 
 ## Set the API key
@@ -29,13 +30,15 @@ The add-on tries two things, in order:
 2. If no exact ID match is found, it searches product names and uses the top result.
 
 To see product IDs on Acoustic Index, enable the developer view in the [Account Settings](https://acousticindex.com/konto/einstellungen).
-This will show an `ID` field that you can copy to the clipboard with a mouse click.
+This will show an `ID` field that you can copy to the clipboard.
 The image below shows the product ID that was used to name the material in the screenshot above.
 
-```{image} ../_static/img/acoustic-index-id.png
+```{figure} ../_static/img/acoustic-index-id.png
 :alt: The ID shown in the Acoustic Index Database
 :width: 70%
 :align: center
+
+The ID shown in the Acoustic Index Database
 ```
 
 Name your material after the product, or paste its Acoustic Index ID as the name.
@@ -50,7 +53,7 @@ Absorption variants (measured to ISO 354) and scattering variants (measured to I
 The dropdown starts on "Select a Variant".
 A failed lookup keeps whatever was loaded before.
 
-::: {note}
+:::{note}
 
 Currently, Acoustic Index only provides absorption measurements.
 Type scattering coefficients in by hand.
@@ -105,33 +108,12 @@ It is never averaged down to octaves, even when the scene is in Octave mode.
 Measured Sabine absorption coefficients can exceed 1, but misuka expects values between 0 and 1.
 Values outside this range are clamped to this interval on import.
 
-### Messages
+## Band matching
 
-`Variant applied`
-
-: Done, nothing notable.
-
-`Variant has third-octave data. Set Band Resolution to Third Octave in Output properties to simulate it`
-
-: The variant is more detailed than your scene.
-The values are all in the table.
-Only 10 of them will be exported until you switch.
-
-`Variant applied, N value(s) outside the band table ignored`
-
-: The variant reported frequencies that do not line up with any of the standard bands.
-
-`Select a variant first.`
-
-: The dropdown is still on "Select a Variant".
-
-`No variants loaded.`
-
-: Press **Load from Database** first.
-
-`No absorption data` / `No scattering data`
-
-: The selected variant has no usable values for its own quantity.
+Measured data does not always land on the ISO 266 preferred center frequencies.
+When a variant is applied, each measured frequency is matched to the nearest one.
+A near miss is accepted: a dataset reporting 3200 Hz lands on the 3150 Hz band.
+A frequency too far from every center is ignored, counted, and reported as `N value(s) outside the band table ignored`.
 
 ## Errors
 
@@ -160,6 +142,3 @@ Try again later.
 `No measurement data available.`
 
 : The entry matched, but holds no ISO 354 or ISO 17497-1 measurements.
-
-A dead network or an unreadable response is reported with the underlying error text.
-

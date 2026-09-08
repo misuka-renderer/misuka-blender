@@ -1,7 +1,6 @@
 # Plugin mapping
 
 What the exporter writes for each Blender component, in Visual mode and in Acoustic mode.
-Both modes export under the misuka render engine, so every value below comes from a misuka panel.
 
 ## Scene components
 
@@ -13,6 +12,26 @@ Both modes export under the misuka render engine, so every value below comes fro
 | Principled BSDF | `principled` | `acousticbsdf`, wrapped in `twosided` |
 | Emission material on a mesh | `area` emitter on the shape, with a black `diffuse` BSDF that makes it shadeless, and an RGB `radiance` | `area` emitter on the shape, with a `null` BSDF so the emitter does not absorb what reaches it, and a `uniform` `radiance` built from **Strength** alone |
 | Point light | `point` emitter | `sphere` shape with an `area` emitter and a `null` BSDF |
+
+## Objects
+
+Exported as meshes:
+
+- Mesh
+- Text
+- Surface (NURBS)
+- Metaball
+
+Everything else is skipped, which covers armatures, lattices, empties, grease pencil, speakers and light probes.
+Meshes with no faces are skipped too.
+See [What gets skipped](../guide/exporting.md#what-gets-skipped) for the warnings each one logs.
+
+One mesh is written per material slot.
+Instances and particles use a `shapegroup`.
+
+Only one UV layer is exported.
+If a mesh has several, the one set active for render is used and a warning is logged.
+This affects visual exports only.
 
 ## Plugin ids
 
@@ -58,7 +77,25 @@ Carries frequency-dependent `absorption` and `scattering` spectra, plus `specula
 
 For the physics, see [Acoustic rendering](https://misuka.readthedocs.io/latest/src/key_topics/acoustic_rendering.html) in the misuka documentation.
 
-## Why point lights become spheres
+## Lights
+
+| Blender light | Visual mode | Acoustic mode |
+|---|---|---|
+| Point | `point` emitter | `sphere` with an `area` emitter |
+| Sun | `directional` emitter | Skipped |
+| Spot | `spot` emitter | Skipped |
+| Area | `area` emitter on a rectangle or disk | Skipped |
+
+Area lights support square, rectangle and disk shapes.
+Ellipse shapes raise "Light shape: ELLIPSE is not supported."
+This is a Visual-mode limit, since an area light never reaches Acoustic mode.
+
+A non-zero soft shadow radius on a point or spot light is ignored in Visual mode, with a warning.
+misuka's `point` and `spot` emitters have no size, so there is nothing to carry it over to.
+On a point light in Acoustic mode it becomes the emitter sphere's radius.
+See [Radius limits](#radius-limits).
+
+### Why point lights become spheres
 
 An acoustic emitter has a size.
 The exporter turns a Blender point light into a `sphere` shape carrying an `area` emitter, with a `null` BSDF so the emitter itself does not reflect sound.
@@ -71,8 +108,15 @@ The light's **Color** is used in a Visual export and dropped here.
 The Light / Emitter panel documents this next to the settings themselves.
 
 Only a point light is converted this way.
-Sun, spot and area lights are skipped in Acoustic mode.
-See [Lights](supported-features.md#lights).
+The other three write radiance tinted by the light's color and shaped by its geometry, neither of which means anything to a sound simulation, so an Acoustic export skips them rather than exporting them wrong.
+Each one logs a warning naming it:
+
+> Light 'Sun' is a Sun light.
+> An acoustic export only supports point lights, so it is skipped.
+> Use a point light, or give a mesh an Emission material to emit from its surface.
+
+Skipping every light this way can leave the scene with no emitter at all, which stops the export.
+See [Multiple emitters](../guide/exporting.md#multiple-emitters).
 
 ### Radius limits
 
@@ -84,13 +128,24 @@ Blender sets the floor.
 The slider stops at 100 meters, but you can type a larger number and the exporter uses it.
 
 So there is nothing to stop you from exporting an emitter the size of a building.
-What makes that a bad idea is geometry, not level.
 The sphere is real geometry in the scene: it has to fit inside the room, and the microphone (your active camera) has to stay outside it.
 A sphere that swallows the microphone, or that pushes through the walls, gives a result that has little to do with the room.
 
 The level does not change.
 The sphere puts out exactly the light's **Power** in watts whatever its radius, the same total as Blender's point light.
-Radius controls how big the emitter is, not how loud it is.
+Radius controls how big the emitter is, not the level it puts out.
+
+## Materials in Acoustic mode
+
+The coefficient table replaces the surface shader.
+Any material that does not emit becomes an `acousticbsdf` built from the table, whatever its node tree.
+Base color, roughness and textures are all ignored.
+A material with **Use Nodes** off becomes one too, and so does a material the exporter could not read.
+
+Emission is the exception.
+A material that emits exports as an `area` emitter, so its acoustic coefficients are never read.
+A Mix or an Add counts as emitting if either side does.
+See [Emission materials](#emission-materials).
 
 ## Visual BSDF mapping
 
@@ -110,9 +165,21 @@ Every BSDF except a transmissive one is wrapped in `twosided`.
 
 Anything else raises "Node type: X is not supported in misuka." and the object falls back to a plain `diffuse` material.
 
-## Emission materials
+Limitations:
 
-If you want to define an emitter that is also visible in visual export mode, you can attach an Emission shader to a shape (e.g. a sphere).
+- Glass BSDF supports only the default IOR.
+- Emission supports only the default strength and color.
+  Drive it from the socket defaults, not from a linked node.
+  In Acoustic mode a linked color is fine, since only strength is read.
+- Add Shader works only as the final node, directly behind Material Output.
+- Add Shader cannot add two BSDFs.
+  Use a Mix Shader.
+- Mix Shader cannot mix a BSDF with an emitter.
+  Use an Add Shader.
+- Mixing emitters requires a uniform weight.
+- Rough Diffuse is exported as plain `diffuse`, and its alpha is ignored.
+
+## Emission materials
 
 ### In Acoustic mode
 
@@ -194,12 +261,7 @@ Anywhere else the squares land in different places, and usually at a different s
 That keeps the squares the same size wherever the two spaces agree.
 A **Scale** of 0 exports as a solid **Color1**, which is what Blender paints.
 
-The default cube shows the gap.
-Its UV map is an atlas: `u` spans 0.125 to 0.875 and each face sits in a 0.25 by 0.25 tile.
-Blender's default **Scale** of 5 draws 5 squares across a face, and the export draws 1.25.
-No conversion fixes this, because UV to object space is per mesh while an exported texture is shared by every object using the material.
 Unwrap the mesh 0 to 1, or bake the checker to an image with Cycles and plug that in instead.
 
 A linked **Vector** input is ignored, with a warning.
 A linked **Scale** input falls back to its own value, with a warning.
-
