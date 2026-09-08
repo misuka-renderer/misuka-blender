@@ -1,0 +1,115 @@
+# Reproduce the Windows PLY / struct-jit crash from issue #44.
+#
+# Manual only: this answers a question, it does not gate anything, so it has no
+# business running on every push.
+#
+# The cells vary two things and nothing else: which renderer wheel is installed,
+# and which Python hosts it. misuka pins struct-jit at ea69db6e, and so does
+# mitsuba 3.9.0, so `mitsuba` is a clean upstream control. mitsuba 3.8.0 predates
+# struct-jit entirely. Blender and Miniconda matter because both ship their own
+# msvcp140.dll next to the executable, which can shadow the system one - and both
+# are what the reporter used.
+name: Repro PLY crash (#44)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: "A - misuka, system python (windows)"
+            os: windows-latest
+            package: "misuka==0.1.0"
+            module: misuka
+            host: system
+          - label: "B - misuka, blender 4.5 python (windows)"
+            os: windows-latest
+            package: "misuka==0.1.0"
+            module: misuka
+            host: blender
+          - label: "C - mitsuba 3.9.0, system python (windows)"
+            os: windows-latest
+            package: "mitsuba==3.9.0"
+            module: mitsuba
+            host: system
+          - label: "D - mitsuba 3.8.0, system python (windows)"
+            os: windows-latest
+            package: "mitsuba==3.8.0"
+            module: mitsuba
+            host: system
+          - label: "E - misuka, miniconda python (windows)"
+            os: windows-latest
+            package: "misuka==0.1.0"
+            module: misuka
+            host: conda
+          - label: "F - misuka, system python (linux control)"
+            os: ubuntu-latest
+            package: "misuka==0.1.0"
+            module: misuka
+            host: system
+
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v7
+
+    - name: Setup Python
+      uses: actions/setup-python@v7
+      with:
+        # The reporter used 3.11, both under Anaconda and inside Blender 4.5.
+        python-version: "3.11"
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Install requests
+      if: matrix.host == 'blender'
+      run: uv pip install --system --upgrade requests
+
+    - name: Download Blender
+      if: matrix.host == 'blender'
+      run: python scripts/blender_downloader.py 4.5 -o blender
+
+    - name: Resolve the host interpreter
+      id: host
+      shell: bash
+      run: |
+        case "${{ matrix.host }}" in
+          blender)
+            PYTHON=$(find blender/ -regextype posix-extended \
+              -regex '.*bin\/python(.exe|[0-9].[0-9]{1,2}m?)' -print -quit)
+            ;;
+          conda)
+            # $CONDA is the runner's Miniconda root, with Windows backslashes.
+            # uv is a native Windows binary, so it needs a drive-letter path,
+            # not an MSYS /c/... one.
+            PYTHON="${CONDA//\\//}/python.exe"
+            ;;
+          *)
+            PYTHON=$(which python)
+            ;;
+        esac
+        echo "Host interpreter is $PYTHON"
+        "$PYTHON" --version
+        echo "PYTHON=$PYTHON" >> "$GITHUB_OUTPUT"
+
+    - name: Install ${{ matrix.package }}
+      shell: bash
+      run: |
+        uv pip install --python "${{ steps.host.outputs.PYTHON }}" \
+          --reinstall "${{ matrix.package }}"
+        uv pip show --python "${{ steps.host.outputs.PYTHON }}" \
+          "${{ matrix.module }}" || true
+
+    - name: Probe
+      shell: bash
+      env:
+        PROBE_LABEL: ${{ matrix.label }}
+      run: |
+        "${{ steps.host.outputs.PYTHON }}" scripts/win_crash_probe.py \
+          --module "${{ matrix.module }}"
