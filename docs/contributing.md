@@ -40,13 +40,15 @@ See [issue #4](https://github.com/misuka-renderer/misuka-blender/issues/4).
 `scripts/win_crash_probe.py` runs each suspect in its own process and prints the exit codes, which is how that was established.
 
 Instantiating a scene is a separate matter, and a real fault rather than a teardown one.
-misuka's Windows build needs a newer C++ runtime than Blender 3.6, 4.2 and 4.5 ship in `blender.crt`, so `load_file` dies there with an access violation. Blender 5.2 ships a new enough runtime and passes.
-Those tests carry the `skip_on_windows` mark from `tests/fixtures/__init__.py`, which is gated on the Blender version so they still run under 5.2.
+misuka's Windows build needs a newer Microsoft C++ runtime than Blender 3.6, 4.2 and 4.5 ship in `blender.crt`, and Blender forces its own copy on everything running inside it, so anything that loads or renders a scene faults inside `MSVCP140.dll` on those versions.
+Blender 5.2 ships a new enough runtime and passes.
 
+Those tests carry the `skip_on_windows` mark from `tests/fixtures/__init__.py`, which is gated on the Blender version so they still run under 5.2.
+`load_file` alone is enough to trigger it; rendering is not required.
 Exporting is unaffected, so the tests that only write a scene run everywhere.
 
 The mark is not a matter of taste. The fault kills the process, and pytest writes its report at the end of the run, so one unmarked test costs every other test's result rather than its own.
-`scripts/audit_test_faults.py` runs each test in its own process and reports which ones do that.
+`scripts/audit_test_faults.py` runs each test in its own process and reports which ones do that, which is how the list was established.
 
 :::
 

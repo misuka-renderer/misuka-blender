@@ -176,12 +176,15 @@ drjit faults while Python shuts down, after all the work is done.
 `python -c "import drjit"` triggers it on its own, with no add-on and no scene.
 Renders and exports have all finished by then, so the files on disk are complete.
 
-**Blender dies while rendering an exported scene with misuka**
+**Blender dies when misuka opens or renders a scene, on Blender 3.6, 4.2 or 4.5**
 
-This one is a real crash, not a teardown fault.
-It hits Blender 3.6, 4.2 and 4.5 on Windows; 5.2 is unaffected.
-Exporting is unaffected on every version, so an exported scene is still written correctly.
-Render it on Linux, or under Blender 5.2.
+Use Blender 5.2 instead.
+This is a real crash, not a teardown fault, and there is nothing the add-on can do about it.
+misuka's Windows build needs a newer Microsoft C++ runtime than those Blender versions ship in their `blender.crt` folder, and Blender forces its own copy on everything running inside it.
+Blender 5.2 ships a new enough one.
+
+Exporting still works on every version, and the files on disk are correct.
+It is only reading a scene back that dies, so you can export from any version and open the result under Blender 5.2, or with a plain Python outside Blender.
 
 **The console fills with "Windows fatal exception: access violation"**
 
