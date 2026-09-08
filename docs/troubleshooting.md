@@ -169,12 +169,19 @@ Changing the radius does not change the level.
 
 ## Windows problems
 
-**Blender exits with code 11, 127 or 139 after a run that worked**
+**Blender exits with a nonzero code after a run that reported success**
 
 Nothing failed.
 drjit faults while Python shuts down, after all the work is done.
 `python -c "import drjit"` triggers it on its own, with no add-on and no scene.
 Renders and exports have all finished by then, so the files on disk are complete.
+
+**Blender dies while rendering an exported scene with misuka**
+
+This one is a real crash, not a teardown fault.
+It hits Blender 3.6, 4.2 and 4.5 on Windows; 5.2 is unaffected.
+Exporting is unaffected on every version, so an exported scene is still written correctly.
+Render it on Linux, or under Blender 5.2.
 
 **The console fills with "Windows fatal exception: access violation"**
 
