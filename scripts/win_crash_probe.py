@@ -30,8 +30,8 @@ import subprocess
 import sys
 import tempfile
 
-PROBES = ("import", "ply", "plyst", "plybin", "plybinst", "scene", "bitmap",
-          "drjit", "noatexit", "numpy", "crt")
+PROBES = ("import", "ply", "plyst", "plybin", "plybinst", "scene", "acoustic",
+          "bitmap", "drjit", "noatexit", "numpy", "crt")
 
 
 def write_ply(path, binary, texcoords):
@@ -139,6 +139,71 @@ def probe_scene(module):
 
     scene = mi.load_file(xml)
     print(f"loaded {len(scene.shapes())} shape(s)")
+
+
+def probe_acoustic(module):
+    """Load an acoustic scene of the shape the add-on exports.
+
+    Same plugin set as a real export: an acoustic_path integrator, a microphone
+    with a tape film, an acousticbsdf, and a ply mesh. This is what
+    test_round_trip_acoustic loads, and what crashes inside Blender on Windows
+    with 3.6, 4.2 and 4.5.
+    """
+    mi = __import__(module)
+    mi.set_variant("scalar_rgb")
+
+    work = tempfile.mkdtemp()
+    write_ply(os.path.join(work, "quad.ply"), binary=True, texcoords=True)
+    bands = ", ".join(f"{f}:0.5" for f in
+                      (31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000))
+    xml = os.path.join(work, "acoustic.xml")
+    with open(xml, "w") as f:
+        f.write(f"""<scene version="0.1.0">
+    <integrator type="acoustic_path" name="integrator" id="integrator">
+        <integer name="max_depth" value="-1" />
+        <float name="max_energy_loss" value="90" />
+        <boolean name="hide_emitters" value="false" />
+        <float name="max_time" value="2" />
+    </integrator>
+    <sensor type="microphone" name="mic" id="mic">
+        <sampler type="independent" name="sampler">
+            <integer name="sample_count" value="16" />
+        </sampler>
+        <film type="tape" name="film">
+            <integer name="time_bins" value="2000" />
+            <string name="frequencies" value="31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000" />
+            <rfilter type="gaussian" name="rfilter">
+                <float name="stddev" value="0.25" />
+            </rfilter>
+        </film>
+    </sensor>
+    <shape type="sphere" name="emit" id="emit">
+        <float name="radius" value="0.1" />
+        <emitter type="area" name="emitter">
+            <texture type="uniform" name="radiance">
+                <float name="value" value="2533.0" />
+            </texture>
+        </emitter>
+        <bsdf type="null" name="bsdf" />
+    </shape>
+    <bsdf type="twosided" id="mat" name="mat">
+        <bsdf type="acousticbsdf" name="bsdf">
+            <spectrum name="absorption" value="{bands}" />
+            <spectrum name="scattering" value="{bands}" />
+            <float name="specular_lobe_width" value="0.001" />
+        </bsdf>
+    </bsdf>
+    <shape type="ply" name="mesh" id="mesh">
+        <string name="filename" value="quad.ply" />
+        <boolean name="face_normals" value="true" />
+        <ref name="bsdf" id="mat" />
+    </shape>
+</scene>
+""")
+
+    scene = mi.load_file(xml)
+    print(f"loaded {len(scene.shapes())} shapes, "
+          f"sensor {str(scene.sensors()[0]).splitlines()[0]}")
 
 
 def probe_bitmap(module):
@@ -343,6 +408,9 @@ def run_all(module):
     # own atexit callback. None of them mean anything when drjit is the module
     # under test.
     probes = PROBES if module != "drjit" else ("import", "drjit", "numpy", "crt")
+    if module == "mitsuba":
+        # acoustic_path, microphone, tape and acousticbsdf are misuka plugins.
+        probes = tuple(p for p in probes if p != "acoustic")
 
     results = []
     for probe in probes:
