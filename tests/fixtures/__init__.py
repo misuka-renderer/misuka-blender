@@ -1,3 +1,4 @@
+import os
 import sys
 from contextlib import contextmanager
 
@@ -18,11 +19,14 @@ import pytest
 #
 # This is a fault, not a failure. It kills the process, and pytest writes its
 # JUnit report at the end of the run, so one unmarked test costs every other
-# test's result rather than its own, so a test that instantiates a scene has to
-# carry this whether or not anyone minds losing it.
+# test's result rather than its own. `scripts/audit_test_faults.py` is what
+# established which tests are affected and how; it sets the variable below to
+# run them anyway, since a skipped test is exactly what it is trying to measure.
 # See https://github.com/misuka-renderer/misuka-blender/issues/4
+_AUDITING = os.environ.get('MISUKA_AUDIT_NO_SKIP') == '1'
+
 skip_on_windows = pytest.mark.skipif(
-    sys.platform == 'win32' and bpy.app.version < (5, 2, 0),
+    sys.platform == 'win32' and bpy.app.version < (5, 2, 0) and not _AUDITING,
     reason='misuka faults when instantiating a scene under Blender < 5.2 on '
            'Windows. See '
            'https://github.com/misuka-renderer/misuka-blender/issues/4')

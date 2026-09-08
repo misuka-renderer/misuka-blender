@@ -48,7 +48,13 @@ Those tests carry the `skip_on_windows` mark from `tests/fixtures/__init__.py`, 
 Exporting is unaffected, so the tests that only write a scene run everywhere.
 
 The mark is not a matter of taste. The fault kills the process, and pytest writes its report at the end of the run, so one unmarked test costs every other test's result rather than its own.
-`scripts/audit_test_faults.py` runs each test in its own process and reports which ones do that, which is how the list was established.
+`scripts/audit_test_faults.py` runs each test in its own process and reports which ones do that, which is how the list was established:
+
+```bash
+python scripts/audit_test_faults.py --blender path/to/blender tests/test_pipeline.py
+```
+
+Rerun it when misuka or the Blender matrix changes.
 
 :::
 

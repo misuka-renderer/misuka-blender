@@ -86,12 +86,17 @@ class SetupPlugin:
             raise RuntimeError("Plugin was disabled by test reset")
 
 if __name__ == '__main__':
-    pytest_args = ["tests"]
-
     try:
-        pytest_args += sys.argv[sys.argv.index('--')+1:]
+        user_args = sys.argv[sys.argv.index('--')+1:]
     except ValueError:
-        pass
+        user_args = []
+
+    # Default to the whole suite only when the caller named nothing itself.
+    # Prepending it unconditionally makes `-- tests/test_x.py::test_y` run the
+    # entire suite *as well as* that test, which is not what anyone asking for
+    # one test means.
+    named_a_test = any(arg.startswith('tests') for arg in user_args)
+    pytest_args = user_args if named_a_test else ["tests"] + user_args
 
     try:
         exit_code = pytest.main(pytest_args, plugins=[SetupPlugin()])
