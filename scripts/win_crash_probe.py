@@ -31,7 +31,7 @@ import sys
 import tempfile
 
 PROBES = ("import", "ply", "plyst", "plybin", "plybinst", "scene", "acoustic",
-          "bitmap", "drjit", "noatexit", "numpy", "crt")
+          "preload", "bitmap", "drjit", "noatexit", "numpy", "crt")
 
 
 def write_ply(path, binary, texcoords):
@@ -204,6 +204,28 @@ def probe_acoustic(module):
     scene = mi.load_file(xml)
     print(f"loaded {len(scene.shapes())} shapes, "
           f"sensor {str(scene.sensors()[0]).splitlines()[0]}")
+
+
+def probe_preload(module):
+    """Load the system MSVCP140.dll by full path, then load a mesh.
+
+    Inside blender.exe the fault is in MSVCP140.dll, and Blender ships its own
+    copy next to the executable, which wins the DLL search. Loading the system
+    copy first by absolute path puts that module in the process, so a later
+    load by bare name resolves to it instead.
+
+    If this survives where the plain ply probe faults, the add-on can fix the
+    crash on its own by preloading before it imports misuka.
+    """
+    import ctypes
+
+    if sys.platform == "win32":
+        system = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
+                              "System32", "MSVCP140.dll")
+        print(f"preloading {system}")
+        ctypes.WinDLL(system)
+
+    _load_ply(module, binary=True, texcoords=True)
 
 
 def probe_bitmap(module):

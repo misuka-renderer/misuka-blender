@@ -155,14 +155,14 @@ jobs:
           -regex '.*blender(.exe)?' -print -quit)
         echo "Blender is $BLENDER"
         FAILED=0
-        for probe in import ply plybinst scene acoustic bitmap drjit numpy crt; do
+        for probe in crt preload ply plybinst scene acoustic import drjit numpy; do
           echo "=============================================================="
           echo "== $probe"
           echo "=============================================================="
           set +e
-          "./$BLENDER" -b -noaudio --factory-startup \
+          PYTHONUNBUFFERED=1 "./$BLENDER" -b -noaudio --factory-startup \
             --python scripts/win_crash_probe.py -- \
-            --module "${{ matrix.module }}" --probe "$probe"
+            --module "${{ matrix.module }}" --probe "$probe" 2>&1
           STATUS=$?
           set -e
           echo "-- $probe exited $STATUS"
