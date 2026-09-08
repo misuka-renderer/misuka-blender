@@ -7,10 +7,11 @@ did in between. The fault is in Python finalization: the same probe run through
 with no renderer installed, so it is an upstream drjit fault rather than
 anything misuka or this add-on does.
 
-Issue #44 also reports that loading a PLY mesh kills the process outright. That
-one has never reproduced on a GitHub Windows runner, in misuka or in either
-mitsuba release, which is what the ``ply`` probe is here to check on a machine
-where it does happen.
+Issue #44 also reports that loading a mesh kills the process outright, and that
+one is real but narrower. A hand-written ASCII PLY loads on every runner, while
+``load_file`` on a scene the add-on exported kills Blender 3.6, 4.2 and 4.5 on
+Windows. Blender 5.2 loads the same scene. The ``ply``, ``binply`` and ``scene``
+probes exist to separate those three cases on any given machine.
 
 Each probe runs in its own subprocess and is reported by exit code, so a native
 crash in one cannot hide the others.
@@ -29,7 +30,16 @@ import subprocess
 import sys
 import tempfile
 
-PROBES = ("import", "ply", "bitmap", "drjit", "noatexit", "numpy", "crt")
+PROBES = ("import", "ply", "binply", "scene", "bitmap", "drjit", "noatexit",
+          "numpy", "crt")
+
+# A binary PLY the add-on actually wrote, and the scene that references it.
+# Both are committed, so the probes need nothing exported first.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BINARY_PLY = os.path.join(REPO_ROOT, "tests", "res", "out", "test1", "meshes",
+                          "_unnamed_10.ply")
+EXPORTED_SCENE = os.path.join(REPO_ROOT, "tests", "res", "out", "test1",
+                              "test1_acoustic_out.xml")
 
 # A hand-written four-vertex quad, straight from issue #44. Deliberately not
 # something an exporter produced, so the file itself is never in question.
@@ -75,6 +85,37 @@ def probe_ply(module):
     scene = mi.load_dict({"type": "scene", "s": {"type": "ply", "filename": tmp}})
     shape = scene.shapes()[0]
     print(f"loaded {shape.face_count()} faces, {shape.vertex_count()} vertices")
+
+
+def probe_binply(module):
+    """The same as ``ply``, but on a binary PLY the exporter really wrote.
+
+    ``Mesh.write_ply`` emits binary little-endian with texture coordinates and
+    any mesh attributes the mesh carries, which is a different record layout
+    from the hand-written ASCII file above.
+    """
+    mi = __import__(module)
+    mi.set_variant("scalar_rgb")
+
+    scene = mi.load_dict(
+        {"type": "scene", "s": {"type": "ply", "filename": BINARY_PLY}})
+    shape = scene.shapes()[0]
+    print(f"loaded {shape.face_count()} faces, {shape.vertex_count()} vertices")
+
+
+def probe_scene(module):
+    """Load a whole exported scene through ``load_file``.
+
+    This is what the add-on's users do, and what test_round_trip_acoustic does.
+    It goes through the XML parser rather than load_dict, and instantiates the
+    acoustic plugin set alongside the mesh.
+    """
+    mi = __import__(module)
+    mi.set_variant("scalar_acoustic" if module == "misuka" else "scalar_rgb")
+
+    scene = mi.load_file(EXPORTED_SCENE)
+    print(f"loaded {len(scene.shapes())} shapes, integrator {scene.integrator()}"
+          .split("\n")[0])
 
 
 def probe_bitmap(module):
@@ -279,6 +320,10 @@ def run_all(module):
     # own atexit callback. None of them mean anything when drjit is the module
     # under test.
     probes = PROBES if module != "drjit" else ("import", "drjit", "numpy", "crt")
+    if module == "mitsuba":
+        # The exported scene carries misuka's acoustic plugins, which upstream
+        # mitsuba cannot instantiate. Its ply probe still covers the mesh.
+        probes = tuple(p for p in probes if p != "scene")
 
     results = []
     for probe in probes:

@@ -39,6 +39,13 @@ jobs:
             package: "misuka==0.1.0"
             module: misuka
             host: blender
+            blender: "4.5"
+          - label: "H - misuka, blender 4.2 python (windows)"
+            os: windows-latest
+            package: "misuka==0.1.0"
+            module: misuka
+            host: blender
+            blender: "4.2"
           - label: "C - mitsuba 3.9.0, system python (windows)"
             os: windows-latest
             package: "mitsuba==3.9.0"
@@ -84,7 +91,7 @@ jobs:
 
     - name: Download Blender
       if: matrix.host == 'blender'
-      run: python scripts/blender_downloader.py 4.5 -o blender
+      run: python scripts/blender_downloader.py ${{ matrix.blender }} -o blender
 
     - name: Resolve the host interpreter
       id: host
