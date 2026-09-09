@@ -38,7 +38,7 @@ def scene():
     previous = bpy.context.window.scene
     sc = bpy.data.scenes.new('emitters_and_receivers')
     bpy.context.window.scene = sc
-    sc.render.engine = 'MITSUBA'
+    sc.render.engine = 'MISUKA'
 
     yield sc
 
@@ -65,7 +65,7 @@ def export(scene, tmp_path, export_mode, **kwargs):
     if export_mode == 'ACOUSTIC':
         kwargs.setdefault('allow_multiple_emitters', True)
 
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode=export_mode, **kwargs) == {'FINISHED'}
 
     return path, ET.parse(path).getroot()
@@ -238,8 +238,8 @@ def test_a_receiver_keeps_its_own_sampler_and_filter(scene, tmp_path):
     '''
     add_room()
     add_point_light(100.0, 0.5)
-    first = add_receiver('Recv_A', location=(0.0, 1.0, 0.0)).data.mitsuba
-    second = add_receiver('Recv_B', location=(0.0, 2.0, 0.0)).data.mitsuba
+    first = add_receiver('Recv_A', location=(0.0, 1.0, 0.0)).data.misuka
+    second = add_receiver('Recv_B', location=(0.0, 2.0, 0.0)).data.misuka
 
     for settings, samples, stddev in ((first, 1024, 0.1), (second, 4096, 0.9)):
         getattr(settings.acoustic_samplers,

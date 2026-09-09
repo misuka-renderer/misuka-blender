@@ -7,7 +7,7 @@ from .export_context import Files
 
 def convert_mesh(export_ctx, b_mesh, matrix_world, name, mat_nr):
     '''
-    This method creates a mitsuba mesh from a blender mesh and returns it.
+    This method creates a misuka mesh from a blender mesh and returns it.
     It constructs a dictionary containing the necessary info such as
     pointers to blender's data strucures and then loads the BlenderMesh
     plugin via load_dict.
@@ -85,7 +85,7 @@ def convert_mesh(export_ctx, b_mesh, matrix_world, name, mat_nr):
     if matrix_world:
         props['to_world'] = export_ctx.transform_matrix(matrix_world)
 
-    # material index to export, as only a single material per mesh is suported in mitsuba
+    # material index to export, as only a single material per mesh is suported in misuka
     props['mat_nr'] = mat_nr
     if 'material_index' in b_mesh.attributes:
         # Blender 3.4+ layout
@@ -93,13 +93,13 @@ def convert_mesh(export_ctx, b_mesh, matrix_world, name, mat_nr):
     else:
         props['mat_indices'] = 0
 
-    # Return the mitsuba mesh
+    # Return the misuka mesh
     return load_dict(props)
 
 
 def export_object(deg_instance, export_ctx, is_particle):
     """
-    Convert a blender object to mitsuba and save it as Binary PLY
+    Convert a blender object to misuka and save it as Binary PLY
     """
 
     b_object = deg_instance.object
@@ -117,7 +117,7 @@ def export_object(deg_instance, export_ctx, is_particle):
         else: # Metaballs, text, surfaces
             b_mesh = b_object.to_mesh()
 
-        # Convert the mesh into one mitsuba mesh per different material
+        # Convert the mesh into one misuka mesh per different material
         mat_count = len(b_mesh.materials)
         converted_parts = []
         if is_instance or is_instance_emitter:
@@ -127,9 +127,9 @@ def export_object(deg_instance, export_ctx, is_particle):
 
 
         if mat_count == 0: # No assigned material
-            mts_mesh = convert_mesh(export_ctx, b_mesh, transform, name_clean, 0)
-            if mts_mesh is not None and mts_mesh.face_count() > 0:
-                converted_parts.append((name_clean, -1, mts_mesh))
+            mi_mesh = convert_mesh(export_ctx, b_mesh, transform, name_clean, 0)
+            if mi_mesh is not None and mi_mesh.face_count() > 0:
+                converted_parts.append((name_clean, -1, mi_mesh))
         else:
             refs_per_mat = {}
             for mat_nr in range(mat_count):
@@ -145,13 +145,13 @@ def export_object(deg_instance, export_ctx, is_particle):
                 if n_mat_refs >= 1:
                     name += f'-{n_mat_refs:03d}'
 
-                mts_mesh = convert_mesh(export_ctx,
+                mi_mesh = convert_mesh(export_ctx,
                                         b_mesh,
                                         transform,
                                         name,
                                         mat_nr)
-                if mts_mesh is not None and mts_mesh.face_count() > 0:
-                    converted_parts.append((name, mat_nr, mts_mesh))
+                if mi_mesh is not None and mi_mesh.face_count() > 0:
+                    converted_parts.append((name, mat_nr, mi_mesh))
                     refs_per_mat[mat.name] = n_mat_refs + 1
 
                     if n_mat_refs == 0:
@@ -169,7 +169,7 @@ def export_object(deg_instance, export_ctx, is_particle):
                 'type': 'shapegroup'
             }
 
-        for (name, mat_nr, mts_mesh) in converted_parts:
+        for (name, mat_nr, mi_mesh) in converted_parts:
             name = name_clean if len(converted_parts) == 1 else name
             
             # Every shape is prefixed, in both modes. Without it an acoustic
@@ -182,7 +182,7 @@ def export_object(deg_instance, export_ctx, is_particle):
             if not os.path.isdir(mesh_folder):
                 os.makedirs(mesh_folder)
             filepath = os.path.join(mesh_folder,  f"{name}.ply")
-            mts_mesh.write_ply(filepath)
+            mi_mesh.write_ply(filepath)
 
             # Build dictionary entry
             params = {
@@ -191,7 +191,7 @@ def export_object(deg_instance, export_ctx, is_particle):
             }
 
             # Add flat shading flag if needed
-            if not mts_mesh.has_vertex_normals():
+            if not mi_mesh.has_vertex_normals():
                 params["face_normals"] = True
 
             # Add material info

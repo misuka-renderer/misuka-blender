@@ -56,17 +56,17 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
     # the ones to read. They are settings rather than evaluated data, and the
     # depsgraph copy of them is stale until something tags the camera, so a
     # script that sets one and exports would otherwise write the old value.
-    mts_camera = b_camera.original.data.mitsuba
+    mi_camera = b_camera.original.data.misuka
 
     if acoustic_mode:
         sampler = getattr(
-            mts_camera.acoustic_samplers,
-            mts_camera.acoustic_sampler
+            mi_camera.acoustic_samplers,
+            mi_camera.acoustic_sampler
         ).to_dict()
     else:
         sampler = getattr(
-            mts_camera.visual_samplers,
-            mts_camera.visual_sampler
+            mi_camera.visual_samplers,
+            mi_camera.visual_sampler
         ).to_dict()
 
     params['sampler'] = sampler
@@ -82,8 +82,8 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
             str(f) for f in resolution_frequencies(export_ctx.acoustic_band_resolution)
         )
         film['rfilter'] = getattr(
-            mts_camera.acoustic_rfilters,
-            mts_camera.acoustic_rfilter
+            mi_camera.acoustic_rfilters,
+            mi_camera.acoustic_rfilter
         ).to_dict()
 
     else:
@@ -94,8 +94,8 @@ def export_camera(camera_instance, b_scene, export_ctx):    #camera
         film['height'] = int(res_y * scale)
 
         film['rfilter'] = getattr(
-            mts_camera.visual_rfilters,
-            mts_camera.visual_rfilter
+            mi_camera.visual_rfilters,
+            mi_camera.visual_rfilter
         ).to_dict()
 
     params['film'] = film

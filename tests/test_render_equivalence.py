@@ -55,7 +55,7 @@ def scene():
     sc.render.image_settings.color_depth = '32'
     sc.render.image_settings.color_mode = 'RGBA'
     sc.view_settings.view_transform = 'Standard'
-    sc.mitsuba.visual_integrator = 'path'
+    sc.misuka.visual_integrator = 'path'
 
     mesh = bpy.ops.mesh.primitive_uv_sphere_add
     with bpy.context.temp_override(scene=sc):
@@ -130,10 +130,10 @@ def render_misuka(scene, tmp_path):
     path = os.path.join(str(tmp_path), 'scene.xml')
     # An export needs the misuka engine, but the Cycles render needs Cycles
     # selected, so the scene carries Cycles and borrows misuka to export.
-    scene.render.engine = 'MITSUBA'
+    scene.render.engine = 'MISUKA'
     try:
         with bpy.context.temp_override(scene=scene):
-            assert bpy.ops.export_scene.mitsuba(
+            assert bpy.ops.export_scene.misuka(
                 filepath=path, export_mode='VISUAL') == {'FINISHED'}
     finally:
         scene.render.engine = 'CYCLES'

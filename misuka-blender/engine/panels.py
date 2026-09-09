@@ -3,7 +3,7 @@ Properties editor panels for the misuka engine.
 
 Blender's light, material and world panels are tagged EEVEE-only or
 Cycles-only, so `engine.get_panels()` never sweeps them up and they do not draw
-under misuka. Rather than tagging Blender's classes with MITSUBA, we draw our
+under misuka. Rather than tagging Blender's classes with MISUKA, we draw our
 own, the way Cycles does. That keeps the panels to what the exporter actually
 reads and survives Blender reshaping its own UI, which it did to the light panel
 between 4.2 and 5.2.
@@ -16,12 +16,12 @@ from ..io import draw_paragraphs
 from ..io.exporter.materials import emits
 
 
-class MitsubaPanel:
+class MisukaPanel:
     '''Shared setup for the misuka Properties panels.'''
 
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    COMPAT_ENGINES = {'MITSUBA'}
+    COMPAT_ENGINES = {'MISUKA'}
 
     @classmethod
     def poll(cls, context):
@@ -98,13 +98,13 @@ def export_notes(light):
     return notes
 
 
-class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
+class MISUKA_LIGHT_PT_light(MisukaPanel, bpy.types.Panel):
     '''
     Replaces DATA_PT_EEVEE_light, and DATA_PT_light along with it, since that
     one only draws the type row this panel already has.
     '''
 
-    bl_idname = "MITSUBA_LIGHT_PT_light"
+    bl_idname = "MISUKA_LIGHT_PT_light"
     bl_label = "Light / Emitter"
     bl_context = "data"
 
@@ -126,7 +126,7 @@ class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
         col.separator()
 
         if light.type in {'POINT', 'SPOT'}:
-            col.prop(light, "mitsuba_emitter_radius")
+            col.prop(light, "misuka_emitter_radius")
         elif light.type == 'AREA':
             col.prop(light, "shape")
 
@@ -148,14 +148,14 @@ class MITSUBA_LIGHT_PT_light(MitsubaPanel, bpy.types.Panel):
         draw_paragraphs(col, context, *export_notes(light))
 
 
-class MITSUBA_LIGHT_PT_beam_shape(MitsubaPanel, bpy.types.Panel):
+class MISUKA_LIGHT_PT_beam_shape(MisukaPanel, bpy.types.Panel):
     '''
     Replaces DATA_PT_spot, which parents to DATA_PT_EEVEE_light and so stays
     hidden under misuka however its own COMPAT_ENGINES is tagged.
     '''
 
-    bl_idname = "MITSUBA_LIGHT_PT_beam_shape"
-    bl_parent_id = "MITSUBA_LIGHT_PT_light"
+    bl_idname = "MISUKA_LIGHT_PT_beam_shape"
+    bl_parent_id = "MISUKA_LIGHT_PT_light"
     bl_label = "Beam Shape"
     bl_context = "data"
 
@@ -175,13 +175,13 @@ class MITSUBA_LIGHT_PT_beam_shape(MitsubaPanel, bpy.types.Panel):
         col.prop(light, "show_cone")
 
 
-class MITSUBA_MATERIAL_PT_context(MitsubaPanel, bpy.types.Panel):
+class MISUKA_MATERIAL_PT_context(MisukaPanel, bpy.types.Panel):
     '''
     The material slot list. Without it there is no New button, so an object
     cannot be given its first material, and ACOUSTIC_PT_material never polls.
     '''
 
-    bl_idname = "MITSUBA_MATERIAL_PT_context"
+    bl_idname = "MISUKA_MATERIAL_PT_context"
     bl_label = ""
     bl_context = "material"
     bl_options = {'HIDE_HEADER'}
@@ -288,10 +288,10 @@ def emission_notes(material):
     ]
 
 
-class MITSUBA_MATERIAL_PT_surface(MitsubaPanel, bpy.types.Panel):
+class MISUKA_MATERIAL_PT_surface(MisukaPanel, bpy.types.Panel):
     '''Replaces EEVEE_MATERIAL_PT_surface.'''
 
-    bl_idname = "MITSUBA_MATERIAL_PT_surface"
+    bl_idname = "MISUKA_MATERIAL_PT_surface"
     bl_label = "Surface"
     bl_context = "material"
     bl_order = 2
@@ -318,10 +318,10 @@ class MITSUBA_MATERIAL_PT_surface(MitsubaPanel, bpy.types.Panel):
             draw_paragraphs(col, context, *notes)
 
 
-class MITSUBA_WORLD_PT_surface(MitsubaPanel, bpy.types.Panel):
+class MISUKA_WORLD_PT_surface(MisukaPanel, bpy.types.Panel):
     '''Replaces EEVEE_WORLD_PT_surface.'''
 
-    bl_idname = "MITSUBA_WORLD_PT_surface"
+    bl_idname = "MISUKA_WORLD_PT_surface"
     bl_label = "Surface"
     bl_context = "world"
 
@@ -393,11 +393,11 @@ radius_owners = (
 
 
 classes = (
-    MITSUBA_LIGHT_PT_light,
-    MITSUBA_LIGHT_PT_beam_shape,
-    MITSUBA_MATERIAL_PT_context,
-    MITSUBA_MATERIAL_PT_surface,
-    MITSUBA_WORLD_PT_surface,
+    MISUKA_LIGHT_PT_light,
+    MISUKA_LIGHT_PT_beam_shape,
+    MISUKA_MATERIAL_PT_context,
+    MISUKA_MATERIAL_PT_surface,
+    MISUKA_WORLD_PT_surface,
 )
 
 
@@ -405,11 +405,11 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     for owner, description in radius_owners:
-        owner.mitsuba_emitter_radius = emitter_radius_property(description)
+        owner.misuka_emitter_radius = emitter_radius_property(description)
 
 
 def unregister():
     for owner, _ in radius_owners:
-        del owner.mitsuba_emitter_radius
+        del owner.misuka_emitter_radius
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

@@ -48,12 +48,12 @@ def octave_values(material, props):
 
 def set_resolution(resolution):
     '''Band resolution is a scene-wide film setting, not a material one.'''
-    bpy.context.scene.mitsuba.acoustic_band_resolution = resolution
+    bpy.context.scene.misuka.acoustic_band_resolution = resolution
 
 
 def set_interpolation(axis):
     '''So is the interpolation axis.'''
-    bpy.context.scene.mitsuba.acoustic_interpolation = axis
+    bpy.context.scene.misuka.acoustic_interpolation = axis
 
 
 def run(operator, material):
@@ -74,7 +74,7 @@ def test_defaults_are_shared_and_nothing_is_kept(mat):
 
     assert not any(mat.acoustic_abs_keep)
     assert not any(mat.acoustic_scat_keep)
-    assert bpy.context.scene.mitsuba.acoustic_band_resolution == 'OCTAVE'
+    assert bpy.context.scene.misuka.acoustic_band_resolution == 'OCTAVE'
 
 
 def test_editing_a_value_keeps_only_that_band(mat):
@@ -103,7 +103,7 @@ def test_interpolate_fills_between_and_clamps_outside(mat):
 
 
 def test_interpolation_defaults_to_logarithmic(mat):
-    assert bpy.context.scene.mitsuba.acoustic_interpolation == 'LOG'
+    assert bpy.context.scene.misuka.acoustic_interpolation == 'LOG'
     assert not hasattr(mat, 'acoustic_interpolation'), \
         'the axis is a scene setting, not a per-material one'
 
@@ -189,7 +189,7 @@ def test_interpolate_fills_the_greyed_bands_too(mat):
     Octave resolution greys the other 18 bands but still fills them, so raising
     the resolution later gives a coherent curve rather than a comb of defaults.
     '''
-    assert bpy.context.scene.mitsuba.acoustic_band_resolution == 'OCTAVE'
+    assert bpy.context.scene.misuka.acoustic_band_resolution == 'OCTAVE'
 
     setattr(mat, abs_prop(250), 0.2)
     setattr(mat, abs_prop(4000), 0.8)
@@ -234,7 +234,7 @@ def test_reset_restores_defaults_and_clears_keeps(mat):
     assert all(getattr(mat, p) == DEFAULT for p in ABS_PROPS)
     assert not any(mat.acoustic_abs_keep)
     # the scene's resolution is not a material setting for reset to undo
-    assert bpy.context.scene.mitsuba.acoustic_band_resolution == 'THIRD_OCTAVE'
+    assert bpy.context.scene.misuka.acoustic_band_resolution == 'THIRD_OCTAVE'
 
 
 def test_operators_are_unavailable_without_a_material():
@@ -271,8 +271,8 @@ def export_scene(mat, tmp_path, export_mode='ACOUSTIC', camera_setup=None,
     `camera_setup` is called with every camera's misuka settings, since the
     exported sensor is whichever camera the scene happens to hold first.
     '''
-    if bpy.context.scene.render.engine != 'MITSUBA':
-        bpy.context.scene.render.engine = 'MITSUBA'
+    if bpy.context.scene.render.engine != 'MISUKA':
+        bpy.context.scene.render.engine = 'MISUKA'
 
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
@@ -280,7 +280,7 @@ def export_scene(mat, tmp_path, export_mode='ACOUSTIC', camera_setup=None,
 
     if camera_setup is not None:
         for camera in bpy.data.cameras:
-            camera_setup(camera.mitsuba)
+            camera_setup(camera.misuka)
 
     has_light = any(ob.type == 'LIGHT' for ob in bpy.data.objects)
     if export_mode == 'ACOUSTIC' and not has_light:
@@ -288,7 +288,7 @@ def export_scene(mat, tmp_path, export_mode='ACOUSTIC', camera_setup=None,
 
     path = os.path.join(str(tmp_path), 'scene.xml')
 
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode=export_mode, **kwargs
     ) == {'FINISHED'}
 
@@ -448,8 +448,8 @@ def test_acoustic_export_defaults_to_262144_samples(mat, tmp_path):
 
 
 def test_the_sample_count_setting_reaches_the_exported_scene(mat, tmp_path):
-    def set_count(mts_camera):
-        sampler = getattr(mts_camera.acoustic_samplers, mts_camera.acoustic_sampler)
+    def set_count(mi_camera):
+        sampler = getattr(mi_camera.acoustic_samplers, mi_camera.acoustic_sampler)
         sampler.sample_count = 64
 
     root = export_scene(mat, tmp_path, camera_setup=set_count)
@@ -485,9 +485,9 @@ def test_the_acoustic_film_takes_its_own_reconstruction_filter(mat, tmp_path):
     smooth along different axes, time bins against pixels, so each mode carries
     its own filter.
     '''
-    def set_filters(mts_camera):
-        mts_camera.acoustic_rfilters.gaussian.stddev = 0.75
-        mts_camera.visual_rfilter = 'tent'
+    def set_filters(mi_camera):
+        mi_camera.acoustic_rfilters.gaussian.stddev = 0.75
+        mi_camera.visual_rfilter = 'tent'
 
     rfilter = film_rfilter(export_scene(mat, tmp_path, camera_setup=set_filters))
 
@@ -501,13 +501,13 @@ def test_each_mode_keeps_its_own_reconstruction_filter_settings():
     tuning one would retune the other.
     '''
     bpy.ops.object.camera_add()
-    mts_camera = bpy.context.active_object.data.mitsuba
+    mi_camera = bpy.context.active_object.data.misuka
 
-    mts_camera.acoustic_rfilters.gaussian.stddev = 0.75
+    mi_camera.acoustic_rfilters.gaussian.stddev = 0.75
 
-    assert mts_camera.visual_rfilters.gaussian.stddev == 0.25
-    assert mts_camera.acoustic_rfilter == 'gaussian'
-    assert mts_camera.visual_rfilter == 'gaussian'
+    assert mi_camera.visual_rfilters.gaussian.stddev == 0.25
+    assert mi_camera.acoustic_rfilter == 'gaussian'
+    assert mi_camera.visual_rfilter == 'gaussian'
 
 
 def source_sphere(root):
@@ -925,8 +925,8 @@ def test_time_bins_come_from_the_length_and_sampling_rate(mat, tmp_path):
     and how finely it is sampled. time_bins was hardcoded to 2000 with no UI.
     '''
     scene = bpy.context.scene
-    scene.mitsuba.acoustic_max_time = 3.0
-    scene.mitsuba.acoustic_sampling_rate = 4000.0
+    scene.misuka.acoustic_max_time = 3.0
+    scene.misuka.acoustic_sampling_rate = 4000.0
 
     root = export_scene(mat, tmp_path)
 
@@ -935,7 +935,7 @@ def test_time_bins_come_from_the_length_and_sampling_rate(mat, tmp_path):
 
 def test_max_time_reaches_the_integrator(mat, tmp_path):
     '''max_time was hardcoded to 2.0 in the exporter.'''
-    bpy.context.scene.mitsuba.acoustic_max_time = 5.0
+    bpy.context.scene.misuka.acoustic_max_time = 5.0
 
     root = export_scene(mat, tmp_path)
     integrator = root.find(".//integrator[@type='acoustic_path']")
@@ -951,9 +951,9 @@ def test_film_settings_default_to_the_previous_export(mat, tmp_path):
     '''
     scene = bpy.context.scene
 
-    assert scene.mitsuba.acoustic_band_resolution == 'OCTAVE'
-    assert scene.mitsuba.acoustic_max_time == 2.0
-    assert scene.mitsuba.acoustic_sampling_rate == 1000.0
+    assert scene.misuka.acoustic_band_resolution == 'OCTAVE'
+    assert scene.misuka.acoustic_max_time == 2.0
+    assert scene.misuka.acoustic_sampling_rate == 1000.0
 
     root = export_scene(mat, tmp_path)
     assert film_setting(root, 'integer', 'time_bins') == '2000'
@@ -964,11 +964,11 @@ def test_film_settings_are_stored_on_the_scene(mat):
     They belong to the film, so they are saved in the .blend and shared by every
     material rather than set per export.
     '''
-    operator_props = bpy.ops.export_scene.mitsuba.get_rna_type().properties
+    operator_props = bpy.ops.export_scene.misuka.get_rna_type().properties
 
     for name in ('acoustic_band_resolution', 'acoustic_max_time',
                  'acoustic_sampling_rate'):
-        assert hasattr(bpy.context.scene.mitsuba, name), name
+        assert hasattr(bpy.context.scene.misuka, name), name
         assert name not in operator_props, name
 
 
@@ -995,8 +995,8 @@ def test_each_export_mode_has_its_own_sampler_panel():
     bpy.ops.object.camera_add()
     bpy.context.scene.camera = bpy.context.active_object
 
-    acoustic = draw_sampler_panel(engine_props.MITSUBA_CAMERA_PT_sampler_acoustic)
-    visual = draw_sampler_panel(engine_props.MITSUBA_CAMERA_PT_sampler_visual)
+    acoustic = draw_sampler_panel(engine_props.MISUKA_CAMERA_PT_sampler_acoustic)
+    visual = draw_sampler_panel(engine_props.MISUKA_CAMERA_PT_sampler_visual)
 
     assert acoustic == ['acoustic_sampler', 'sample_count', 'seed']
     assert visual == ['visual_sampler', 'sample_count', 'seed']
@@ -1008,25 +1008,25 @@ def test_each_mode_keeps_its_own_sampler_settings():
     setting one count would set the other.
     '''
     bpy.ops.object.camera_add()
-    mts_camera = bpy.context.active_object.data.mitsuba
+    mi_camera = bpy.context.active_object.data.misuka
 
-    mts_camera.visual_samplers.independent.sample_count = 128
+    mi_camera.visual_samplers.independent.sample_count = 128
 
-    assert mts_camera.acoustic_samplers.independent.sample_count == 2 ** 18
-    assert mts_camera.acoustic_sampler == 'independent'
-    assert mts_camera.visual_sampler == 'independent'
+    assert mi_camera.acoustic_samplers.independent.sample_count == 2 ** 18
+    assert mi_camera.acoustic_sampler == 'independent'
+    assert mi_camera.visual_sampler == 'independent'
 
 
 def test_neither_sample_count_can_go_below_one():
     '''
-    Mitsuba needs at least one ray. The JSON `min` used to reach Blender as a
+    Misuka needs at least one ray. The JSON `min` used to reach Blender as a
     `soft_min`, which only stops the slider, so a typed or scripted zero got
     through.
     '''
     bpy.ops.object.camera_add()
-    mts_camera = bpy.context.active_object.data.mitsuba
+    mi_camera = bpy.context.active_object.data.misuka
 
-    for samplers in (mts_camera.acoustic_samplers, mts_camera.visual_samplers):
+    for samplers in (mi_camera.acoustic_samplers, mi_camera.visual_samplers):
         samplers.independent.sample_count = 0
 
         assert samplers.independent.sample_count == 1
@@ -1050,7 +1050,7 @@ def test_the_acoustic_integrator_draws_hide_emitters_last():
     It is the odd one out: the settings above it trade quality against time,
     and this one changes what is in the result at all.
     '''
-    drawn = draw_integrator_panel(engine_props.MITSUBA_RENDER_PT_integrator_acoustic)
+    drawn = draw_integrator_panel(engine_props.MISUKA_RENDER_PT_integrator_acoustic)
 
     assert drawn == ['acoustic_integrator', 'max_depth', 'max_energy_loss',
                      'hide_emitters']
@@ -1068,14 +1068,14 @@ def test_russian_roulette_is_not_offered_for_the_acoustic_integrator(mat, tmp_pa
     misuka's acoustic_path has no Russian Roulette and rejects rr_depth, so the
     panel used to show a field that was stripped again on the way out.
     '''
-    settings = bpy.context.scene.mitsuba.available_integrators.acoustic_path
+    settings = bpy.context.scene.misuka.available_integrators.acoustic_path
 
     assert not hasattr(settings, 'rr_depth')
     assert 'rr_depth' not in settings.to_dict()
     assert integrator_setting(export_scene(mat, tmp_path), 'integer', 'rr_depth') is None
 
     # the visual tracers still have it
-    assert hasattr(bpy.context.scene.mitsuba.available_integrators.path, 'rr_depth')
+    assert hasattr(bpy.context.scene.misuka.available_integrators.path, 'rr_depth')
 
 
 def test_max_energy_loss_is_declared_and_exported(mat, tmp_path):
@@ -1094,7 +1094,7 @@ def test_max_energy_loss_is_declared_and_exported(mat, tmp_path):
     assert declared['max_energy_loss']['type'] == 'float'
     assert declared['max_energy_loss']['default'] == 90.0
 
-    settings = bpy.context.scene.mitsuba.available_integrators.acoustic_path
+    settings = bpy.context.scene.misuka.available_integrators.acoustic_path
     assert settings.max_energy_loss == 90.0
     assert settings.to_dict()['max_energy_loss'] == 90.0
 
@@ -1109,7 +1109,7 @@ def test_each_export_mode_has_its_own_integrator():
     needs, so neither mode is set up behind a dropdown change. The two lists
     are disjoint, so a panel cannot name a plugin its mode would reject.
     '''
-    settings = bpy.context.scene.mitsuba
+    settings = bpy.context.scene.misuka
 
     assert settings.acoustic_integrator == 'acoustic_path'
     assert settings.visual_integrator == 'path'
@@ -1126,7 +1126,7 @@ def test_export_mode_is_a_choice_of_two_scenes():
     The two modes swap out the integrator, sensor, film and materials, so the
     dialog names them rather than offering a checkbox to modify one.
     '''
-    props = bpy.ops.export_scene.mitsuba.get_rna_type().properties
+    props = bpy.ops.export_scene.misuka.get_rna_type().properties
 
     assert 'acoustic_mode' not in props
     assert props['export_mode'].type == 'ENUM'
@@ -1174,8 +1174,8 @@ def test_every_acoustic_property_carries_a_description():
     belongs rather than in the panel's help boxes.
     '''
     material_props = bpy.types.Material.bl_rna.properties
-    scene_props = bpy.types.Scene.bl_rna.properties['mitsuba'].fixed_type.properties
-    camera_props = bpy.types.Camera.bl_rna.properties['mitsuba'].fixed_type.properties
+    scene_props = bpy.types.Scene.bl_rna.properties['misuka'].fixed_type.properties
+    camera_props = bpy.types.Camera.bl_rna.properties['misuka'].fixed_type.properties
     samplers = camera_props['acoustic_samplers'].fixed_type.properties
     sampler_props = samplers['independent'].fixed_type.properties
 
@@ -1220,8 +1220,8 @@ def test_every_section_links_to_its_documentation(mat):
 
 
 @pytest.mark.parametrize('engine, export_mode, integrator, film', [
-    ('MITSUBA', 'ACOUSTIC', 'acoustic_path', 'tape'),
-    ('MITSUBA', 'VISUAL', 'path', 'hdrfilm'),
+    ('MISUKA', 'ACOUSTIC', 'acoustic_path', 'tape'),
+    ('MISUKA', 'VISUAL', 'path', 'hdrfilm'),
 ])
 def test_the_export_mode_picks_the_integrator(
         mat, tmp_path, engine, export_mode, integrator, film):
@@ -1246,8 +1246,8 @@ def test_an_optical_export_still_honours_a_chosen_integrator(mat, tmp_path):
     would be pointless.
     '''
     scene = bpy.context.scene
-    scene.render.engine = 'MITSUBA'
-    scene.mitsuba.visual_integrator = 'direct'
+    scene.render.engine = 'MISUKA'
+    scene.misuka.visual_integrator = 'direct'
 
     root = export_scene(mat, tmp_path, export_mode='VISUAL')
 
@@ -1520,7 +1520,7 @@ def test_a_visual_export_still_writes_every_light_type(mat, tmp_path, light_type
 
 def test_an_acoustic_export_without_a_source_is_refused(mat, tmp_path):
     '''A scene with nothing to emit used to export silently.'''
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
@@ -1528,7 +1528,7 @@ def test_an_acoustic_export_without_a_source_is_refused(mat, tmp_path):
     path = os.path.join(str(tmp_path), 'scene.xml')
 
     with pytest.raises(RuntimeError, match='no emitter'):
-        bpy.ops.export_scene.mitsuba(filepath=path, export_mode='ACOUSTIC')
+        bpy.ops.export_scene.misuka(filepath=path, export_mode='ACOUSTIC')
 
 
 def test_an_emission_mesh_counts_as_an_emitter(mat, tmp_path):
@@ -1536,13 +1536,13 @@ def test_an_emission_mesh_counts_as_an_emitter(mat, tmp_path):
     The Emitter panel points at this as the way to get an emitter both export
     modes use, so it has to satisfy the emitter check.
     '''
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     add_emission_mesh()
 
     bpy.ops.object.camera_add()
     path = os.path.join(str(tmp_path), 'scene.xml')
 
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
 
     root = ET.parse(path).getroot()
@@ -1558,7 +1558,7 @@ def mesh_emitter(root):
 
 def export_emission_mesh(tmp_path, export_mode, strength=1.0, color=None):
     '''Export a lone Emission sphere and return the parsed scene root.'''
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     emission = emission_node(add_emission_mesh())
     emission.inputs['Strength'].default_value = strength
     if color is not None:
@@ -1567,7 +1567,7 @@ def export_emission_mesh(tmp_path, export_mode, strength=1.0, color=None):
     bpy.ops.object.camera_add()
     path = os.path.join(str(tmp_path), 'scene.xml')
 
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode=export_mode) == {'FINISHED'}
 
     return ET.parse(path).getroot()
@@ -1615,7 +1615,7 @@ def test_an_acoustic_emitter_takes_a_linked_color(tmp_path):
     dummy and emitted nothing. An acoustic export never reads Color, so there
     is nothing there to refuse.
     '''
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     tree = add_emission_mesh().data.materials[0].node_tree
     emission = next(n for n in tree.nodes if n.type == 'EMISSION')
     emission.inputs['Strength'].default_value = 3.0
@@ -1626,7 +1626,7 @@ def test_an_acoustic_emitter_takes_a_linked_color(tmp_path):
     bpy.ops.object.camera_add()
     path = os.path.join(str(tmp_path), 'scene.xml')
 
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
 
     root = ET.parse(path).getroot()
@@ -1654,12 +1654,12 @@ def test_an_acoustic_mesh_emitter_is_transparent(tmp_path):
     acoustic one it absorbs everything that reaches it, so a reflection coming
     back to the emitter would die there. A point light already gets 'null'.
     '''
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     add_emission_mesh()
     bpy.ops.object.camera_add()
     path = os.path.join(str(tmp_path), 'scene.xml')
 
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
 
     root = ET.parse(path).getroot()
@@ -1672,12 +1672,12 @@ def test_a_visual_mesh_emitter_stays_shadeless(tmp_path):
     The black diffuse is what makes an emitter shadeless in a visual render, so
     the acoustic 'null' must not leak into that mode.
     '''
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     add_emission_mesh()
     bpy.ops.object.camera_add()
     path = os.path.join(str(tmp_path), 'scene.xml')
 
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='VISUAL') == {'FINISHED'}
 
     root = ET.parse(path).getroot()
@@ -1690,14 +1690,14 @@ def test_every_scene_plugin_carries_its_id(mat, tmp_path, export_mode):
     misuka's writer only emits an id for a plugin something references, so a
     shape or a sensor reached the file with a name nothing could address.
     '''
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
     add_point_light(100.0, 0.5)
 
     path = os.path.join(str(tmp_path), 'scene.xml')
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode=export_mode) == {'FINISHED'}
 
     root = ET.parse(path).getroot()
@@ -1719,7 +1719,7 @@ def test_a_shape_id_is_prefixed_in_both_modes(mat, tmp_path, export_mode):
     the same id as the world emitter. Now that ids reach the file, misuka
     refuses a duplicate outright rather than aliasing the two.
     '''
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.name = 'World'
     bpy.context.active_object.data.materials.append(mat)
@@ -1727,7 +1727,7 @@ def test_a_shape_id_is_prefixed_in_both_modes(mat, tmp_path, export_mode):
     add_point_light(100.0, 0.5)
 
     path = os.path.join(str(tmp_path), 'scene.xml')
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode=export_mode) == {'FINISHED'}
 
     root = ET.parse(path).getroot()
@@ -1740,13 +1740,13 @@ def test_every_exported_plugin_carries_its_own_name(mat, tmp_path):
     the exporter copying the export name across, a shape or a sensor reaches
     the file unnamed and nothing downstream can address it.
     '''
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
 
     path = os.path.join(str(tmp_path), 'scene.xml')
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='VISUAL') == {'FINISHED'}
 
     root = ET.parse(path).getroot()
@@ -1759,7 +1759,7 @@ def two_emitter_scene(mat):
     add_point_light(100.0, 0.5)
     add_point_light(100.0, 0.5)
 
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
@@ -1774,7 +1774,7 @@ def test_an_acoustic_export_refuses_more_than_one_emitter(mat, tmp_path):
     path = os.path.join(str(tmp_path), 'scene.xml')
 
     with pytest.raises(RuntimeError, match='2 emitters'):
-        bpy.ops.export_scene.mitsuba(
+        bpy.ops.export_scene.misuka(
             filepath=path, export_mode='ACOUSTIC',
             allow_multiple_emitters=False)
 
@@ -1796,13 +1796,13 @@ def test_an_acoustic_export_skips_the_world(mat, tmp_path):
     add_colored_world()
     add_point_light(100.0, 0.5)
 
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
 
     path = os.path.join(str(tmp_path), 'scene.xml')
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
 
     root = ET.parse(path).getroot()
@@ -1818,13 +1818,13 @@ def test_a_colored_world_is_not_a_second_acoustic_emitter(mat, tmp_path):
     add_colored_world()
     add_point_light(100.0, 0.5)
 
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
 
     path = os.path.join(str(tmp_path), 'scene.xml')
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='ACOUSTIC',
         allow_multiple_emitters=False) == {'FINISHED'}
 
@@ -1833,13 +1833,13 @@ def test_a_visual_export_still_writes_the_world(mat, tmp_path):
     '''Only the acoustic mode drops the background.'''
     add_colored_world()
 
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
     bpy.ops.object.camera_add()
 
     path = os.path.join(str(tmp_path), 'scene.xml')
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='VISUAL') == {'FINISHED'}
 
     root = ET.parse(path).getroot()
@@ -1854,7 +1854,7 @@ def test_the_override_exports_several_emitters(mat, tmp_path):
     two_emitter_scene(mat)
     path = os.path.join(str(tmp_path), 'scene.xml')
 
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='ACOUSTIC',
         allow_multiple_emitters=True) == {'FINISHED'}
 
@@ -1870,13 +1870,13 @@ def test_a_scripted_export_is_not_refused(mat, tmp_path):
     two_emitter_scene(mat)
     path = os.path.join(str(tmp_path), 'scene.xml')
 
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='ACOUSTIC') == {'FINISHED'}
 
 
 def export_operator_stub(drawn, **overrides):
     '''
-    An ExportMitsuba stand-in carrying each property's default.
+    An ExportMisuka stand-in carrying each property's default.
 
     The operator cannot be instantiated outside Blender's own invoke, and its
     draw() only reads attributes, so the defaults declared on the class are
@@ -1884,7 +1884,7 @@ def export_operator_stub(drawn, **overrides):
     '''
     from types import SimpleNamespace
 
-    cls = importlib.import_module('misuka-blender.io').ExportMitsuba
+    cls = importlib.import_module('misuka-blender.io').ExportMisuka
     values = {name: prop.keywords.get('default')
               for name, prop in cls.__annotations__.items()}
     values.update(overrides)
@@ -1915,7 +1915,7 @@ def test_the_axis_dropdowns_do_not_repeat_their_own_label():
     shortened: the values are what axis_conversion reads.
     '''
     io = importlib.import_module('misuka-blender.io')
-    cls = io.ExportMitsuba
+    cls = io.ExportMisuka
 
     for attr, word in (('axis_forward', 'Forward'), ('axis_up', 'Up')):
         keywords = cls.__annotations__[attr].keywords
@@ -2006,7 +2006,7 @@ def test_a_dot_in_a_name_is_replaced(mat, tmp_path, export_mode):
     Blender names every duplicate Light.001. The export used to fail outright.
     '''
     mat.name = 'Wall.001'
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
 
     bpy.ops.mesh.primitive_cube_add()
     bpy.context.active_object.data.materials.append(mat)
@@ -2016,7 +2016,7 @@ def test_a_dot_in_a_name_is_replaced(mat, tmp_path, export_mode):
     add_point_light(100.0, 0.5)
 
     path = os.path.join(str(tmp_path), 'scene.xml')
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode=export_mode) == {'FINISHED'}
 
     root = ET.parse(path).getroot()
@@ -2045,4 +2045,4 @@ def test_an_export_needs_the_misuka_engine(mat, tmp_path, export_mode):
     path = os.path.join(str(tmp_path), 'scene.xml')
 
     with pytest.raises(RuntimeError, match='A misuka export needs'):
-        bpy.ops.export_scene.mitsuba(filepath=path, export_mode=export_mode)
+        bpy.ops.export_scene.misuka(filepath=path, export_mode=export_mode)

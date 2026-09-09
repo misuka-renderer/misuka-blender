@@ -66,7 +66,7 @@ def enable_addon():
         raise RuntimeError('Cannot enable misuka-blender')
 
     prefs = bpy.context.preferences.addons['misuka-blender'].preferences
-    if not prefs.is_mitsuba_initialized:
+    if not prefs.is_misuka_initialized:
         raise RuntimeError(
             'misuka did not initialize. Install it into this Blender\'s Python.')
 
@@ -96,13 +96,13 @@ def build_scene():
         SOURCE_POSITIONS, set_bands, set_base_color)
 
     scene = bpy.context.scene
-    scene.render.engine = 'MITSUBA'
+    scene.render.engine = 'MISUKA'
     scene.render.resolution_x, scene.render.resolution_y = RESOLUTION
     scene.render.resolution_percentage = 100
 
-    scene.mitsuba.acoustic_band_resolution = 'OCTAVE'
-    scene.mitsuba.acoustic_max_time = ACOUSTIC_MAX_TIME
-    scene.mitsuba.acoustic_sampling_rate = SAMPLING_RATE
+    scene.misuka.acoustic_band_resolution = 'OCTAVE'
+    scene.misuka.acoustic_max_time = ACOUSTIC_MAX_TIME
+    scene.misuka.acoustic_sampling_rate = SAMPLING_RATE
 
     # The object. Blender's default cube, at the origin, in blue.
     bpy.ops.mesh.primitive_cube_add(size=DEFAULT_CUBE_SIZE)
@@ -143,7 +143,7 @@ def build_scene():
         receiver.name = 'Camera' if index == 0 else f'Camera_{index}'
         # A fixed seed is what makes a render repeatable, and a repeatable
         # render is what makes a stored reference mean anything.
-        settings = receiver.data.mitsuba
+        settings = receiver.data.misuka
         getattr(settings.acoustic_samplers, settings.acoustic_sampler).seed = 0
         getattr(settings.visual_samplers, settings.visual_sampler).seed = 0
 

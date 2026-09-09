@@ -1,7 +1,7 @@
 '''
 Panel visibility under the misuka render engine.
 
-`engine.get_panels()` only ever adds MITSUBA to panels Blender tags
+`engine.get_panels()` only ever adds MISUKA to panels Blender tags
 BLENDER_RENDER, so anything tagged EEVEE-only or Cycles-only stays hidden, and
 so does any child panel whose parent is hidden. That is how Color, Power,
 Radius, Beam Shape, the material slot list and both Surface panels went missing.
@@ -130,14 +130,14 @@ def draw(panel, **kwargs):
 
 def test_a_point_light_shows_color_power_and_radius(engine, make_light):
     point_light = make_light('POINT')
-    ctx = engine('MITSUBA')
-    assert panels.MITSUBA_LIGHT_PT_light.poll(
+    ctx = engine('MISUKA')
+    assert panels.MISUKA_LIGHT_PT_light.poll(
         StubContext(light=point_light, engine=ctx.scene.render.engine))
 
-    drawn = draw(panels.MITSUBA_LIGHT_PT_light, light=point_light)
+    drawn = draw(panels.MISUKA_LIGHT_PT_light, light=point_light)
     assert 'color' in drawn
     assert 'energy' in drawn
-    assert 'mitsuba_emitter_radius' in drawn
+    assert 'misuka_emitter_radius' in drawn
 
 
 def test_the_radius_tooltip_does_not_promise_shadows(engine):
@@ -147,9 +147,9 @@ def test_the_radius_tooltip_does_not_promise_shadows(engine):
     to size a spherical emitter in an Acoustic export, so the panel draws a
     proxy whose wording matches.
     '''
-    engine('MITSUBA')
+    engine('MISUKA')
     for cls in (bpy.types.PointLight, bpy.types.SpotLight):
-        prop = cls.bl_rna.properties['mitsuba_emitter_radius']
+        prop = cls.bl_rna.properties['misuka_emitter_radius']
         assert prop.name == 'Radius'
         assert 'shadow sampling' not in prop.description
         assert 'does not affect shadows' in prop.description
@@ -157,14 +157,14 @@ def test_the_radius_tooltip_does_not_promise_shadows(engine):
 
 def test_the_radius_proxy_reads_and_writes_the_blender_field(engine, make_light):
     '''The proxy stores nothing of its own, so both directions must agree.'''
-    engine('MITSUBA')
+    engine('MISUKA')
     light = make_light('POINT')
 
-    light.mitsuba_emitter_radius = 0.5
+    light.misuka_emitter_radius = 0.5
     assert light.shadow_soft_size == pytest.approx(0.5)
 
     light.shadow_soft_size = 1.25
-    assert light.mitsuba_emitter_radius == pytest.approx(1.25)
+    assert light.misuka_emitter_radius == pytest.approx(1.25)
 
 
 def test_the_radius_row_names_both_export_modes(engine, make_light):
@@ -174,9 +174,9 @@ def test_the_radius_row_names_both_export_modes(engine, make_light):
     panel cannot read it and has to name both.
     '''
     point_light = make_light('POINT')
-    engine('MITSUBA')
+    engine('MISUKA')
     drawn = []
-    stub = type('Stub', (), {'draw': panels.MITSUBA_LIGHT_PT_light.draw})()
+    stub = type('Stub', (), {'draw': panels.MISUKA_LIGHT_PT_light.draw})()
     stub.layout = StubLayout(drawn)
     stub.draw(StubContext(light=point_light))
 
@@ -191,11 +191,11 @@ def test_only_a_point_light_claims_the_color_is_dropped(engine, make_light):
     spot, sun and area ones still write energy * color, so the note would be
     wrong on them.
     '''
-    engine('MITSUBA')
+    engine('MISUKA')
 
     def notes(light):
         drawn = []
-        stub = type('Stub', (), {'draw': panels.MITSUBA_LIGHT_PT_light.draw})()
+        stub = type('Stub', (), {'draw': panels.MISUKA_LIGHT_PT_light.draw})()
         stub.layout = StubLayout(drawn)
         stub.draw(StubContext(light=light))
         return ' '.join(text for kind, text in drawn if kind == 'label')
@@ -221,7 +221,7 @@ def emission_material(strength=1.0):
 
 def surface_labels(material):
     drawn = []
-    stub = type('Stub', (), {'draw': panels.MITSUBA_MATERIAL_PT_surface.draw})()
+    stub = type('Stub', (), {'draw': panels.MISUKA_MATERIAL_PT_surface.draw})()
     stub.layout = StubLayout(drawn)
     stub.draw(StubContext(material=material))
     return ' '.join(text for kind, text in drawn if kind == 'label')
@@ -233,7 +233,7 @@ def test_the_surface_panel_says_what_strength_means(engine):
     a built-in node is read-only, so Strength cannot be renamed to the quantity
     the exporter reads it as. The panel names it instead.
     '''
-    engine('MITSUBA')
+    engine('MISUKA')
 
     labels = surface_labels(emission_material())
 
@@ -243,7 +243,7 @@ def test_the_surface_panel_says_what_strength_means(engine):
 
 def test_a_non_emitting_material_gets_no_emission_note(engine):
     '''The note is about Strength, which only an Emission node has.'''
-    engine('MITSUBA')
+    engine('MISUKA')
 
     material = bpy.data.materials.new('diffuse_panel_test')
     material.use_nodes = True
@@ -255,10 +255,10 @@ def test_a_non_emitting_material_gets_no_emission_note(engine):
 def test_a_non_point_light_says_an_acoustic_export_skips_it(
         engine, make_light, light_type):
     '''Matches what export_light() actually does with them.'''
-    engine('MITSUBA')
+    engine('MISUKA')
 
     drawn = []
-    stub = type('Stub', (), {'draw': panels.MITSUBA_LIGHT_PT_light.draw})()
+    stub = type('Stub', (), {'draw': panels.MISUKA_LIGHT_PT_light.draw})()
     stub.layout = StubLayout(drawn)
     stub.draw(StubContext(light=make_light(light_type)))
 
@@ -269,49 +269,49 @@ def test_a_non_point_light_says_an_acoustic_export_skips_it(
 
 def test_a_spot_light_shows_beam_shape(engine, make_light):
     spot = make_light('SPOT')
-    engine('MITSUBA')
+    engine('MISUKA')
 
-    assert panels.MITSUBA_LIGHT_PT_beam_shape.poll(StubContext(light=spot))
-    drawn = draw(panels.MITSUBA_LIGHT_PT_beam_shape, light=spot)
+    assert panels.MISUKA_LIGHT_PT_beam_shape.poll(StubContext(light=spot))
+    drawn = draw(panels.MISUKA_LIGHT_PT_beam_shape, light=spot)
     assert 'spot_size' in drawn
     assert 'spot_blend' in drawn
 
 
 def test_beam_shape_is_only_for_spot_lights(engine, make_light):
     point_light = make_light('POINT')
-    engine('MITSUBA')
-    assert not panels.MITSUBA_LIGHT_PT_beam_shape.poll(
+    engine('MISUKA')
+    assert not panels.MISUKA_LIGHT_PT_beam_shape.poll(
         StubContext(light=point_light))
 
 
 def test_exactly_one_panel_is_titled_light(engine):
     '''
-    DATA_PT_light carries BLENDER_RENDER, so it gets MITSUBA from the sweep and
+    DATA_PT_light carries BLENDER_RENDER, so it gets MISUKA from the sweep and
     would sit next to ours drawing a second, near-empty "Light" panel.
     '''
-    engine('MITSUBA')
+    engine('MISUKA')
     titled = [
         cls.__name__
         for cls in bpy.types.Panel.__subclasses__()
         if getattr(cls, 'bl_space_type', '') == 'PROPERTIES'
         and getattr(cls, 'bl_context', '') == 'data'
         and getattr(cls, 'bl_label', '').startswith('Light')
-        and 'MITSUBA' in getattr(cls, 'COMPAT_ENGINES', set())
+        and 'MISUKA' in getattr(cls, 'COMPAT_ENGINES', set())
     ]
-    assert titled == ['MITSUBA_LIGHT_PT_light']
+    assert titled == ['MISUKA_LIGHT_PT_light']
 
 
-def test_the_node_editor_twin_does_not_leak_mitsuba_back_in():
+def test_the_node_editor_twin_does_not_leak_misuka_back_in():
     '''
     A panel and its NODE_ copy share one COMPAT_ENGINES set object, so adding
-    MITSUBA to either adds it to both. Excluding one name alone does nothing.
+    MISUKA to either adds it to both. Excluding one name alone does nothing.
     '''
     twin = getattr(bpy.types, 'NODE_DATA_PT_light', None)
     if twin is None:
         pytest.skip('This Blender has no NODE_DATA_PT_light')
 
-    assert 'MITSUBA' not in bpy.types.DATA_PT_light.COMPAT_ENGINES
-    assert 'MITSUBA' not in twin.COMPAT_ENGINES
+    assert 'MISUKA' not in bpy.types.DATA_PT_light.COMPAT_ENGINES
+    assert 'MISUKA' not in twin.COMPAT_ENGINES
 
 
 # --- Material and world -----------------------------------------------------
@@ -321,13 +321,13 @@ def test_the_material_slot_list_is_reachable(engine):
     Without it there is no New button, so an object never gets a material and
     ACOUSTIC_PT_material never polls.
     '''
-    engine('MITSUBA')
+    engine('MISUKA')
     mesh = bpy.data.meshes.new('TestMesh')
     obj = bpy.data.objects.new('TestObject', mesh)
     bpy.context.scene.collection.objects.link(obj)
     try:
-        assert panels.MITSUBA_MATERIAL_PT_context.poll(StubContext(object=obj))
-        drawn = draw(panels.MITSUBA_MATERIAL_PT_context, object=obj)
+        assert panels.MISUKA_MATERIAL_PT_context.poll(StubContext(object=obj))
+        drawn = draw(panels.MISUKA_MATERIAL_PT_context, object=obj)
         assert 'MATERIAL_UL_matslots' in drawn
         assert 'active_material' in drawn
     finally:
@@ -340,15 +340,15 @@ def test_the_material_surface_falls_back_to_diffuse_color_only(engine):
     EEVEE also offers metallic, specular and roughness on the non-node path.
     The exporter reads none of them (materials.py), so neither do we.
     '''
-    engine('MITSUBA')
+    engine('MISUKA')
     mat = bpy.data.materials.new('TestMaterial')
     mat.use_nodes = False
     try:
         if mat.use_nodes:
             pytest.skip('This Blender pins materials to nodes')
 
-        assert panels.MITSUBA_MATERIAL_PT_surface.poll(StubContext(material=mat))
-        drawn = draw(panels.MITSUBA_MATERIAL_PT_surface, material=mat)
+        assert panels.MISUKA_MATERIAL_PT_surface.poll(StubContext(material=mat))
+        drawn = draw(panels.MISUKA_MATERIAL_PT_surface, material=mat)
         assert 'diffuse_color' in drawn
         assert 'metallic' not in drawn
         assert 'roughness' not in drawn
@@ -357,12 +357,12 @@ def test_the_material_surface_falls_back_to_diffuse_color_only(engine):
 
 
 def test_the_world_surface_shows_the_output_node(engine):
-    engine('MITSUBA')
+    engine('MISUKA')
     world = bpy.data.worlds.new('TestWorld')
     world.use_nodes = True
     try:
-        assert panels.MITSUBA_WORLD_PT_surface.poll(StubContext(world=world))
-        drawn = draw(panels.MITSUBA_WORLD_PT_surface, world=world)
+        assert panels.MISUKA_WORLD_PT_surface.poll(StubContext(world=world))
+        drawn = draw(panels.MISUKA_WORLD_PT_surface, world=world)
         assert 'Surface' in drawn
     finally:
         bpy.data.worlds.remove(world)
@@ -407,28 +407,28 @@ def acoustic_panels():
     return found
 
 MISUKA_PANELS = (
-    'MITSUBA_RENDER_PT_acoustic',
-    'MITSUBA_RENDER_PT_integrator_acoustic',
-    'MITSUBA_CAMERA_PT_sampler_acoustic',
-    'MITSUBA_CAMERA_PT_rfilter_acoustic',
-    'MITSUBA_RENDER_PT_visual',
-    'MITSUBA_RENDER_PT_integrator_visual',
-    'MITSUBA_CAMERA_PT_sampler_visual',
-    'MITSUBA_CAMERA_PT_rfilter_visual',
-    'MITSUBA_OUTPUT_PT_acoustic_film',
+    'MISUKA_RENDER_PT_acoustic',
+    'MISUKA_RENDER_PT_integrator_acoustic',
+    'MISUKA_CAMERA_PT_sampler_acoustic',
+    'MISUKA_CAMERA_PT_rfilter_acoustic',
+    'MISUKA_RENDER_PT_visual',
+    'MISUKA_RENDER_PT_integrator_visual',
+    'MISUKA_CAMERA_PT_sampler_visual',
+    'MISUKA_CAMERA_PT_rfilter_visual',
+    'MISUKA_OUTPUT_PT_acoustic_film',
 )
 
 # One heading per export mode, with the same three panels under each.
 ENGINE_SETTINGS = (
-    ('MITSUBA_RENDER_PT_acoustic', 'Acoustic', (
-        ('MITSUBA_RENDER_PT_integrator_acoustic', 'Integrator'),
-        ('MITSUBA_CAMERA_PT_sampler_acoustic', 'Sampler'),
-        ('MITSUBA_CAMERA_PT_rfilter_acoustic', 'Reconstruction Filter'),
+    ('MISUKA_RENDER_PT_acoustic', 'Acoustic', (
+        ('MISUKA_RENDER_PT_integrator_acoustic', 'Integrator'),
+        ('MISUKA_CAMERA_PT_sampler_acoustic', 'Sampler'),
+        ('MISUKA_CAMERA_PT_rfilter_acoustic', 'Reconstruction Filter'),
     )),
-    ('MITSUBA_RENDER_PT_visual', 'Visual', (
-        ('MITSUBA_RENDER_PT_integrator_visual', 'Integrator'),
-        ('MITSUBA_CAMERA_PT_sampler_visual', 'Sampler'),
-        ('MITSUBA_CAMERA_PT_rfilter_visual', 'Reconstruction Filter'),
+    ('MISUKA_RENDER_PT_visual', 'Visual', (
+        ('MISUKA_RENDER_PT_integrator_visual', 'Integrator'),
+        ('MISUKA_CAMERA_PT_sampler_visual', 'Sampler'),
+        ('MISUKA_CAMERA_PT_rfilter_visual', 'Reconstruction Filter'),
     )),
 )
 
@@ -467,7 +467,7 @@ def test_acoustic_material_panels_are_misuka_only(engine, other):
         for panel in acoustic_panels():
             name = panel.__name__
 
-            engine('MITSUBA')
+            engine('MISUKA')
             assert panel.poll(StubContext(material=mat)), name
 
             if other not in {e.identifier for e
@@ -484,9 +484,9 @@ def test_the_camera_sampler_and_filter_no_longer_leak(engine):
     '''They had no COMPAT_ENGINES and no poll, so they drew under every engine.'''
     for name in MISUKA_PANELS:
         panel = getattr(engine_props, name)
-        assert panel.COMPAT_ENGINES == {'MITSUBA'}, name
+        assert panel.COMPAT_ENGINES == {'MISUKA'}, name
 
-        engine('MITSUBA')
+        engine('MISUKA')
         assert panel.poll(StubContext()), name
 
         engine('CYCLES')
@@ -496,7 +496,7 @@ def test_the_camera_sampler_and_filter_no_longer_leak(engine):
 # --- Guard against the next instance of this bug ----------------------------
 
 def visible_under_misuka(cls):
-    return 'MITSUBA' in getattr(cls, 'COMPAT_ENGINES', set())
+    return 'MISUKA' in getattr(cls, 'COMPAT_ENGINES', set())
 
 
 def test_no_panel_is_orphaned_under_misuka():
@@ -536,17 +536,17 @@ def test_no_panel_is_orphaned_under_misuka():
 # One row per property the exporter reads, so a Blender rename fails loudly
 # here rather than silently blanking a panel again.
 REQUIRED_PANELS = (
-    ('MITSUBA_LIGHT_PT_light', 'color, energy, mitsuba_emitter_radius, shape, size'),
-    ('MITSUBA_LIGHT_PT_beam_shape', 'spot_size, spot_blend'),
-    ('MITSUBA_MATERIAL_PT_context', 'material slots'),
-    ('MITSUBA_MATERIAL_PT_surface', 'material Surface socket'),
-    ('MITSUBA_WORLD_PT_surface', 'world Surface socket'),
+    ('MISUKA_LIGHT_PT_light', 'color, energy, misuka_emitter_radius, shape, size'),
+    ('MISUKA_LIGHT_PT_beam_shape', 'spot_size, spot_blend'),
+    ('MISUKA_MATERIAL_PT_context', 'material slots'),
+    ('MISUKA_MATERIAL_PT_surface', 'material Surface socket'),
+    ('MISUKA_WORLD_PT_surface', 'world Surface socket'),
 )
 
 
 @pytest.mark.parametrize('name,reads', REQUIRED_PANELS)
 def test_every_exporter_read_property_has_a_panel(engine, name, reads):
-    engine('MITSUBA')
+    engine('MISUKA')
     panel = getattr(bpy.types, name, None)
     assert panel is not None, f'{name} is not registered, so {reads} is unreachable'
     assert visible_under_misuka(panel), name
@@ -563,11 +563,11 @@ def test_the_material_selector_stays_above_the_acoustic_panels():
     acoustic panels would sit above the material selector and bury the New
     button. Only positive orders help: the RNA clamps a negative one to 0.
     '''
-    assert order_of(panels.MITSUBA_MATERIAL_PT_context) < \
+    assert order_of(panels.MISUKA_MATERIAL_PT_context) < \
         order_of(io_module.ACOUSTIC_PT_material)
     assert order_of(io_module.ACOUSTIC_PT_material) < \
-        order_of(panels.MITSUBA_MATERIAL_PT_surface)
+        order_of(panels.MISUKA_MATERIAL_PT_surface)
 
     # and all of them stay above Blender's, which sit at 10 and higher
-    assert order_of(panels.MITSUBA_MATERIAL_PT_surface) < \
+    assert order_of(panels.MISUKA_MATERIAL_PT_surface) < \
         order_of(bpy.types.MATERIAL_PT_viewport)

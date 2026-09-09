@@ -54,7 +54,7 @@ class SceneConverter:
         # another one the exporter would substitute that engine's own settings,
         # so the scene would not match the panels the user set up. Say so rather
         # than writing a scene from values the user cannot see.
-        if b_scene.render.engine != 'MITSUBA':
+        if b_scene.render.engine != 'MISUKA':
             raise RuntimeError(
                 "A misuka export needs the misuka render engine. Set "
                 "Render Properties > Render Engine to misuka."
@@ -66,8 +66,8 @@ class SceneConverter:
         # would reject.
         if acoustic_mode:
             integrator = getattr(
-                b_scene.mitsuba.available_integrators,
-                b_scene.mitsuba.acoustic_integrator
+                b_scene.misuka.available_integrators,
+                b_scene.misuka.acoustic_integrator
             ).to_dict()
 
             # Required for acoustic integrator
@@ -75,8 +75,8 @@ class SceneConverter:
 
         else:
             integrator = getattr(
-                b_scene.mitsuba.available_integrators,
-                b_scene.mitsuba.visual_integrator
+                b_scene.misuka.available_integrators,
+                b_scene.misuka.visual_integrator
             ).to_dict()
 
         # Named in both modes. Left unnamed it fell through to the counter and

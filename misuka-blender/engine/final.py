@@ -1,7 +1,7 @@
 import bpy
 
 
-class MitsubaRenderEngine(bpy.types.RenderEngine):
+class MisukaRenderEngine(bpy.types.RenderEngine):
     '''
     The misuka engine, which exists so the panels have something to poll.
 
@@ -9,7 +9,7 @@ class MitsubaRenderEngine(bpy.types.RenderEngine):
     against the XML that File > Export writes.
 
     The engine is still registered, because every misuka panel polls
-    `context.engine in {'MITSUBA'}` and would not draw otherwise. Selecting it
+    `context.engine in {'MISUKA'}` and would not draw otherwise. Selecting it
     is what puts the acoustic settings in front of the user; it is not a
     statement that Blender can render the scene.
 
@@ -22,7 +22,7 @@ class MitsubaRenderEngine(bpy.types.RenderEngine):
     See https://github.com/misuka-renderer/misuka-blender/issues/4.
     '''
 
-    bl_idname = "MITSUBA"
+    bl_idname = "MISUKA"
     bl_label = "misuka"
     # Blender asks an engine that claims previews to render material and world
     # thumbnails. This one renders nothing, so it claims nothing.
