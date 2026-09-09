@@ -20,6 +20,7 @@ Rendering inside Blender is not supported.
 - [Installation](https://misuka-blender.readthedocs.io/latest/installation.html)
 - [Tutorial: Build and export a shoebox room](https://misuka-blender.readthedocs.io/latest/tutorials/shoebox-room/shoebox-room.html)
 - [Scene settings](https://misuka-blender.readthedocs.io/latest/guide/scene-settings.html)
+- [Scripting](https://misuka-blender.readthedocs.io/latest/reference/scripting.html)
 - [Contributing](https://misuka-blender.readthedocs.io/latest/contributing.html)
 
 ## Requirements
