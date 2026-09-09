@@ -157,25 +157,26 @@ def write_references(scene):
     import numpy as np
 
     from shoebox import (
-        ACOUSTIC_SPP, ACOUSTIC_VARIANT, VISUAL_SPP, VISUAL_VARIANT, export,
-        render_acoustic, render_visual)
-
-    import misuka as mi
+        ACOUSTIC_SPP, VISUAL_SPP, export, render_acoustic, render_visual,
+        run_worker)
 
     os.makedirs(REFERENCE_DIR, exist_ok=True)
 
     visual_xml = export(scene, RES_DIR, 'VISUAL')
     acoustic_xml = export(scene, RES_DIR, 'ACOUSTIC')
 
-    mi.set_variant(VISUAL_VARIANT)
-    image = render_visual(visual_xml, VISUAL_SPP)
-    mi.Bitmap(image).write(os.path.join(REFERENCE_DIR, 'visual.exr'))
+    # Rendering and writing the .exr both need misuka, which runs outside
+    # Blender for the same reason the tests do. See tests/misuka_worker.py.
+    image = render_visual(visual_xml, VISUAL_SPP, REFERENCE_DIR)
+    run_worker('write_exr', npy_path=os.path.join(REFERENCE_DIR, 'visual.npy'),
+               out_path=os.path.join(REFERENCE_DIR, 'visual.exr'))
+    os.unlink(os.path.join(REFERENCE_DIR, 'visual.npy'))
 
-    mi.set_variant(ACOUSTIC_VARIANT)
-    tape = render_acoustic(acoustic_xml, ACOUSTIC_SPP)
+    tape = render_acoustic(acoustic_xml, ACOUSTIC_SPP, REFERENCE_DIR)
     np.save(os.path.join(REFERENCE_DIR, 'acoustic.npy'), tape)
+    os.unlink(os.path.join(REFERENCE_DIR, 'acoustic-0-None.npy'))
 
-    mi.set_variant(VISUAL_VARIANT)
+    print(f'rendered {image.shape} image and {tape.shape} tape')
 
     # The exports themselves are a build product, not a fixture: the tests
     # write their own into a temporary directory.

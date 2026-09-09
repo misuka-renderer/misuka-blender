@@ -10,7 +10,11 @@ This module deliberately sits outside the `fixtures` package, so it can be
 imported without pulling in pytest. The generator runs inside Blender, where
 pytest need not be installed.
 '''
+import glob
+import json
 import os
+import subprocess
+import sys
 
 # Both variants are pinned to the scalar backend rather than following the
 # `cuda_ad_*, metal_ad_*, llvm_ad_*` order the tutorial uses. Which backend a
@@ -189,30 +193,82 @@ def export(scene, out_dir, export_mode):
     return path
 
 
-def render_visual(xml_path, spp):
-    '''Render the visual scene and return its pixels.'''
-    import misuka as mi
+def blender_python():
+    '''
+    The interpreter Blender ships, which is where the misuka work happens.
+
+    Inside `blender.exe` on Windows, instantiating a misuka scene faults under
+    Blender 3.6, 4.2 and 4.5. The bundled interpreter is a separate process and
+    loads the system C++ runtime rather than the one in `blender.crt`, so it is
+    unaffected on every version. `sys.prefix` points at it from inside Blender.
+    '''
+    pattern = os.path.join(sys.prefix, 'bin', 'python*')
+    candidates = [p for p in sorted(glob.glob(pattern)) if os.path.isfile(p)]
+    assert candidates, f'no interpreter under {pattern}'
+    return candidates[0]
+
+
+def run_worker(command, **payload):
+    '''Run one `tests/misuka_worker.py` command and return what it reports.'''
+    worker = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                          'misuka_worker.py')
+
+    finished = subprocess.run(
+        [blender_python(), worker, command, json.dumps(payload)],
+        capture_output=True, text=True, errors='replace')
+
+    marker = '__RESULT__'
+    for line in finished.stdout.splitlines():
+        if line.startswith(marker):
+            return json.loads(line[len(marker):])
+
+    raise AssertionError(
+        f'misuka_worker {command} produced no result (exit {finished.returncode})\n'
+        f'--- stdout ---\n{finished.stdout[-2000:]}\n'
+        f'--- stderr ---\n{finished.stderr[-2000:]}')
+
+
+def read_exr(path, out_dir):
+    """Read a stored .exr reference, out of process."""
     import numpy as np
 
-    scene = mi.load_file(xml_path)
-    return np.array(mi.render(scene, spp=spp, seed=0))[:, :, :3]
+    out = os.path.join(str(out_dir), 'reference.npy')
+    run_worker('read_exr', xml_path=path, variant=VISUAL_VARIANT, out_path=out)
+    return np.load(out)
 
 
-def render_acoustic(xml_path, spp, sensor=0, scene=None):
+def inspect_scene(xml_path, variant, optimize=True):
+    '''The scene's plugin names and counts, read out of process.'''
+    return run_worker('inspect', xml_path=xml_path, variant=variant,
+                      optimize=optimize)
+
+
+def render_visual(xml_path, spp, out_dir):
+    '''Render the visual scene out of process and return its pixels.'''
+    import numpy as np
+
+    out = os.path.join(str(out_dir), 'visual.npy')
+    run_worker('render', xml_path=xml_path, variant=VISUAL_VARIANT,
+               out_path=out, spp=spp)
+    return np.load(out)
+
+
+def render_acoustic(xml_path, spp, out_dir, sensor=0, isolate_emitter=None):
     '''
     Render one receiver's energy-time curve, shaped (bands, time bins).
 
-    `scene` renders an already-loaded scene, which is what the emitter
-    selection test needs after it has silenced the other emitters.
+    `isolate_emitter` silences every emitter but the one at that index, which
+    has to happen in the same process as the render: a loaded scene cannot
+    cross the boundary, so the worker does both.
     '''
-    import misuka as mi
     import numpy as np
 
-    if scene is None:
-        scene = mi.load_file(xml_path)
-
-    tape = mi.render(scene, spp=spp, seed=0, sensor=sensor)
-    return np.array(tape)[..., 0].T
+    name = f'acoustic-{sensor}-{isolate_emitter}.npy'
+    out = os.path.join(str(out_dir), name)
+    run_worker('render', xml_path=xml_path, variant=ACOUSTIC_VARIANT,
+               out_path=out, spp=spp, sensor=sensor,
+               isolate_emitter=isolate_emitter, acoustic=True)
+    return np.load(out)
 
 
 ######################

@@ -17,14 +17,11 @@ import xml.etree.ElementTree as ET
 import bpy
 import pytest
 
+import shoebox
 from fixtures import (
-    ACOUSTIC_VARIANT,
-    VISUAL_VARIANT,
     add_emission_mesh,
     add_point_light,
     add_receiver,
-    misuka_variant,
-    skip_on_windows,
 )
 
 
@@ -281,14 +278,15 @@ def test_each_receiver_becomes_its_own_perspective_sensor(scene, tmp_path):
 ##  What misuka loads      ##
 #############################
 
-@skip_on_windows
 def test_misuka_loads_a_scene_with_several_emitters_and_receivers(scene, tmp_path):
     '''
     The XML checks say what was written; this says misuka accepts it. Duplicate
     ids and a sensor misuka rejects both pass an XML check and fail here.
-    '''
-    from misuka import load_file
 
+    misuka runs out of process, in the interpreter Blender ships. Instantiating
+    a scene inside Blender faults on Windows below 5.2, and a fault takes the
+    whole run down rather than failing one test. See tests/misuka_worker.py.
+    '''
     add_room()
     add_point_light(100.0, 0.5, location=(1.0, 0.0, 0.0)).name = 'Source_A'
     add_point_light(200.0, 0.25, location=(2.0, 0.0, 0.0)).name = 'Source_B'
@@ -297,29 +295,24 @@ def test_misuka_loads_a_scene_with_several_emitters_and_receivers(scene, tmp_pat
     add_receiver('Recv_B', location=(0.0, 2.0, 0.0))
 
     path, _ = export(scene, tmp_path, 'ACOUSTIC')
+    found = shoebox.inspect_scene(path, shoebox.ACOUSTIC_VARIANT)
 
-    with misuka_variant(ACOUSTIC_VARIANT):
-        mi_scene = load_file(path)
+    assert found['integrator'].startswith('AcousticPathIntegrator')
 
-        assert str(mi_scene.integrator()).startswith('AcousticPathIntegrator')
+    assert len(found['sensors']) == 2, \
+        f"expected two receivers, got {len(found['sensors'])}"
+    for sensor, film in zip(found['sensors'], found['films']):
+        assert sensor.startswith('Microphone')
+        assert film.startswith('Tape')
 
-        sensors = mi_scene.sensors()
-        assert len(sensors) == 2, f'expected two receivers, got {len(sensors)}'
-        for sensor in sensors:
-            assert str(sensor).startswith('Microphone')
-            assert str(sensor.film()).startswith('Tape')
+    # Two point lights and the emission mesh.
+    assert found['emitter_count'] == 3
 
-        # Two point lights and the emission mesh.
-        assert len(mi_scene.emitters()) == 3
-
-        # The room, the two emitter spheres and the emitting mesh.
-        assert len(mi_scene.shapes()) == 4
+    # The room, the two emitter spheres and the emitting mesh.
+    assert found['shape_count'] == 4
 
 
-@skip_on_windows
 def test_misuka_loads_a_visual_scene_with_several_emitters_and_receivers(scene, tmp_path):
-    from misuka import load_file
-
     add_room()
     add_point_light(100.0, 0.5, location=(1.0, 0.0, 0.0)).name = 'Source_A'
     add_point_light(200.0, 0.5, location=(2.0, 0.0, 0.0)).name = 'Source_B'
@@ -328,13 +321,11 @@ def test_misuka_loads_a_visual_scene_with_several_emitters_and_receivers(scene, 
     add_receiver('Recv_B', location=(0.0, 2.0, 0.0))
 
     path, _ = export(scene, tmp_path, 'VISUAL')
+    found = shoebox.inspect_scene(path, shoebox.VISUAL_VARIANT)
 
-    with misuka_variant(VISUAL_VARIANT):
-        mi_scene = load_file(path)
+    assert len(found['sensors']) == 2
+    for sensor in found['sensors']:
+        assert sensor.startswith('PerspectiveCamera')
 
-        assert len(mi_scene.sensors()) == 2
-        for sensor in mi_scene.sensors():
-            assert str(sensor).startswith('PerspectiveCamera')
-
-        # Two point emitters and the emitting mesh.
-        assert len(mi_scene.emitters()) == 3
+    # Two point emitters and the emitting mesh.
+    assert found['emitter_count'] == 3

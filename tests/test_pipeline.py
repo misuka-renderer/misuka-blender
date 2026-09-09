@@ -18,7 +18,6 @@ import numpy as np
 import pytest
 
 import shoebox
-from fixtures import misuka_variant, skip_on_windows
 
 
 RES_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'res')
@@ -37,10 +36,10 @@ def reference_tape():
     return np.load(os.path.join(REFERENCE_DIR, 'acoustic.npy'))
 
 
-def reference_image():
-    import misuka as mi
-
-    return np.array(mi.Bitmap(os.path.join(REFERENCE_DIR, 'visual.exr')))
+def reference_image(out_dir):
+    '''The stored reference render. Reading an .exr needs misuka, so it goes
+    through the worker like everything else that does.'''
+    return shoebox.read_exr(os.path.join(REFERENCE_DIR, 'visual.exr'), out_dir)
 
 
 #################################
@@ -88,7 +87,6 @@ def test_the_saved_scene_holds_two_emitters_and_two_receivers(scene):
 ##  Exporting and loading it back ##
 ####################################
 
-@skip_on_windows
 def test_exporting_several_emitters_keeps_them_separate(scene, tmp_path):
     '''
     Both emitters are at the same Power, so they export identical radiance and
@@ -97,65 +95,51 @@ def test_exporting_several_emitters_keeps_them_separate(scene, tmp_path):
 
     See docs/guide/exporting.md, "Exporting several emitters on purpose".
     '''
-    import misuka as mi
-
     path = shoebox.export(scene, tmp_path, 'ACOUSTIC')
+    found = shoebox.inspect_scene(path, shoebox.ACOUSTIC_VARIANT, optimize=False)
+    keys = found['radiance_keys']
 
-    with misuka_variant(shoebox.ACOUSTIC_VARIANT):
-        mi_scene = mi.load_file(path, optimize=False)
-        keys = [k for k in mi.traverse(mi_scene).keys()
-                if k.endswith('.emitter.radiance.value')]
-
-        assert len(keys) == 2, (
-            f'expected one radiance parameter per emitter, got {keys}. '
-            'Two emitters at the same level merge without optimize=False.')
+    assert len(keys) == 2, (
+        f'expected one radiance parameter per emitter, got {keys}. '
+        'Two emitters at the same level merge without optimize=False.')
 
 
-@skip_on_windows
 def test_a_saved_scene_renders_visually(scene, tmp_path):
     path = shoebox.export(scene, tmp_path, 'VISUAL')
+    image = shoebox.render_visual(path, shoebox.VISUAL_SPP, tmp_path)
 
-    with misuka_variant(shoebox.VISUAL_VARIANT):
-        image = shoebox.render_visual(path, shoebox.VISUAL_SPP)
+    assert np.isfinite(image).all()
+    assert image.min() >= 0.0
+    assert image.max() > 0.0, 'the visual render is black'
 
-        assert np.isfinite(image).all()
-        assert image.min() >= 0.0
-        assert image.max() > 0.0, 'the visual render is black'
-
-        shoebox.assert_close(
-            shoebox.visual_aggregates(image),
-            shoebox.visual_aggregates(reference_image()),
-            label='visual ')
+    shoebox.assert_close(
+        shoebox.visual_aggregates(image),
+        shoebox.visual_aggregates(reference_image(tmp_path)),
+        label='visual ')
 
 
-@skip_on_windows
 def test_a_saved_scene_renders_acoustically(scene, tmp_path):
-    import misuka as mi
-
     path = shoebox.export(scene, tmp_path, 'ACOUSTIC')
+    found = shoebox.inspect_scene(path, shoebox.ACOUSTIC_VARIANT)
 
-    with misuka_variant(shoebox.ACOUSTIC_VARIANT):
-        mi_scene = mi.load_file(path)
+    assert found['integrator'].startswith('AcousticPathIntegrator')
+    assert len(found['sensors']) == 2
+    for sensor, film in zip(found['sensors'], found['films']):
+        assert sensor.startswith('Microphone')
+        assert film.startswith('Tape')
 
-        assert str(mi_scene.integrator()).startswith('AcousticPathIntegrator')
-        assert len(mi_scene.sensors()) == 2
-        for sensor in mi_scene.sensors():
-            assert str(sensor).startswith('Microphone')
-            assert str(sensor.film()).startswith('Tape')
+    tape = shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP, tmp_path)
 
-        tape = shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP, scene=mi_scene)
+    assert np.isfinite(tape).all()
+    assert tape.min() >= 0.0
+    assert tape.sum() > 0.0, 'the acoustic render carries no energy'
 
-        assert np.isfinite(tape).all()
-        assert tape.min() >= 0.0
-        assert tape.sum() > 0.0, 'the acoustic render carries no energy'
-
-        shoebox.assert_close(
-            shoebox.acoustic_aggregates(tape),
-            shoebox.acoustic_aggregates(reference_tape()),
-            label='acoustic ')
+    shoebox.assert_close(
+        shoebox.acoustic_aggregates(tape),
+        shoebox.acoustic_aggregates(reference_tape()),
+        label='acoustic ')
 
 
-@skip_on_windows
 def test_the_render_repeats(scene, tmp_path):
     '''
     The seed is fixed in the saved file, so the same scene rendered twice has
@@ -163,9 +147,13 @@ def test_the_render_repeats(scene, tmp_path):
     '''
     path = shoebox.export(scene, tmp_path, 'ACOUSTIC')
 
-    with misuka_variant(shoebox.ACOUSTIC_VARIANT):
-        first = shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP)
-        second = shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP)
+    first_dir = tmp_path / 'first'
+    second_dir = tmp_path / 'second'
+    first_dir.mkdir()
+    second_dir.mkdir()
+
+    first = shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP, first_dir)
+    second = shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP, second_dir)
 
     assert np.array_equal(first, second)
 
@@ -174,7 +162,6 @@ def test_the_render_repeats(scene, tmp_path):
 ##  Picking one emitter, picking one receiver ##
 #############################################
 
-@skip_on_windows
 def test_each_emitter_can_be_rendered_on_its_own(scene, tmp_path):
     '''
     The workflow documented in docs/guide/exporting.md: export every emitter
@@ -184,35 +171,24 @@ def test_each_emitter_can_be_rendered_on_its_own(scene, tmp_path):
     in when energy arrives rather than in how much there is. That is the case a
     selection that quietly did nothing would otherwise pass.
     '''
-    import misuka as mi
-
     path = shoebox.export(scene, tmp_path, 'ACOUSTIC')
-    curves = []
 
-    with misuka_variant(shoebox.ACOUSTIC_VARIANT):
-        mi_scene = mi.load_file(path, optimize=False)
-        params = mi.traverse(mi_scene)
-        keys = [k for k in params.keys() if k.endswith('.emitter.radiance.value')]
-        assert len(keys) == 2
+    assert len(shoebox.inspect_scene(
+        path, shoebox.ACOUSTIC_VARIANT, optimize=False)['radiance_keys']) == 2
 
-        levels = [params[key] for key in keys]
+    # Silencing the others and rendering has to happen in one process: a loaded
+    # scene cannot cross the boundary, so the worker does both.
+    curves = [shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP, tmp_path,
+                                      isolate_emitter=index)
+              for index in (0, 1)]
 
-        for chosen in keys:
-            for key, level in zip(keys, levels):
-                params[key] = level if key == chosen else 0.0
-            params.update()
-
-            curves.append(shoebox.render_acoustic(
-                path, shoebox.ACOUSTIC_SPP, scene=mi_scene))
-
-    for curve, key in zip(curves, keys):
-        assert curve.sum() > 0.0, f'{key} alone produced no energy'
+    for index, curve in enumerate(curves):
+        assert curve.sum() > 0.0, f'emitter {index} alone produced no energy'
 
     assert not np.array_equal(curves[0], curves[1]), \
         'both emitters gave the same curve, so the selection did nothing'
 
 
-@skip_on_windows
 def test_each_receiver_can_be_rendered_on_its_own(scene, tmp_path):
     '''
     Receivers need no trick: a sensor index picks one.
@@ -220,9 +196,8 @@ def test_each_receiver_can_be_rendered_on_its_own(scene, tmp_path):
     '''
     path = shoebox.export(scene, tmp_path, 'ACOUSTIC')
 
-    with misuka_variant(shoebox.ACOUSTIC_VARIANT):
-        first = shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP, sensor=0)
-        second = shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP, sensor=1)
+    first = shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP, tmp_path, sensor=0)
+    second = shoebox.render_acoustic(path, shoebox.ACOUSTIC_SPP, tmp_path, sensor=1)
 
     assert first.sum() > 0.0 and second.sum() > 0.0
     assert not np.array_equal(first, second), \
