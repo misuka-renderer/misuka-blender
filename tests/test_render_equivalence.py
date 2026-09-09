@@ -21,14 +21,15 @@ import bpy
 import numpy as np
 import pytest
 
-from fixtures import skip_on_windows
+import shoebox
 
 
 RESOLUTION = 64
 SAMPLES = 32
 
-# Every test here renders the exported scene, which means instantiating it.
-pytestmark = skip_on_windows
+# Cycles renders inside Blender; misuka renders in the interpreter Blender
+# ships, because instantiating a scene inside Blender faults on Windows below
+# 5.2. See tests/misuka_worker.py.
 
 
 @pytest.fixture
@@ -126,8 +127,6 @@ def render_cycles(scene, tmp_path):
 
 
 def render_misuka(scene, tmp_path):
-    import misuka as mi
-
     path = os.path.join(str(tmp_path), 'scene.xml')
     # An export needs the misuka engine, but the Cycles render needs Cycles
     # selected, so the scene carries Cycles and borrows misuka to export.
@@ -139,7 +138,7 @@ def render_misuka(scene, tmp_path):
     finally:
         scene.render.engine = 'CYCLES'
 
-    return np.array(mi.render(mi.load_file(path), spp=SAMPLES))[:, :, :3]
+    return shoebox.render_visual(path, SAMPLES, tmp_path)
 
 
 def both(scene, tmp_path):

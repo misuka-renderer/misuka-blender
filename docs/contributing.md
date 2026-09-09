@@ -42,6 +42,18 @@ The same issue makes misuka fault on Windows as soon as a scene is instantiated,
 
 :::
 
+### Why misuka runs in a subprocess
+
+The tests run inside Blender, because they need `bpy` to build and export a scene.
+They hand the misuka half to `tests/misuka_worker.py`, which runs under the interpreter Blender ships.
+
+Instantiating a misuka scene inside `blender.exe` faults on Windows under Blender 3.6, 4.2 and 4.5: misuka needs a newer Microsoft C++ runtime than those versions ship in `blender.crt`, and Blender forces its own copy on everything in its process.
+Blender's bundled `python.exe` is a separate process and loads the system runtime, so it is unaffected on every version.
+See [issue #4](https://github.com/misuka-renderer/misuka-blender/issues/4).
+
+The worker never imports `bpy`, and `tests/shoebox.py` never imports misuka.
+Renders cross the boundary as `.npy` files rather than through the pipe, and the aggregate comparison stays on the Blender side, so the numbers a reference is judged by are computed in one place.
+
 ## Continuous integration
 
 `.github/workflows/test-suite.yml` is the reusable workflow.
