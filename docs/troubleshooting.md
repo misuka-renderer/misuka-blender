@@ -167,6 +167,16 @@ Set the light's **Power** in **Object Data Properties** > **Light / Emitter**.
 That is the only thing that changes the level, and it goes over in watts.
 Changing the radius does not change the level.
 
+## Blender dies when you load a scene in the scripting console
+
+On Windows, under Blender 3.6, 4.2 and 4.5 only.
+`mi.load_file()` inside Blender's scripting console kills the process outright: misuka's Windows build needs a newer Microsoft C++ runtime than those versions ship in `blender.crt`, and Blender forces its own copy on everything running inside it.
+Blender 5.2 ships a new enough one and is unaffected.
+
+Open the scene in a Python outside Blender instead, which is where an exported scene is meant to be rendered.
+Exporting is not affected on any version.
+See [issue #4](https://github.com/misuka-renderer/misuka-blender/issues/4).
+
 ## Where the console is
 
 **Windows**: **Window** > **Toggle System Console**.

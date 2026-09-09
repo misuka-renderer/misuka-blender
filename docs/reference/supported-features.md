@@ -113,6 +113,17 @@ Both start on `gaussian` with a standard deviation of `0.25`, which is a little 
 Sampler and reconstruction filter live on the camera, so every receiver in a scene carries its own.
 The integrator and the film settings are scene-wide.
 
+## Rendering
+
+Not inside Blender. This add-on writes scenes; misuka renders them.
+
+Setting **Render Properties** > **Render Engine** to **misuka** is what makes the acoustic panels appear, and it is required before an export. It does not make F12 render: the engine reports that it does not render and produces nothing.
+
+Render an exported scene with misuka in its own Python, the way
+[the shoebox tutorial](../tutorials/shoebox-room/shoebox-room.md) does.
+
+This is also why the add-on never instantiates a misuka scene. On Windows under Blender 3.6, 4.2 and 4.5 that would fault, because misuka needs a newer C++ runtime than those versions ship in `blender.crt`. Exporting is unaffected.
+
 ## Import
 
 The add-on does not import misuka or Mitsuba scenes.

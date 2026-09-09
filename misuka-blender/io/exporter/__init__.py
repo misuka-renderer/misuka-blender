@@ -28,12 +28,11 @@ class SceneConverter:
     Converts a blender scene to a Mitsuba-compatible dict.
     Either save it as an XML or load it as a scene.
     '''
-    def __init__(self, render=False):
+    def __init__(self):
         self.export_ctx = export_context.ExportContext()
         self.use_selection = False # Only export selection
         self.ignore_background = True
         self.allow_multiple_emitters = False
-        self.render = render
 
     def set_path(self, name):
         self.export_path = name
@@ -130,9 +129,10 @@ class SceneConverter:
             if object_type in {'MESH', 'FONT', 'SURFACE', 'META'}:
                 geometry.export_object(object_instance, self.export_ctx, evaluated_obj.name in particles)
             elif object_type == 'CAMERA':
-                # When rendering inside blender, export only the active camera
-                if (self.render and evaluated_obj.name_full == b_scene.camera.name_full) or not self.render:
-                    camera.export_camera(object_instance, b_scene, self.export_ctx)
+                # Every camera is exported. A room is measured at several
+                # receiver positions, and misuka picks one with a sensor index
+                # at render time.
+                camera.export_camera(object_instance, b_scene, self.export_ctx)
             elif object_type == 'LIGHT':
                 lights.export_light(object_instance, self.export_ctx)
             else:
@@ -166,11 +166,6 @@ class SceneConverter:
         state = parser.parse_dict(config, self.export_ctx.scene_data)
         parser.write_file(state, self.export_path)
         name_scene_plugins(self.export_path)
-
-    def dict_to_scene(self):
-        from misuka import load_dict
-        return load_dict(self.export_ctx.scene_data)
-
 
 def name_scene_plugins(path):
     """
