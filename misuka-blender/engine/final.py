@@ -1,68 +1,41 @@
 import bpy
-import tempfile
-import os
-import numpy as np
-from ..io.exporter import SceneConverter
+
 
 class MitsubaRenderEngine(bpy.types.RenderEngine):
+    '''
+    The misuka engine, which exists so the panels have something to poll.
+
+    The add-on is an exporter. Rendering happens in misuka, outside Blender,
+    against the XML that File > Export writes.
+
+    The engine is still registered, because every misuka panel polls
+    `context.engine in {'MITSUBA'}` and would not draw otherwise. Selecting it
+    is what puts the acoustic settings in front of the user; it is not a
+    statement that Blender can render the scene.
+
+    It deliberately loads nothing. misuka's Windows build needs a newer C++
+    runtime than Blender 3.6, 4.2 and 4.5 ship in `blender.crt`, so
+    instantiating a scene inside Blender dies there with an access violation.
+    Since no part of exporting needs a scene object, the add-on never builds
+    one, and that whole class of failure is out of reach.
+
+    See https://github.com/misuka-renderer/misuka-blender/issues/4.
+    '''
 
     bl_idname = "MITSUBA"
     bl_label = "misuka"
+    # Blender asks an engine that claims previews to render material and world
+    # thumbnails. This one renders nothing, so it claims nothing.
     bl_use_preview = False
 
-    # Init is called whenever a new render engine instance is created. Multiple
-    # instances may exist at the same time, for example for a viewport and final
-    # render.
-    def __init__(self):
-        self.scene_data = None
-        self.draw_data = None
-        self.converter = SceneConverter(render=True)
-
-    # When the render engine instance is destroy, this is called. Clean up any
-    # render engine data here, for example stopping running render threads.
-    def __del__(self):
-        pass
-
-    # This is the method called by Blender for both final renders (F12) and
-    # small preview for materials, world and lights.
     def render(self, depsgraph):
-        from misuka import set_variant
-        b_scene = depsgraph.scene
-        set_variant(b_scene.mitsuba.variant)
-        from misuka import Thread
+        '''
+        Say what to do instead, and render nothing.
 
-        scale = b_scene.render.resolution_percentage / 100.0
-        self.size_x = int(b_scene.render.resolution_x * scale)
-        self.size_y = int(b_scene.render.resolution_y * scale)
-
-        # Temporary workaround as long as the dict creation writes stuff to dict
-        with tempfile.TemporaryDirectory() as dummy_dir:
-            filepath = os.path.join(dummy_dir, "scene.xml")
-            self.converter.set_path(filepath)
-            self.converter.scene_to_dict(depsgraph, bpy.context.window_manager)
-            Thread.thread().file_resolver().prepend(dummy_dir)
-            mts_scene = self.converter.dict_to_scene()
-
-        sensor = mts_scene.sensors()[0]
-        mts_scene.integrator().render(mts_scene, sensor)
-        render_results = sensor.film().bitmap().split()
-
-        for result in render_results:
-            buf_name = result[0].replace("<root>", "Main")
-            channel_count = result[1].channel_count() if result[1].channel_count() != 2 else 3
-
-            self.add_pass(buf_name, channel_count, ''.join([f.name.split('.')[-1] for f in result[1].struct_()]))
-
-        blender_result = self.begin_result(0, 0, self.size_x, self.size_y)
-
-        for result in render_results:
-            render_pixels = np.array(result[1])
-            if result[1].channel_count() == 2:
-                # Add a dummy third channel
-                render_pixels = np.dstack((render_pixels, np.zeros((*render_pixels.shape[:2], 1))))
-            #render_pixels = np.array(render.convert(Bitmap.PixelFormat.RGBA, Struct.Type.Float32, srgb_gamma=False))
-            # Here we write the pixel values to the RenderResult
-            buf_name = result[0].replace("<root>", "Main")
-            layer = blender_result.layers[0].passes[buf_name]
-            layer.rect = np.flip(render_pixels, 0).reshape((self.size_x*self.size_y, -1))
-        self.end_result(blender_result)
+        Returning quietly would leave the blank render window that this used to
+        produce, which reads as a broken add-on rather than a deliberate limit.
+        '''
+        self.report(
+            {'ERROR'},
+            "misuka does not render inside Blender. Export the scene with "
+            "File > Export > misuka (.xml), then render it with misuka.")

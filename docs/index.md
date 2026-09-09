@@ -10,7 +10,9 @@ It exports Blender scenes to the [misuka renderer](https://github.com/misuka-ren
   Bands you set are marked, so measured values stay distinguishable from filled-in ones.
 - **Acoustic Index lookup.** Name a material after a database entry on [acousticindex.com](https://acousticindex.com) and pull its measured coefficients straight into Blender.
 
-<!-- Rendering inside Blender is not supported. -->
+Rendering inside Blender is not supported.
+Set the render engine to misuka so the acoustic panels appear, then export the scene and render it with misuka.
+See [Rendering](reference/supported-features.md#rendering).
 
 ## Where to go next
 
