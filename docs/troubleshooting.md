@@ -183,6 +183,20 @@ This is a real crash, not a teardown fault, and there is nothing the add-on can 
 misuka's Windows build needs a newer Microsoft C++ runtime than those Blender versions ship in their `blender.crt` folder, and Blender forces its own copy on everything running inside it.
 Blender 5.2 ships a new enough one.
 
+Every DLL in the misuka 0.1.0 Windows wheel is linked against MSVC toolset **14.51**, read from the PE header.
+What each Blender supplies in `blender.crt`, measured on `windows-latest`:
+
+| Blender | `msvcp140.dll` and friends | Loading a scene |
+|---|---|---|
+| 3.6 | 14.29.30139.0 | faults |
+| 4.2 | 14.29.30139.0 | faults |
+| 4.5 | 14.29.30139.0 | faults |
+| 5.2 | 14.44.35211.0 | works |
+| (system, outside Blender) | 14.51.36247.0 | works |
+
+So the requirement sits above 14.29 and at or below 14.44.
+A wheel built against a toolset in that range, rather than 14.51, would run under every Blender in the matrix.
+
 Exporting still works on every version, and the files on disk are correct.
 It is only reading a scene back that dies, so you can export from any version and open the result under Blender 5.2, or with a plain Python outside Blender.
 

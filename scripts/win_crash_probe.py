@@ -30,7 +30,8 @@ import subprocess
 import sys
 import tempfile
 
-PROBES = ("import", "ply", "plyst", "plybin", "plybinst", "scene", "acoustic",
+PROBES = ("import", "ply", "plyst", "plybin", "plybinst", "obj", "objst",
+          "scene", "objscene", "nomesh", "acoustic", "acousticobj",
           "preload", "bitmap", "drjit", "noatexit", "numpy", "crt")
 
 
@@ -75,6 +76,42 @@ def write_ply(path, binary, texcoords):
     return path
 
 
+def write_obj(path, texcoords):
+    """Write the same two-triangle quad as write_ply, as OBJ.
+
+    OBJ is text only, so there is no binary axis here. Whether texture
+    coordinates are present is kept, because that is the axis that separated
+    the PLY cases.
+    """
+    verts = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0)]
+    uvs = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+    faces = [(0, 1, 2), (0, 2, 3)]
+
+    lines = ["o quad"]
+    lines += ["v %.9g %.9g %.9g" % v for v in verts]
+    if texcoords:
+        lines += ["vt %.9g %.9g" % uv for uv in uvs]
+    for tri in faces:
+        if texcoords:
+            lines.append("f " + " ".join("%d/%d" % (i + 1, i + 1) for i in tri))
+        else:
+            lines.append("f " + " ".join(str(i + 1) for i in tri))
+
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return path
+
+
+def _load_obj(module, texcoords):
+    mi = __import__(module)
+    mi.set_variant("scalar_rgb")
+
+    path = write_obj(os.path.join(tempfile.mkdtemp(), "quad.obj"), texcoords)
+    scene = mi.load_dict({"type": "scene", "s": {"type": "obj", "filename": path}})
+    shape = scene.shapes()[0]
+    print(f"loaded {shape.face_count()} faces, {shape.vertex_count()} vertices")
+
+
 def _load_ply(module, binary, texcoords):
     mi = __import__(module)
     mi.set_variant("scalar_rgb")
@@ -117,6 +154,50 @@ def probe_plybinst(module):
     _load_ply(module, binary=True, texcoords=True)
 
 
+def probe_obj(module):
+    """OBJ, positions only. Does the mesh format change anything?"""
+    _load_obj(module, texcoords=False)
+
+
+def probe_objst(module):
+    """OBJ with texture coordinates, which is what an exporter would write."""
+    _load_obj(module, texcoords=True)
+
+
+def probe_nomesh(module):
+    """A scene with no mesh file at all: an analytic sphere.
+
+    This is the control. If this faults too, then loading a mesh is not the
+    trigger and no mesh format can be a workaround. If it survives while the
+    mesh scenes die, the mesh loader is implicated and OBJ is worth trying.
+    """
+    mi = __import__(module)
+    mi.set_variant("scalar_rgb")
+
+    scene = mi.load_dict({"type": "scene", "s": {"type": "sphere"}})
+    print(f"loaded {len(scene.shapes())} shape(s), no mesh file")
+
+
+def probe_objscene(module):
+    """Load a scene from XML whose shape is an OBJ, the way probe_scene does."""
+    mi = __import__(module)
+    mi.set_variant("scalar_rgb")
+
+    work = tempfile.mkdtemp()
+    write_obj(os.path.join(work, "quad.obj"), texcoords=True)
+    xml = os.path.join(work, "scene.xml")
+    with open(xml, "w") as f:
+        f.write(
+            '<scene version="3.0.0">\n'
+            '  <shape type="obj">\n'
+            '    <string name="filename" value="quad.obj"/>\n'
+            '  </shape>\n'
+            '</scene>\n')
+
+    scene = mi.load_file(xml)
+    print(f"loaded {len(scene.shapes())} shape(s)")
+
+
 def probe_scene(module):
     """Load a scene from XML through load_file, as a user would.
 
@@ -141,19 +222,25 @@ def probe_scene(module):
     print(f"loaded {len(scene.shapes())} shape(s)")
 
 
-def probe_acoustic(module):
+def _acoustic_scene(module, mesh_format):
     """Load an acoustic scene of the shape the add-on exports.
 
     Same plugin set as a real export: an acoustic_path integrator, a microphone
-    with a tape film, an acousticbsdf, and a ply mesh. This is what
-    test_round_trip_acoustic loads, and what crashes inside Blender on Windows
-    with 3.6, 4.2 and 4.5.
+    with a tape film, an acousticbsdf, and one mesh. This is what the pipeline
+    tests load, and what crashes inside Blender on Windows with 3.6, 4.2 and
+    4.5. `mesh_format` is the only thing that varies, so a difference between
+    the two runs is the mesh loader and nothing else.
     """
     mi = __import__(module)
     mi.set_variant("scalar_rgb")
 
     work = tempfile.mkdtemp()
-    write_ply(os.path.join(work, "quad.ply"), binary=True, texcoords=True)
+    if mesh_format == "obj":
+        mesh_file = "quad.obj"
+        write_obj(os.path.join(work, mesh_file), texcoords=True)
+    else:
+        mesh_file = "quad.ply"
+        write_ply(os.path.join(work, mesh_file), binary=True, texcoords=True)
     bands = ", ".join(f"{f}:0.5" for f in
                       (31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000))
     xml = os.path.join(work, "acoustic.xml")
@@ -193,8 +280,8 @@ def probe_acoustic(module):
             <float name="specular_lobe_width" value="0.001" />
         </bsdf>
     </bsdf>
-    <shape type="ply" name="mesh" id="mesh">
-        <string name="filename" value="quad.ply" />
+    <shape type="{mesh_format}" name="mesh" id="mesh">
+        <string name="filename" value="{mesh_file}" />
         <boolean name="face_normals" value="true" />
         <ref name="bsdf" id="mat" />
     </shape>
@@ -202,8 +289,22 @@ def probe_acoustic(module):
 """)
 
     scene = mi.load_file(xml)
-    print(f"loaded {len(scene.shapes())} shapes, "
+    print(f"loaded {len(scene.shapes())} shapes from {mesh_file}, "
           f"sensor {str(scene.sensors()[0]).splitlines()[0]}")
+
+
+def probe_acoustic(module):
+    """The acoustic scene with a binary PLY mesh, as the exporter writes it."""
+    _acoustic_scene(module, "ply")
+
+
+def probe_acousticobj(module):
+    """The same acoustic scene with an OBJ mesh instead.
+
+    If this survives where probe_acoustic dies, exporting OBJ is a workaround
+    for the Windows fault and not merely a convenience.
+    """
+    _acoustic_scene(module, "obj")
 
 
 def probe_preload(module):
