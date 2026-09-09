@@ -33,12 +33,10 @@ python scripts/blender_downloader.py 4.2 -o blender
 
 :::{note}
 
-Blender faults on Windows while tearing misuka down, after every test has already run.
-See [issue #72](https://github.com/misuka-renderer/misuka-blender/issues/72).
+Blender faults on Windows while tearing drjit down, after every test has already run.
+`import drjit` on its own is enough to trigger it, so neither the add-on nor misuka causes it.
+See [issue #4](https://github.com/misuka-renderer/misuka-blender/issues/4).
 CI judges the run on pytest's own report through `scripts/check_pytest_report.py`, not on Blender's exit code.
-
-The same issue makes misuka fault on Windows as soon as a scene is instantiated, so tests that load an exported scene carry the `skip_on_windows` mark from `tests/fixtures/__init__.py`.
-`tests/test_render_equivalence.py`, which renders the same scene in Cycles and in misuka and compares the two images, is skipped there in full.
 
 :::
 
