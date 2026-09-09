@@ -1,11 +1,11 @@
 import bpy
-from .final import MitsubaRenderEngine
+from .final import MisukaRenderEngine
 
 def get_panels():
     # Blender builds the node editor copies of a panel with a plain dict copy,
     # so a panel and its NODE_ twin share one COMPAT_ENGINES set object and both
     # land in the sweep below. Excluding only one name therefore does nothing:
-    # the loop reaches the other and writes MITSUBA into the set they share.
+    # the loop reaches the other and writes MISUKA into the set they share.
     # Every exclusion needs both names. Cycles does the same.
     exclude_panels = {
         'VIEWLAYER_PT_filter',
@@ -14,7 +14,7 @@ def get_panels():
         'RENDER_PT_color_management',
         'RENDER_PT_freestyle',
         # engine.panels draws these instead. DATA_PT_light is only the light
-        # type row, which MITSUBA_LIGHT_PT_light already has, and DATA_PT_spot
+        # type row, which MISUKA_LIGHT_PT_light already has, and DATA_PT_spot
         # parents to the EEVEE panel, so it never draws under misuka anyway.
         # NODE_DATA_PT_spot does not exist in 4.2 or 5.2; naming it costs
         # nothing and keeps the pair complete if Blender adds it.
@@ -30,7 +30,7 @@ def get_panels():
 
     def is_excluded(panel):
         # Blender does not draw a child panel whose parent is hidden, so
-        # tagging one whose parent we excluded only adds MITSUBA to something
+        # tagging one whose parent we excluded only adds MISUKA to something
         # that can never appear. Walk up rather than naming the children:
         # Blender reworked the color management ones between 4.2 and 5.2.
         seen = set()
@@ -54,14 +54,14 @@ def get_panels():
 def register():
     from . import properties
     properties.register()
-    bpy.utils.register_class(MitsubaRenderEngine)
+    bpy.utils.register_class(MisukaRenderEngine)
     for panel in get_panels():
-        panel.COMPAT_ENGINES.add('MITSUBA')
+        panel.COMPAT_ENGINES.add('MISUKA')
 
 def unregister():
     from . import properties
     properties.unregister()
-    bpy.utils.unregister_class(MitsubaRenderEngine)
+    bpy.utils.unregister_class(MisukaRenderEngine)
     for panel in get_panels():
-        if 'MITSUBA' in panel.COMPAT_ENGINES:
-            panel.COMPAT_ENGINES.remove('MITSUBA')
+        if 'MISUKA' in panel.COMPAT_ENGINES:
+            panel.COMPAT_ENGINES.remove('MISUKA')

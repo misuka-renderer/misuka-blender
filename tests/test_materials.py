@@ -65,7 +65,7 @@ def export_scene(mat, tmp_path):
     Either export mode needs the misuka engine, since that is where the
     settings it writes live.
     '''
-    bpy.context.scene.render.engine = 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
 
     for obj in list(bpy.data.objects):
         bpy.data.objects.remove(obj, do_unlink=True)
@@ -75,7 +75,7 @@ def export_scene(mat, tmp_path):
 
     path = os.path.join(str(tmp_path), 'scene.xml')
 
-    assert bpy.ops.export_scene.mitsuba(
+    assert bpy.ops.export_scene.misuka(
         filepath=path, export_mode='VISUAL') == {'FINISHED'}
 
     return ET.parse(path).getroot()

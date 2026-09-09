@@ -52,12 +52,12 @@ def test_the_saved_scene_opens_with_its_misuka_settings(scene):
     add-on is registered when the file loads. A scene that opened without them
     would silently export as something else.
     '''
-    assert scene.render.engine == 'MITSUBA'
+    assert scene.render.engine == 'MISUKA'
     assert (scene.render.resolution_x, scene.render.resolution_y) == shoebox.RESOLUTION
 
-    assert scene.mitsuba.acoustic_band_resolution == 'OCTAVE'
-    assert scene.mitsuba.acoustic_max_time == pytest.approx(shoebox.ACOUSTIC_MAX_TIME)
-    assert scene.mitsuba.acoustic_sampling_rate == pytest.approx(shoebox.SAMPLING_RATE)
+    assert scene.misuka.acoustic_band_resolution == 'OCTAVE'
+    assert scene.misuka.acoustic_max_time == pytest.approx(shoebox.ACOUSTIC_MAX_TIME)
+    assert scene.misuka.acoustic_sampling_rate == pytest.approx(shoebox.SAMPLING_RATE)
 
 
 def test_both_surfaces_keep_their_own_coefficients(scene):

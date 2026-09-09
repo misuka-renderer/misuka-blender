@@ -27,7 +27,7 @@ from . import io, engine
 from .io import draw_paragraphs
 from .docs import draw_help_button
 
-DEPS_MITSUBA_VERSION = '0.1.0'
+DEPS_MISUKA_VERSION = '0.1.0'
 
 # Fallback index for the releases that land here before they reach PyPI.
 TESTPYPI_INDEX_URL = 'https://test.pypi.org/simple/'
@@ -35,63 +35,63 @@ TESTPYPI_INDEX_URL = 'https://test.pypi.org/simple/'
 def get_addon_preferences(context):
     return context.preferences.addons[__name__].preferences
 
-def init_mitsuba(context):
-    # Make sure we can load mitsuba from blender
+def init_misuka(context):
+    # Make sure we can load misuka from blender
     try:
         os.environ['DRJIT_NO_RTLD_DEEPBIND'] = 'True'
-        should_reload_mitsuba = 'misuka' in sys.modules
-        import misuka as mitsuba
-        # If mitsuba was already loaded and we change the path, we need to reload it, since the import above will be ignored
-        if should_reload_mitsuba:
+        should_reload_misuka = 'misuka' in sys.modules
+        import misuka
+        # If misuka was already loaded and we change the path, we need to reload it, since the import above will be ignored
+        if should_reload_misuka:
             import importlib
-            importlib.reload(mitsuba)
-        mitsuba.set_variant('scalar_rgb')
+            importlib.reload(misuka)
+        misuka.set_variant('scalar_rgb')
         return True
     except ModuleNotFoundError:
         return False
 
-def try_register_mitsuba(context):
+def try_register_misuka(context):
     prefs = get_addon_preferences(context)
-    prefs.mitsuba_dependencies_status_message = ''
+    prefs.misuka_dependencies_status_message = ''
 
-    could_init_mitsuba = False
-    if prefs.using_mitsuba_custom_path:
+    could_init_misuka = False
+    if prefs.using_misuka_custom_path:
         update_additional_custom_paths(prefs, context)
-        could_init_mitsuba = init_mitsuba(context)
-        if could_init_mitsuba:
-            import misuka as mitsuba
-            prefs.mitsuba_custom_version = mitsuba.__version__
-            if prefs.has_valid_mitsuba_custom_version:
-                prefs.mitsuba_dependencies_status_message = f'Found custom misuka v{prefs.mitsuba_custom_version}.'
+        could_init_misuka = init_misuka(context)
+        if could_init_misuka:
+            import misuka
+            prefs.misuka_custom_version = misuka.__version__
+            if prefs.has_valid_misuka_custom_version:
+                prefs.misuka_dependencies_status_message = f'Found custom misuka v{prefs.misuka_custom_version}.'
             else:
-                prefs.mitsuba_dependencies_status_message = f'Found custom misuka v{prefs.mitsuba_custom_version}. Supported version is v{DEPS_MITSUBA_VERSION}.'
+                prefs.misuka_dependencies_status_message = f'Found custom misuka v{prefs.misuka_custom_version}. Supported version is v{DEPS_MISUKA_VERSION}.'
         else:
-            prefs.mitsuba_dependencies_status_message = 'Failed to load custom misuka. Please verify the path to the build directory.'
+            prefs.misuka_dependencies_status_message = 'Failed to load custom misuka. Please verify the path to the build directory.'
     elif prefs.has_pip_dependencies:
         if prefs.has_valid_dependencies_version:
-            could_init_mitsuba = init_mitsuba(context)
-            if could_init_mitsuba:
-                import misuka as mitsuba
-                prefs.mitsuba_dependencies_status_message = f'Found pip misuka v{mitsuba.__version__}.'
+            could_init_misuka = init_misuka(context)
+            if could_init_misuka:
+                import misuka
+                prefs.misuka_dependencies_status_message = f'Found pip misuka v{misuka.__version__}.'
             else:
-                prefs.mitsuba_dependencies_status_message = 'Failed to load misuka package.'
+                prefs.misuka_dependencies_status_message = 'Failed to load misuka package.'
         else:
-            prefs.mitsuba_dependencies_status_message = f'Found pip misuka v{prefs.installed_dependencies_version}. Supported version is v{DEPS_MITSUBA_VERSION}.'
+            prefs.misuka_dependencies_status_message = f'Found pip misuka v{prefs.installed_dependencies_version}. Supported version is v{DEPS_MISUKA_VERSION}.'
     else:
-        prefs.mitsuba_dependencies_status_message = 'misuka dependencies not installed.'
+        prefs.misuka_dependencies_status_message = 'misuka dependencies not installed.'
 
-    prefs.is_mitsuba_initialized = could_init_mitsuba
+    prefs.is_misuka_initialized = could_init_misuka
 
-    if could_init_mitsuba:
+    if could_init_misuka:
         io.register()
         engine.register()
 
-    return could_init_mitsuba
+    return could_init_misuka
 
-def try_unregister_mitsuba():
+def try_unregister_misuka():
     '''
     Try unregistering Addon classes.
-    This may fail if Mitsuba wasn't found, hence the try catch guard
+    This may fail if Misuka wasn't found, hence the try catch guard
     '''
     try:
         io.unregister()
@@ -100,9 +100,9 @@ def try_unregister_mitsuba():
     except RuntimeError:
         return False
 
-def try_reload_mitsuba(context):
-    try_unregister_mitsuba()
-    if try_register_mitsuba(context):
+def try_reload_misuka(context):
+    try_unregister_misuka()
+    if try_register_misuka(context):
         # Save user preferences
         bpy.ops.wm.save_userpref()
 
@@ -168,7 +168,7 @@ def install_dependencies_from_testpypi():
     in .github/workflows/test-suite.yml.
     '''
     returncode, output = run_pip(pip_install_args(
-        f'misuka=={DEPS_MITSUBA_VERSION}',
+        f'misuka=={DEPS_MISUKA_VERSION}',
         index_url=TESTPYPI_INDEX_URL,
         no_deps=True,
         force_reinstall=True))
@@ -205,7 +205,7 @@ def last_log_line(text):
 def offer_testpypi_fallback(operator, returncode, output):
     '''Report a failed PyPI install and open the TestPyPI retry dialog.'''
     operator.report({'ERROR'}, f'Failed to install misuka with return code {returncode}.')
-    bpy.ops.mitsuba.pip_install_from_testpypi('INVOKE_DEFAULT', error_log=output)
+    bpy.ops.misuka.pip_install_from_testpypi('INVOKE_DEFAULT', error_log=output)
     return {'CANCELLED'}
 
 def check_pip_dependencies(context):
@@ -241,7 +241,7 @@ def clean_additional_custom_paths(self, context):
         os.environ['PATH'] = os.pathsep.join(items)
 
 def update_additional_custom_paths(self, context):
-    build_path = bpy.path.abspath(self.mitsuba_custom_path)
+    build_path = bpy.path.abspath(self.misuka_custom_path)
     if len(build_path) > 0:
         clean_additional_custom_paths(self, context)
 
@@ -257,8 +257,8 @@ def update_additional_custom_paths(self, context):
             #       supersede the pip version
             sys.path.insert(0, self.additional_python_path)
 
-class MITSUBA_OT_install_pip_dependencies(Operator):
-    bl_idname = 'mitsuba.install_pip_dependencies'
+class MISUKA_OT_install_pip_dependencies(Operator):
+    bl_idname = 'misuka.install_pip_dependencies'
     bl_label = 'Install misuka pip dependencies'
     bl_description = 'Use pip to install the add-on\'s required dependencies'
 
@@ -268,18 +268,18 @@ class MITSUBA_OT_install_pip_dependencies(Operator):
         return not prefs.has_pip_dependencies or not prefs.has_valid_dependencies_version
 
     def execute(self, context):
-        returncode, output = run_pip(pip_install_args(f'misuka=={DEPS_MITSUBA_VERSION}', force_reinstall=True))
+        returncode, output = run_pip(pip_install_args(f'misuka=={DEPS_MISUKA_VERSION}', force_reinstall=True))
         if returncode != 0:
             return offer_testpypi_fallback(self, returncode, output)
 
         check_pip_dependencies(context)
 
-        try_reload_mitsuba(context)
+        try_reload_misuka(context)
 
         return {'FINISHED'}
 
-class MITSUBA_OT_upgrade_pip_dependencies(Operator):
-    bl_idname = 'mitsuba.upgrade_pip_dependencies'
+class MISUKA_OT_upgrade_pip_dependencies(Operator):
+    bl_idname = 'misuka.upgrade_pip_dependencies'
     bl_label = 'Upgrade misuka pip dependencies'
     bl_description = 'Use pip to upgrade misuka to the version supported by this add-on'
 
@@ -289,18 +289,18 @@ class MITSUBA_OT_upgrade_pip_dependencies(Operator):
         return prefs.has_pip_dependencies
 
     def execute(self, context):
-        returncode, output = run_pip(pip_install_args(f'misuka=={DEPS_MITSUBA_VERSION}', upgrade=True))
+        returncode, output = run_pip(pip_install_args(f'misuka=={DEPS_MISUKA_VERSION}', upgrade=True))
         if returncode != 0:
             return offer_testpypi_fallback(self, returncode, output)
 
         check_pip_dependencies(context)
 
-        try_reload_mitsuba(context)
+        try_reload_misuka(context)
 
         return {'FINISHED'}
 
-class MITSUBA_OT_uninstall_pip_dependencies(Operator):
-    bl_idname = 'mitsuba.uninstall_pip_dependencies'
+class MISUKA_OT_uninstall_pip_dependencies(Operator):
+    bl_idname = 'misuka.uninstall_pip_dependencies'
     bl_label = 'Uninstall misuka pip dependencies'
     bl_description = 'Use pip to uninstall the misuka package'
 
@@ -321,20 +321,20 @@ class MITSUBA_OT_uninstall_pip_dependencies(Operator):
                                    f'Restarting Blender may be required first: {last_log_line(output)}')
             return {'CANCELLED'}
 
-        try_unregister_mitsuba()
+        try_unregister_misuka()
 
         check_pip_dependencies(context)
 
         # The extension module stays loaded in this interpreter, so the add-on
         # cannot honestly claim a clean state until Blender restarts.
-        prefs.is_mitsuba_initialized = False
+        prefs.is_misuka_initialized = False
         prefs.require_restart = True
         bpy.ops.wm.save_userpref()
 
         return {'FINISHED'}
 
-class MITSUBA_OT_pip_install_from_testpypi(Operator):
-    bl_idname = 'mitsuba.pip_install_from_testpypi'
+class MISUKA_OT_pip_install_from_testpypi(Operator):
+    bl_idname = 'misuka.pip_install_from_testpypi'
     bl_label = 'Retry the misuka install from TestPyPI'
     bl_description = 'Retry the failed install, taking misuka from TestPyPI'
 
@@ -361,24 +361,24 @@ class MITSUBA_OT_pip_install_from_testpypi(Operator):
 
         check_pip_dependencies(context)
 
-        try_reload_mitsuba(context)
+        try_reload_misuka(context)
 
         return {'FINISHED'}
 
-def update_using_mitsuba_custom_path(self, context):
+def update_using_misuka_custom_path(self, context):
     self.require_restart = True
-    if self.using_mitsuba_custom_path:
-        update_mitsuba_custom_path(self, context)
+    if self.using_misuka_custom_path:
+        update_misuka_custom_path(self, context)
     else:
         clean_additional_custom_paths(self, context)
 
-def update_mitsuba_custom_path(self, context):
-    if self.is_mitsuba_initialized:
+def update_misuka_custom_path(self, context):
+    if self.is_misuka_initialized:
         self.require_restart = True
-    if self.using_mitsuba_custom_path and len(self.mitsuba_custom_path) > 0:
+    if self.using_misuka_custom_path and len(self.misuka_custom_path) > 0:
         update_additional_custom_paths(self, context)
-        if not self.is_mitsuba_initialized:
-            try_reload_mitsuba(context)
+        if not self.is_misuka_initialized:
+            try_reload_misuka(context)
 
 def release_version(version_string):
     '''Leading numeric components of a version, e.g. '0.1.0.dev1+gabc' -> (0, 1, 0).
@@ -395,11 +395,11 @@ def release_version(version_string):
 
 def update_installed_dependencies_version(self, context):
     self.has_valid_dependencies_version = \
-        release_version(self.installed_dependencies_version) == release_version(DEPS_MITSUBA_VERSION)
+        release_version(self.installed_dependencies_version) == release_version(DEPS_MISUKA_VERSION)
 
-def update_mitsuba_custom_version(self, context):
-    self.has_valid_mitsuba_custom_version = \
-        release_version(self.mitsuba_custom_version) == release_version(DEPS_MITSUBA_VERSION)
+def update_misuka_custom_version(self, context):
+    self.has_valid_misuka_custom_version = \
+        release_version(self.misuka_custom_version) == release_version(DEPS_MISUKA_VERSION)
 
 # misuka is licensed separately from this add-on, and its license restricts
 # use rather than only redistribution. The notice sits beside the install
@@ -413,7 +413,7 @@ MISUKA_LICENSE_NOTICE = (
 )
 
 
-class MitsubaPreferences(AddonPreferences):
+class MisukaPreferences(AddonPreferences):
     bl_idname = __name__
 
     acousticindex_api_key: StringProperty(
@@ -421,7 +421,7 @@ class MitsubaPreferences(AddonPreferences):
         subtype='PASSWORD'
     )
 
-    is_mitsuba_initialized : BoolProperty(
+    is_misuka_initialized : BoolProperty(
         name = 'Is misuka initialized',
     )
 
@@ -439,7 +439,7 @@ class MitsubaPreferences(AddonPreferences):
         name = 'Has the correct version of dependencies'
     )
 
-    mitsuba_dependencies_status_message : StringProperty(
+    misuka_dependencies_status_message : StringProperty(
         name = 'misuka dependencies status message',
         default = '',
     )
@@ -450,26 +450,26 @@ class MitsubaPreferences(AddonPreferences):
 
     # Advanced settings
 
-    using_mitsuba_custom_path : BoolProperty(
+    using_misuka_custom_path : BoolProperty(
         name = 'Using custom misuka path',
-        update = update_using_mitsuba_custom_path,
+        update = update_using_misuka_custom_path,
     )
 
-    mitsuba_custom_path : StringProperty(
+    misuka_custom_path : StringProperty(
         name = 'Custom misuka path',
         description = 'Path to the custom misuka build directory',
         default = '',
         subtype = 'DIR_PATH',
-        update = update_mitsuba_custom_path,
+        update = update_misuka_custom_path,
     )
 
-    mitsuba_custom_version : StringProperty(
+    misuka_custom_version : StringProperty(
         name = 'Custom misuka build version',
         default = '',
-        update = update_mitsuba_custom_version,
+        update = update_misuka_custom_version,
     )
 
-    has_valid_mitsuba_custom_version : BoolProperty(
+    has_valid_misuka_custom_version : BoolProperty(
         name = 'Has the correct version of custom misuka build'
     )
 
@@ -493,20 +493,20 @@ class MitsubaPreferences(AddonPreferences):
         icon = 'ERROR'
         status.alert = True
         if self.require_restart:
-            self.mitsuba_dependencies_status_message = 'A restart is required to apply the changes.'
-        elif self.is_mitsuba_initialized and (not self.using_mitsuba_custom_path or (self.using_mitsuba_custom_path and self.has_valid_mitsuba_custom_version)):
+            self.misuka_dependencies_status_message = 'A restart is required to apply the changes.'
+        elif self.is_misuka_initialized and (not self.using_misuka_custom_path or (self.using_misuka_custom_path and self.has_valid_misuka_custom_version)):
             icon = 'CHECKMARK'
             status.alert = False
-        status.label(text=self.mitsuba_dependencies_status_message, icon=icon)
+        status.label(text=self.misuka_dependencies_status_message, icon=icon)
         draw_help_button(row, "installation.html")
 
         operator_text = 'Install dependencies'
         if self.has_pip_dependencies and not self.has_valid_dependencies_version:
             operator_text = 'Update dependencies'
         row = layout.row(align=True)
-        row.operator(MITSUBA_OT_install_pip_dependencies.bl_idname, text=operator_text)
-        row.operator(MITSUBA_OT_upgrade_pip_dependencies.bl_idname, text='Upgrade dependencies')
-        row.operator(MITSUBA_OT_uninstall_pip_dependencies.bl_idname, text='Uninstall dependencies')
+        row.operator(MISUKA_OT_install_pip_dependencies.bl_idname, text=operator_text)
+        row.operator(MISUKA_OT_upgrade_pip_dependencies.bl_idname, text='Upgrade dependencies')
+        row.operator(MISUKA_OT_uninstall_pip_dependencies.bl_idname, text='Uninstall dependencies')
 
         box = layout.box()
         box.label(text='misuka License', icon='INFO')
@@ -517,9 +517,9 @@ class MitsubaPreferences(AddonPreferences):
 
         box = layout.box()
         box.label(text='Advanced Settings')
-        box.prop(self, 'using_mitsuba_custom_path', text=f'Use custom misuka path') #(Supported version is v{DEPS_MITSUBA_VERSION})
-        if self.using_mitsuba_custom_path:
-            box.prop(self, 'mitsuba_custom_path')
+        box.prop(self, 'using_misuka_custom_path', text=f'Use custom misuka path') #(Supported version is v{DEPS_MISUKA_VERSION})
+        if self.using_misuka_custom_path:
+            box.prop(self, 'misuka_custom_path')
 
         # --- AcousticIndex API ---
         box = layout.box()
@@ -527,11 +527,11 @@ class MitsubaPreferences(AddonPreferences):
         box.prop(self, "acousticindex_api_key")
 
 classes = (
-    MITSUBA_OT_install_pip_dependencies,
-    MITSUBA_OT_upgrade_pip_dependencies,
-    MITSUBA_OT_uninstall_pip_dependencies,
-    MITSUBA_OT_pip_install_from_testpypi,
-    MitsubaPreferences,
+    MISUKA_OT_install_pip_dependencies,
+    MISUKA_OT_upgrade_pip_dependencies,
+    MISUKA_OT_uninstall_pip_dependencies,
+    MISUKA_OT_pip_install_from_testpypi,
+    MisukaPreferences,
 )
 
 def register():
@@ -546,11 +546,11 @@ def register():
         raise RuntimeError('Cannot activate misuka-blender add-on. Python pip module cannot be initialized.')
 
     check_pip_dependencies(context)
-    if try_register_mitsuba(context):
-        import misuka as mitsuba
-        print(f'misuka-blender v{".".join(str(e) for e in bl_info["version"])}{bl_info["warning"] if "warning" in bl_info else ""} registered (with misuka v{mitsuba.__version__})')
+    if try_register_misuka(context):
+        import misuka
+        print(f'misuka-blender v{".".join(str(e) for e in bl_info["version"])}{bl_info["warning"] if "warning" in bl_info else ""} registered (with misuka v{misuka.__version__})')
 
 def unregister():
     for cls in classes:
         unregister_class(cls)
-    try_unregister_mitsuba()
+    try_unregister_misuka()

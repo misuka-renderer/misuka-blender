@@ -25,7 +25,7 @@ def export_texture_node(export_ctx, tex_node):
     #TODO: texture transform (mapping node)
     colorspace = tex_node.image.colorspace_settings.name
     if colorspace in LINEAR_COLORSPACES:
-        #non color data, tell mitsuba not to apply gamma conversion to it
+        #non color data, tell misuka not to apply gamma conversion to it
         params['raw'] = True
     elif colorspace != 'sRGB':
         export_ctx.log("misuka only supports sRGB and linear textures for color data. Reading '%s' in '%s' as sRGB." % (tex_node.image.name, colorspace), 'WARN')
@@ -191,7 +191,7 @@ def convert_diffuse_materials_cycles(export_ctx, current_node):
     """
     if current_node.inputs['Roughness'].is_linked or current_node.inputs['Roughness'].default_value != 0.0:
         export_ctx.log("Warning: rough diffuse BSDF is currently not supported in misuka. Ignoring alpha parameter.", 'WARN')
-    #Rough diffuse BSDF is currently not supported in Mitsuba
+    #Rough diffuse BSDF is currently not supported in misuka
     params.update({
         'type': 'diffuse'
     })
@@ -311,7 +311,7 @@ def convert_emitter_materials_cycles(export_ctx, current_node):
     radiance = emitter_radiance(export_ctx, current_node)
 
     if np.sum(radiance) == 0:
-        export_ctx.log("Emitter has zero emission, this will case mitsuba to fail! Ignoring it.", 'WARN')
+        export_ctx.log("Emitter has zero emission, this will case misuka to fail! Ignoring it.", 'WARN')
         return {'type':'diffuse', 'reflectance': export_ctx.spectrum(0)}
 
     params = {
@@ -527,9 +527,9 @@ def convert_principled_materials_cycles(export_ctx, current_node):
     })
 
     # NOTE: Blender uses the 'specular' value for dielectric/metallic reflections and the
-    #       'IOR' value for transmission. Mitsuba only has one value for both which can either
+    #       'IOR' value for transmission. misuka only has one value for both which can either
     #       be defined by 'specular' or 'eta' ('specular' will be converted into the corresponding
-    #       'eta' value by Mitsuba).
+    #       'eta' value by misuka).
     if type(specular_trans) is not float or specular_trans > 0:
         # Export 'eta' if the material has a transmission component
         params.update({
@@ -574,7 +574,7 @@ def emits(node):
     return False
 
 def cycles_material_to_dict(export_ctx, node, material):
-    ''' Converting one material from Blender to Mitsuba dict'''
+    ''' Converting one material from Blender to Misuka dict'''
 
     # An acoustic export reads the coefficients off the material, so every
     # shader that only reflects becomes the same acousticbsdf whatever node
@@ -607,7 +607,7 @@ def get_dummy_material(export_ctx, b_mat):
     }
 
 def b_material_to_dict(export_ctx, b_mat):
-    ''' Converting one material from Blender / Cycles to Mitsuba'''
+    ''' Converting one material from Blender / Cycles to Misuka'''
 
     mat_params = {}
 
@@ -663,7 +663,7 @@ def export_material(export_ctx, material):
     else:
         if mat_params['type'] == 'area': # Emitter with no bsdf
             mats = {}
-            # Every object in mitsuba carries a bsdf, so an emitter needs one
+            # Every object in misuka carries a bsdf, so an emitter needs one
             # it does not interact with. A visual render wants the emitter
             # shadeless, which a black diffuse gives. An acoustic one wants the
             # emitter transparent: a black diffuse absorbs everything that hits

@@ -185,7 +185,7 @@ def export(scene, out_dir, export_mode):
     path = os.path.join(str(out_dir), f'shoebox_{export_mode.lower()}.xml')
 
     with bpy.context.temp_override(scene=scene):
-        result = bpy.ops.export_scene.mitsuba(
+        result = bpy.ops.export_scene.misuka(
             filepath=path, export_mode=export_mode, ignore_background=True,
             allow_multiple_emitters=True)
 

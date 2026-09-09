@@ -78,7 +78,7 @@ See [Specular Reflection](../guide/acoustic-materials.md#specular-reflection).
 
 ## Scene properties
 
-These live on `scene.mitsuba`, and they drive the [Acoustic Format](../guide/scene-settings.md) panel.
+These live on `scene.misuka`, and they drive the [Acoustic Format](../guide/scene-settings.md) panel.
 
 `acoustic_band_resolution`
 
@@ -106,10 +106,10 @@ Each export mode has a sampler and a reconstruction filter of its own on the cam
 Both start on `independent` and `gaussian`:
 
 ```python
-mitsuba = camera.data.mitsuba
-mitsuba.acoustic_samplers.independent.sample_count = 2**20
-mitsuba.visual_samplers.independent.sample_count = 128
-mitsuba.acoustic_rfilters.gaussian.stddev = 0.5
+settings = camera.data.misuka
+settings.acoustic_samplers.independent.sample_count = 2**20
+settings.visual_samplers.independent.sample_count = 128
+settings.acoustic_rfilters.gaussian.stddev = 0.5
 ```
 
 `acoustic_sampler` / `visual_sampler`
@@ -162,7 +162,7 @@ Set two absorption bands on every material in the scene, then interpolate the re
 ```python
 import bpy
 
-bpy.context.scene.mitsuba.acoustic_band_resolution = 'THIRD_OCTAVE'
+bpy.context.scene.misuka.acoustic_band_resolution = 'THIRD_OCTAVE'
 
 for mat in bpy.data.materials:
     mat.acoustic_abs_125 = 0.1

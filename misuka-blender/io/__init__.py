@@ -598,7 +598,7 @@ class AcousticPanel:
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "material"
-    COMPAT_ENGINES = {'MITSUBA'}
+    COMPAT_ENGINES = {'MISUKA'}
 
     @classmethod
     def poll(cls, context):
@@ -961,9 +961,9 @@ def count_emitters(scene, limit=2):
 
 @short_axis_labels
 @orientation_helper(axis_forward='Y', axis_up='Z')
-class ExportMitsuba(bpy.types.Operator, ExportHelper):
+class ExportMisuka(bpy.types.Operator, ExportHelper):
     """Export as a misuka scene"""
-    bl_idname = "export_scene.mitsuba"
+    bl_idname = "export_scene.misuka"
     bl_label = "misuka Export"
 
     filename_ext = ".xml"
@@ -1063,7 +1063,7 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
                        "Multiple emitters")
 
     def execute(self, context):
-        # Conversion matrix to shift the "Up" Vector. This can be useful when exporting single objects to an existing mitsuba scene.
+        # Conversion matrix to shift the "Up" Vector. This can be useful when exporting single objects to an existing misuka scene.
         axis_mat = axis_conversion(
 	            to_forward=self.axis_forward,
 	            to_up=self.axis_up,
@@ -1071,10 +1071,10 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
 
         self.converter.export_ctx.axis_mat = axis_mat
         self.converter.export_ctx.acoustic_mode = self.export_mode == 'ACOUSTIC'
-        mts_settings = context.scene.mitsuba
-        self.converter.export_ctx.acoustic_band_resolution = mts_settings.acoustic_band_resolution
-        self.converter.export_ctx.acoustic_time_bins = acoustic_bands.time_bins(mts_settings)
-        self.converter.export_ctx.acoustic_max_time = mts_settings.acoustic_max_time
+        mi_settings = context.scene.misuka
+        self.converter.export_ctx.acoustic_band_resolution = mi_settings.acoustic_band_resolution
+        self.converter.export_ctx.acoustic_time_bins = acoustic_bands.time_bins(mi_settings)
+        self.converter.export_ctx.acoustic_max_time = mi_settings.acoustic_max_time
 
         self.converter.use_selection = self.use_selection
         self.converter.ignore_background = self.ignore_background
@@ -1105,11 +1105,11 @@ class ExportMitsuba(bpy.types.Operator, ExportHelper):
 
 
 def menu_export_func(self, context):
-    self.layout.operator(ExportMitsuba.bl_idname, text="misuka (.xml)")
+    self.layout.operator(ExportMisuka.bl_idname, text="misuka (.xml)")
 
 
 classes = (
-    ExportMitsuba,
+    ExportMisuka,
     ACOUSTIC_PT_material,
     ACOUSTIC_PT_database,
     ACOUSTIC_PT_coefficients,

@@ -66,7 +66,7 @@ def create_plugin_props(name, arg_dict, depth=1, prefix="", overrides=None):
     Params
     ------
 
-    name: the name of the Mitsuba plugin
+    name: the name of the Misuka plugin
     arg_dict: the labels, description and properties defined in the JSON plugin files
     depth: Recursion depth (for nested plugins, e.g. Stokes integrator) We only allow a certain amount of nesting, to avoid infinite definition of properties
     prefix: Prefix to use to declare a class with a unique name
@@ -190,9 +190,9 @@ def create_plugin_props(name, arg_dict, depth=1, prefix="", overrides=None):
                     bpy.utils.register_class(collection_props)
                     def find_class(self, context):
                         '''
-                        Look for the given class in the mitsuba settings
+                        Look for the given class in the misuka settings
                         '''
-                        settings = getattr(context.scene.mitsuba.available_integrators, context.scene.mitsuba.visual_integrator)
+                        settings = getattr(context.scene.misuka.available_integrators, context.scene.misuka.visual_integrator)
                         while True:
                             for param in dir(settings):
                                 prop = getattr(settings, param)
@@ -281,7 +281,7 @@ def create_plugin_props(name, arg_dict, depth=1, prefix="", overrides=None):
 
     def to_dict(self):
         '''
-        Function that converts the plugin into a dict that can be loaded or saved by mitsuba's API
+        Function that converts the plugin into a dict that can be loaded or saved by misuka's API
         '''
         plugin_params = {'type' : name}
         if 'parameters' in self.args:
@@ -295,7 +295,7 @@ def create_plugin_props(name, arg_dict, depth=1, prefix="", overrides=None):
                     list_type = param['values_type']
                     if list_type == 'integrator':
                         for integrator in self.integrators.collection:
-                            # Make sure we don't have any leading underscores for names - Mitsuba will otherwise complain!
+                            # Make sure we don't have any leading underscores for names - Misuka will otherwise complain!
                             plugin_params[integrator.name.lstrip('_')] = getattr(integrator.available_integrators, integrator.active_integrator).to_dict()
                     elif list_type == 'string':
                         selected_items = []
@@ -307,9 +307,9 @@ def create_plugin_props(name, arg_dict, depth=1, prefix="", overrides=None):
     setattr(plugin_props, "to_dict", to_dict)
     return plugin_props
 
-class MitsubaRenderSettings(PropertyGroup):
+class MisukaRenderSettings(PropertyGroup):
     '''
-    Mitsuba main rendering properties
+    Misuka main rendering properties
     It creates classes for each plugin described in the JSON files dynamically.
     '''
 
@@ -387,7 +387,7 @@ class MitsubaRenderSettings(PropertyGroup):
 
     @classmethod
     def register(cls):
-        bpy.types.Scene.mitsuba = PointerProperty(
+        bpy.types.Scene.misuka = PointerProperty(
             name="misuka Render Settings",
             description="misuka render settings",
             type=cls,
@@ -395,11 +395,11 @@ class MitsubaRenderSettings(PropertyGroup):
 
     @classmethod
     def unregister(cls):
-        del bpy.types.Scene.mitsuba
+        del bpy.types.Scene.misuka
 
-class MitsubaCameraSettings(PropertyGroup):
+class MisukaCameraSettings(PropertyGroup):
     '''
-    Mitsuba main camera properties
+    Misuka main camera properties
     It creates classes for each plugin described in the JSON files for rfilters and samplers dynamically.
     '''
 
@@ -478,7 +478,7 @@ class MitsubaCameraSettings(PropertyGroup):
 
     @classmethod
     def register(cls):
-        bpy.types.Camera.mitsuba = PointerProperty(
+        bpy.types.Camera.misuka = PointerProperty(
             name="misuka Camera Settings",
             description="misuka camera settings",
             type=cls,
@@ -486,9 +486,9 @@ class MitsubaCameraSettings(PropertyGroup):
 
     @classmethod
     def unregister(cls):
-        del bpy.types.Camera.mitsuba
+        del bpy.types.Camera.misuka
 
-class MitsubaModePanel(bpy.types.Panel):
+class MisukaModePanel(bpy.types.Panel):
     '''
     Base for every panel that belongs to one export mode.
 
@@ -501,52 +501,52 @@ class MitsubaModePanel(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = 'render'
-    COMPAT_ENGINES = {'MITSUBA'}
+    COMPAT_ENGINES = {'MISUKA'}
 
     @classmethod
     def poll(cls, context):
         return context.engine in cls.COMPAT_ENGINES
 
 
-class MITSUBA_RENDER_PT_acoustic(MitsubaModePanel):
-    bl_idname = "MITSUBA_RENDER_PT_acoustic"
+class MISUKA_RENDER_PT_acoustic(MisukaModePanel):
+    bl_idname = "MISUKA_RENDER_PT_acoustic"
     bl_label = "Acoustic"
 
     def draw(self, context):
         pass
 
 
-class MITSUBA_RENDER_PT_visual(MitsubaModePanel):
-    bl_idname = "MITSUBA_RENDER_PT_visual"
+class MISUKA_RENDER_PT_visual(MisukaModePanel):
+    bl_idname = "MISUKA_RENDER_PT_visual"
     bl_label = "Visual"
 
     def draw(self, context):
         pass
 
 
-class MitsubaIntegratorPanel(MitsubaModePanel):
+class MisukaIntegratorPanel(MisukaModePanel):
     bl_label = "Integrator"
 
     def draw(self, context):
         layout = self.layout
-        mts_settings = context.scene.mitsuba
-        active = getattr(mts_settings, self.integrator_prop)
-        layout.prop(mts_settings, self.integrator_prop, text="Integrator")
-        getattr(mts_settings.available_integrators, active).draw(layout)
+        mi_settings = context.scene.misuka
+        active = getattr(mi_settings, self.integrator_prop)
+        layout.prop(mi_settings, self.integrator_prop, text="Integrator")
+        getattr(mi_settings.available_integrators, active).draw(layout)
 
 
-class MITSUBA_RENDER_PT_integrator_acoustic(MitsubaIntegratorPanel):
-    bl_idname = "MITSUBA_RENDER_PT_integrator_acoustic"
-    bl_parent_id = "MITSUBA_RENDER_PT_acoustic"
+class MISUKA_RENDER_PT_integrator_acoustic(MisukaIntegratorPanel):
+    bl_idname = "MISUKA_RENDER_PT_integrator_acoustic"
+    bl_parent_id = "MISUKA_RENDER_PT_acoustic"
     integrator_prop = "acoustic_integrator"
 
 
-class MITSUBA_RENDER_PT_integrator_visual(MitsubaIntegratorPanel):
-    bl_idname = "MITSUBA_RENDER_PT_integrator_visual"
-    bl_parent_id = "MITSUBA_RENDER_PT_visual"
+class MISUKA_RENDER_PT_integrator_visual(MisukaIntegratorPanel):
+    bl_idname = "MISUKA_RENDER_PT_integrator_visual"
+    bl_parent_id = "MISUKA_RENDER_PT_visual"
     integrator_prop = "visual_integrator"
 
-class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
+class MISUKA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
     '''
     Acoustic counterpart to Blender's Format panel.
 
@@ -555,12 +555,12 @@ class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
     misuka engine, so this panel is gated on it like the rest of the acoustic UI.
     '''
 
-    bl_idname = "MITSUBA_OUTPUT_PT_acoustic_film"
+    bl_idname = "MISUKA_OUTPUT_PT_acoustic_film"
     bl_label = "Acoustic Format"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = 'output'
-    COMPAT_ENGINES = {'MITSUBA'}
+    COMPAT_ENGINES = {'MISUKA'}
 
 
     @classmethod
@@ -575,31 +575,31 @@ class MITSUBA_OUTPUT_PT_acoustic_film(bpy.types.Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        mts_settings = context.scene.mitsuba
+        mi_settings = context.scene.misuka
 
         col = layout.column()
-        col.prop(mts_settings, "acoustic_band_resolution")
+        col.prop(mi_settings, "acoustic_band_resolution")
 
         frequencies = acoustic_bands.resolution_frequencies(
-            mts_settings.acoustic_band_resolution
+            mi_settings.acoustic_band_resolution
         )
         col.label(
             text=f"{len(frequencies)} bands, "
                  f"{frequencies[0]} Hz to {frequencies[-1] / 1000:g} kHz"
         )
 
-        col.prop(mts_settings, "acoustic_interpolation")
+        col.prop(mi_settings, "acoustic_interpolation")
 
         col = layout.column()
-        col.prop(mts_settings, "acoustic_max_time")
-        col.prop(mts_settings, "acoustic_sampling_rate")
+        col.prop(mi_settings, "acoustic_max_time")
+        col.prop(mi_settings, "acoustic_sampling_rate")
 
         # The film takes a bin count; showing what the two settings work out to
         # keeps the cost of raising either of them visible.
-        col.label(text=f"{acoustic_bands.time_bins(mts_settings)} time bins")
+        col.label(text=f"{acoustic_bands.time_bins(mi_settings)} time bins")
 
 
-class MitsubaSamplerPanel(MitsubaModePanel):
+class MisukaSamplerPanel(MisukaModePanel):
     '''
     The sample count each mode wants is orders of magnitude apart, so they are
     set up independently rather than sharing one panel with two counts in it.
@@ -610,26 +610,26 @@ class MitsubaSamplerPanel(MitsubaModePanel):
     def draw(self, context):
         layout = self.layout
         if hasattr(context.scene.camera, 'data'):
-            cam_settings = context.scene.camera.data.mitsuba
+            cam_settings = context.scene.camera.data.misuka
             active = getattr(cam_settings, self.sampler_prop)
             layout.prop(cam_settings, self.sampler_prop, text="Sampler")
             getattr(getattr(cam_settings, self.samplers_prop), active).draw(layout)
 
 
-class MITSUBA_CAMERA_PT_sampler_acoustic(MitsubaSamplerPanel):
-    bl_idname = "MITSUBA_CAMERA_PT_sampler_acoustic"
-    bl_parent_id = "MITSUBA_RENDER_PT_acoustic"
+class MISUKA_CAMERA_PT_sampler_acoustic(MisukaSamplerPanel):
+    bl_idname = "MISUKA_CAMERA_PT_sampler_acoustic"
+    bl_parent_id = "MISUKA_RENDER_PT_acoustic"
     sampler_prop = "acoustic_sampler"
     samplers_prop = "acoustic_samplers"
 
 
-class MITSUBA_CAMERA_PT_sampler_visual(MitsubaSamplerPanel):
-    bl_idname = "MITSUBA_CAMERA_PT_sampler_visual"
-    bl_parent_id = "MITSUBA_RENDER_PT_visual"
+class MISUKA_CAMERA_PT_sampler_visual(MisukaSamplerPanel):
+    bl_idname = "MISUKA_CAMERA_PT_sampler_visual"
+    bl_parent_id = "MISUKA_RENDER_PT_visual"
     sampler_prop = "visual_sampler"
     samplers_prop = "visual_samplers"
 
-class MitsubaRfilterPanel(MitsubaModePanel):
+class MisukaRfilterPanel(MisukaModePanel):
     '''
     An acoustic export smooths across time bins and a visual one across pixels,
     so the two want different filters and are set up independently.
@@ -640,52 +640,52 @@ class MitsubaRfilterPanel(MitsubaModePanel):
     def draw(self, context):
         layout = self.layout
         if hasattr(context.scene.camera, 'data'):
-            cam_settings = context.scene.camera.data.mitsuba
+            cam_settings = context.scene.camera.data.misuka
             active = getattr(cam_settings, self.rfilter_prop)
             layout.prop(cam_settings, self.rfilter_prop, text="Filter")
             getattr(getattr(cam_settings, self.rfilters_prop), active).draw(layout)
 
 
-class MITSUBA_CAMERA_PT_rfilter_acoustic(MitsubaRfilterPanel):
-    bl_idname = "MITSUBA_CAMERA_PT_rfilter_acoustic"
-    bl_parent_id = "MITSUBA_RENDER_PT_acoustic"
+class MISUKA_CAMERA_PT_rfilter_acoustic(MisukaRfilterPanel):
+    bl_idname = "MISUKA_CAMERA_PT_rfilter_acoustic"
+    bl_parent_id = "MISUKA_RENDER_PT_acoustic"
     rfilter_prop = "acoustic_rfilter"
     rfilters_prop = "acoustic_rfilters"
 
 
-class MITSUBA_CAMERA_PT_rfilter_visual(MitsubaRfilterPanel):
-    bl_idname = "MITSUBA_CAMERA_PT_rfilter_visual"
-    bl_parent_id = "MITSUBA_RENDER_PT_visual"
+class MISUKA_CAMERA_PT_rfilter_visual(MisukaRfilterPanel):
+    bl_idname = "MISUKA_CAMERA_PT_rfilter_visual"
+    bl_parent_id = "MISUKA_RENDER_PT_visual"
     rfilter_prop = "visual_rfilter"
     rfilters_prop = "visual_rfilters"
 
 # Panels are drawn in registration order, both the headings and what sits under
 # one, and an acoustic export is what the add-on is for, so Acoustic leads.
 PANELS = (
-    MITSUBA_RENDER_PT_acoustic,
-    MITSUBA_RENDER_PT_integrator_acoustic,
-    MITSUBA_CAMERA_PT_sampler_acoustic,
-    MITSUBA_CAMERA_PT_rfilter_acoustic,
-    MITSUBA_RENDER_PT_visual,
-    MITSUBA_RENDER_PT_integrator_visual,
-    MITSUBA_CAMERA_PT_sampler_visual,
-    MITSUBA_CAMERA_PT_rfilter_visual,
-    MITSUBA_OUTPUT_PT_acoustic_film,
+    MISUKA_RENDER_PT_acoustic,
+    MISUKA_RENDER_PT_integrator_acoustic,
+    MISUKA_CAMERA_PT_sampler_acoustic,
+    MISUKA_CAMERA_PT_rfilter_acoustic,
+    MISUKA_RENDER_PT_visual,
+    MISUKA_RENDER_PT_integrator_visual,
+    MISUKA_CAMERA_PT_sampler_visual,
+    MISUKA_CAMERA_PT_rfilter_visual,
+    MISUKA_OUTPUT_PT_acoustic_film,
 )
 
 
 def register():
     from . import panels
     panels.register()
-    bpy.utils.register_class(MitsubaRenderSettings)
-    bpy.utils.register_class(MitsubaCameraSettings)
+    bpy.utils.register_class(MisukaRenderSettings)
+    bpy.utils.register_class(MisukaCameraSettings)
     for panel in PANELS:
         bpy.utils.register_class(panel)
 
 def unregister():
     from . import panels
     panels.unregister()
-    bpy.utils.unregister_class(MitsubaRenderSettings)
-    bpy.utils.unregister_class(MitsubaCameraSettings)
+    bpy.utils.unregister_class(MisukaRenderSettings)
+    bpy.utils.unregister_class(MisukaCameraSettings)
     for panel in reversed(PANELS):
         bpy.utils.unregister_class(panel)

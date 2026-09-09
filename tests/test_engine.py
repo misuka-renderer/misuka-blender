@@ -23,8 +23,8 @@ def test_the_engine_is_registered_and_selectable():
     '''Selecting it is what puts the acoustic settings in front of the user.'''
     # An add-on engine is not in the enum's static items, so assigning it is
     # the check: an unregistered identifier raises here.
-    bpy.context.scene.render.engine = 'MITSUBA'
-    assert bpy.context.scene.render.engine == 'MITSUBA'
+    bpy.context.scene.render.engine = 'MISUKA'
+    assert bpy.context.scene.render.engine == 'MISUKA'
 
 
 def test_the_panels_poll_under_the_engine():
@@ -33,10 +33,10 @@ def test_the_panels_poll_under_the_engine():
     polling would take the whole acoustic UI with it.
     '''
     properties = importlib.import_module('misuka-blender.engine.properties')
-    panel = properties.MITSUBA_RENDER_PT_acoustic
+    panel = properties.MISUKA_RENDER_PT_acoustic
 
-    bpy.context.scene.render.engine = 'MITSUBA'
-    assert 'MITSUBA' in panel.COMPAT_ENGINES
+    bpy.context.scene.render.engine = 'MISUKA'
+    assert 'MISUKA' in panel.COMPAT_ENGINES
     assert panel.poll(bpy.context)
 
     bpy.context.scene.render.engine = 'CYCLES'
@@ -48,7 +48,7 @@ def test_the_engine_claims_no_previews():
     Blender asks an engine that claims previews to render material and world
     thumbnails, which would be a scene load per thumbnail.
     '''
-    assert engine_module.MitsubaRenderEngine.bl_use_preview is False
+    assert engine_module.MisukaRenderEngine.bl_use_preview is False
 
 
 def test_the_engine_reports_instead_of_rendering():
@@ -64,7 +64,7 @@ def test_the_engine_reports_instead_of_rendering():
         def report(self, level, message):
             reported.append((level, message))
 
-    engine_module.MitsubaRenderEngine.render(Stub(), depsgraph=None)
+    engine_module.MisukaRenderEngine.render(Stub(), depsgraph=None)
 
     assert reported, 'rendering said nothing at all'
     level, message = reported[0]

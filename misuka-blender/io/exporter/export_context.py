@@ -80,7 +80,7 @@ class ExportContext:
             'spectrum': 'spectra'
                             }
         self.acoustic_mode = False #default
-        # Mirrored from scene.mitsuba at export time, so the exporter does not
+        # Mirrored from scene.misuka at export time, so the exporter does not
         # need the Blender scene on hand.
         self.acoustic_band_resolution = 'OCTAVE'
         self.acoustic_time_bins = 2000
@@ -123,29 +123,29 @@ class ExportContext:
             return [self.sanitize_refs(item) for item in value]
         return value
 
-    def data_add(self, mts_dict, name=''):
+    def data_add(self, mi_dict, name=''):
         '''
         Function to add new elements to the scene dict.
         If a name is provided it will be used as the key of the element.
         Otherwise the Id of the element is used if it exists
         or a new key is generated incrementally.
         '''
-        if mts_dict is None or not isinstance(mts_dict, dict) or len(mts_dict) == 0 or 'type' not in mts_dict:
+        if mi_dict is None or not isinstance(mi_dict, dict) or len(mi_dict) == 0 or 'type' not in mi_dict:
             return False
 
         if not name:
             try:
-                name = mts_dict['id']
+                name = mi_dict['id']
                 #remove the corresponding entry
-                del mts_dict['id']
+                del mi_dict['id']
 
             except KeyError:
                 name = 'elm__%i' % self.counter
 
         name = self.sanitize_id(name)
-        mts_dict = self.sanitize_refs(mts_dict)
+        mi_dict = self.sanitize_refs(mi_dict)
 
-        self.scene_data.update([(name, mts_dict)])
+        self.scene_data.update([(name, mi_dict)])
         self.counter += 1
 
         return True
@@ -175,7 +175,7 @@ class ExportContext:
 
     def log(self, message, level='INFO'):
         '''
-        Log something using mitsuba's logging API
+        Log something using misuka's logging API
 
         Params
         ------
@@ -202,7 +202,7 @@ class ExportContext:
 
         image : The Blender Image object
         """
-        # TODO: don't save packed images but convert them to a mitsuba texture, and let the XML writer save
+        # TODO: don't save packed images but convert them to a misuka texture, and let the XML writer save
         textures_folder = os.path.join(self.directory, self.subfolders['texture'])
         if image.file_format in convert_format:
             msg = "Image format of '%s' is not supported. Converting it to %s." % (image.name, convert_format[image.file_format])
@@ -271,7 +271,7 @@ class ExportContext:
 
     def transform_matrix(self, matrix):
         '''
-        Apply coordinate shift and convert to a mitsuba Transform 4f
+        Apply coordinate shift and convert to a misuka Transform 4f
         '''
         from misuka import ScalarTransform4f
         if len(matrix) == 4:

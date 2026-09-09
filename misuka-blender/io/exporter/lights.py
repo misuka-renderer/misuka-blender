@@ -5,9 +5,9 @@ from .export_context import Files
 def convert_area_light(b_light, export_ctx):
     params = {}
 
-    # Mitsuba default disks and rectangles are twice as big as blender's
+    # misuka default disks and rectangles are twice as big as blender's
     scale_mat = Matrix.Scale(0.5, 4)
-    # Mitsuba default disks and rectangles face up and blender's face down
+    # misuka default disks and rectangles face up and blender's face down
     params['flip_normals'] = True
 
     #Compute area and scale
@@ -57,7 +57,7 @@ def convert_area_light(b_light, export_ctx):
 
 def convert_point_light(b_light, export_ctx):
 
-    # normal mitsuba mode
+    # normal misuka mode
     if not export_ctx.acoustic_mode:
 
         if b_light.data.shadow_soft_size:

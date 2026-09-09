@@ -85,7 +85,7 @@ def resolution_frequencies(resolution):
     return active_bands(resolution)[0]
 
 
-def time_bins(mts_settings):
+def time_bins(mi_settings):
     '''
     Number of time samples the tape film records.
 
@@ -93,8 +93,8 @@ def time_bins(mts_settings):
     by how long it is and how finely it is sampled, so those are what the UI
     asks for.
     '''
-    return max(round(mts_settings.acoustic_max_time
-                     * mts_settings.acoustic_sampling_rate), 1)
+    return max(round(mi_settings.acoustic_max_time
+                     * mi_settings.acoustic_sampling_rate), 1)
 
 
 def scene_resolution(scene):
@@ -104,13 +104,13 @@ def scene_resolution(scene):
     Falls back to the default when the misuka scene settings are not registered,
     which keeps the material panel drawable in isolation.
     '''
-    settings = getattr(scene, 'mitsuba', None)
+    settings = getattr(scene, 'misuka', None)
     return getattr(settings, 'acoustic_band_resolution', 'OCTAVE')
 
 
 def scene_interpolation(scene):
     '''The frequency axis a scene interpolates along. See scene_resolution.'''
-    settings = getattr(scene, 'mitsuba', None)
+    settings = getattr(scene, 'misuka', None)
     return getattr(settings, 'acoustic_interpolation', 'LOG')
 
 

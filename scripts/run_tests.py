@@ -59,7 +59,7 @@ class SetupPlugin:
         if bpy.ops.preferences.addon_enable(module='misuka-blender') != {'FINISHED'}:
             raise RuntimeError('Cannot enable misuka-blender addon')
 
-        if not bpy.context.preferences.addons['misuka-blender'].preferences.is_mitsuba_initialized:
+        if not bpy.context.preferences.addons['misuka-blender'].preferences.is_misuka_initialized:
             raise RuntimeError('Failed to initialize misuka library')
 
     def pytest_unconfigure(self):

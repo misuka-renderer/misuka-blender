@@ -26,9 +26,9 @@ on:
           not run on pull requests.
         required: false
 
-# Keep in sync with DEPS_MITSUBA_VERSION in misuka-blender/__init__.py
+# Keep in sync with DEPS_MISUKA_VERSION in misuka-blender/__init__.py
 env:
-  DEPS_MITSUBA_VERSION: "0.1.0"
+  DEPS_MISUKA_VERSION: "0.1.0"
 
 jobs:
   test:
@@ -76,13 +76,13 @@ jobs:
         BLENDER_PYTHON=$(find blender/ -regextype posix-extended -regex '.*bin\/python(.exe|[0-9].[0-9]{1,2}m?)' -print -quit)
         echo "Blender Python is $BLENDER_PYTHON"
         uv pip install --python "$BLENDER_PYTHON" --upgrade pytest pytest-cov
-        if ! uv pip install --python "$BLENDER_PYTHON" "misuka==$DEPS_MITSUBA_VERSION" --reinstall; then
+        if ! uv pip install --python "$BLENDER_PYTHON" "misuka==$DEPS_MISUKA_VERSION" --reinstall; then
           # Take *only* misuka from TestPyPI. Its /simple/ pages for other projects
           # are unreliable - drjit's returns 503 - so letting the resolver reach it
           # for dependencies makes every install hostage to that.
           REQS="${RUNNER_TEMP:-/tmp}/misuka-requirements.txt"
           uv pip install --python "$BLENDER_PYTHON" --reinstall --no-deps \
-            --index-url https://test.pypi.org/simple/ "misuka==$DEPS_MITSUBA_VERSION"
+            --index-url https://test.pypi.org/simple/ "misuka==$DEPS_MISUKA_VERSION"
           # Then satisfy misuka's own requirements from PyPI, read from its metadata
           # so this doesn't need updating when they change.
           "$BLENDER_PYTHON" -c "import importlib.metadata as md; print('\n'.join(md.requires('misuka') or []))" > "$REQS"

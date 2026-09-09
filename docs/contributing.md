@@ -62,7 +62,7 @@ One badge workflow per cell exists so the README table can show each combination
 
 :::{warning}
 
-`DEPS_MITSUBA_VERSION` appears twice and the two must match: `misuka-blender/__init__.py` and `.github/workflows/test-suite.yml`.
+`DEPS_MISUKA_VERSION` appears twice and the two must match: `misuka-blender/__init__.py` and `.github/workflows/test-suite.yml`.
 The workflow says so in a comment.
 
 :::
